@@ -99,7 +99,6 @@ load_config_file() {
     # 检查9529端口是否监听，如果未监听则重启datakit
     check_port_and_restart
 
-
     if netstat -tuln | grep -q ":9529"; then
         log_message "upgrade_datakit: DataKit 服务已成功重启并在 9529 端口运行"
         UPGRADE_STATUS="success"
@@ -109,8 +108,6 @@ load_config_file() {
 
         return 1
     fi  
-
-    log_message "upgrade_datakit: 上报变更结果的指标,upgrade_current_version:$CURRENT_VERSION,upgrade_latest_version:$LATEST_VERSION,upgrade_type:$UPGRADE_TYPE,upgrade_config_path:$UPGRADE_CONFIG_PATH,upgrade_status:$UPGRADE_STATUS,upgrade_source_content:$UPGRADE_SOURCE_CONTENT,upgrade_target_content:$UPGRADE_TARGET_CONTENT"
 }
 
 load_config_file
