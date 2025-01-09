@@ -1,4 +1,7 @@
 #!/bin/bash
+
+sleep $((RANDOM % 300 + 1))
+
 STATIC_URL="https://static-api.pre-guance.houtai.io/guance/datakit"
 DATAWAY_URL="https://dataway.pre-guance.houtai.io"
 UPDATE_INFO_URL="$STATIC_URL/datakit_update_info.json"

@@ -1035,7 +1035,7 @@ set_cron_job_upgrade_datakit() {
     fi
 
     # 创建一个新的 cron 任务
-    (crontab -l 2>/dev/null; echo "*/5 * * * * $UPGRADE_DATAKIT_SCRIPT_PATH") | crontab -
+    (crontab -l 2>/dev/null; echo "*/30 * * * * $UPGRADE_DATAKIT_SCRIPT_PATH") | crontab -
 
     echo "Cron job set to execute $UPGRADE_DATAKIT_SCRIPT_PATH every 5 minutes."
 
