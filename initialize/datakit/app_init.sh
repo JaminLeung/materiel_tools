@@ -488,7 +488,7 @@ process_health() {
 # 生成临时配置文件
 run_main() {
     # 读取 JSON 数据并解析
-    services=$(jq -c '.data.[]' tmp.json)
+    services=$(jq -c '.data[]' tmp.json)
     log_message "app_init: services: $services"
 
     for service in $services; do
