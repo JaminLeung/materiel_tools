@@ -141,7 +141,7 @@ fetch_json_from_ops() {
     sleep $random_number
 
     # 将响应结果保存到 tmp.json 文件，并获取 HTTP 状态码
-    http_code=$(curl -s -o tmp.json -w "%{http_code}" -X POST "$url" \
+    http_code=$(curl -s -o /opt/datakit/tmp.json -w "%{http_code}" -X POST "$url" \
         -H "Authorization: Token $OPS_TOKEN" \
         -H "Content-Type: application/json;charset=UTF-8" \
         -d "{\"server_ip\": \"$server_ip\"}" \
@@ -169,7 +169,7 @@ fetch_json_from_ops() {
     fi
 
     # 判断 response 是否为json 格式    
-    if jq empty tmp.json; then
+    if jq empty /opt/datakit/tmp.json; then
         log_message "app_init: 响应结果已保存到 tmp.json"
     else
         log_message "app_init: 响应结果不是有效的 JSON 格式"
@@ -488,7 +488,7 @@ process_health() {
 # 生成临时配置文件
 run_main() {
     # 读取 JSON 数据并解析
-    services=$(jq -c '.data[]' tmp.json)
+    services=$(jq -c '.data[]' /opt/datakit/tmp.json)
     log_message "app_init: services: $services"
 
     for service in $services; do
@@ -589,7 +589,7 @@ check_port_and_restart() {
 fetch_json_from_ops
 
 # 判断 tmp.json 是否存在，并且是否为json格式
-if [ ! -f "tmp.json" ] || ! jq empty "tmp.json"; then
+if [ ! -f "/opt/datakit/tmp.json" ] || ! jq empty "/opt/datakit/tmp.json"; then
     log_message "app_init: 【ERROR】tmp.json 文件不存在或不是有效的 JSON 格式"
     exit 1
 fi
