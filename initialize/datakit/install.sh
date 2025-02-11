@@ -61,6 +61,9 @@ if [[ "$GLOBAL_CODE" == "ox" && "$GLOBAL_ENV" == "ops" ]]; then
     DK_DATAWAY="https://dataway.pre-guance.houtai.io?token=tkn_a9c417771c1349f4a15f5031806b03f5"
 	# DK_DATAWAY="http://dataway.bingbon.dataflux.cn?token=tkn_7b01611e811d43d0bf2d0cea93e06b78"
 
+elif [[ "$GLOBAL_CODE" == "ox" && "$GLOBAL_ENV" == "bigdata" ]]; then
+    DK_DATAWAY="https://dataway.pre-guance.houtai.io?token=tkn_598a4f64d5e84b8b939a54a32c25e3d3"
+
 elif [[ "$GLOBAL_CODE" == "ox" && "$GLOBAL_ENV" != "ops" ]]; then
     DK_DATAWAY="https://dataway.pre-guance.houtai.io?token=tkn_48c619fd1aee4d08abd2e2405e604cb5"
 	# DK_DATAWAY="http://dataway.bingbon.dataflux.cn?token=tkn_cc5ee67b5a10451da643d2e9b7613c8c"
