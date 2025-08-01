@@ -1,0 +1,12 @@
+{
+    "test_name": "initialize",
+    "timestamp": "2025-08-01T12:09:08+08:00",
+    "duration_seconds": 0,
+    "summary": {
+        "total": 29,
+        "passed": 9,
+        "failed": 17,
+        "skipped": 3,
+        "success_rate": 31.03
+    }
+}

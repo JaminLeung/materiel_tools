@@ -1,0 +1,12 @@
+{
+    "test_name": "logging",
+    "timestamp": "2025-08-01T12:06:18+08:00",
+    "duration_seconds": 0,
+    "summary": {
+        "total": 39,
+        "passed": 25,
+        "failed": 14,
+        "skipped": 0,
+        "success_rate": 64.10
+    }
+}
