@@ -6,6 +6,16 @@
 # 功能: Datakit配置、采集器配置、资源限制设置、全局标签配置
 #=================================================
 
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CORE_DIR="$(dirname "$SCRIPT_DIR")/core"
+
+# Source外部脚本
+source "$CORE_DIR/logging.sh" 2>/dev/null || echo "警告: 无法加载logging.sh" >&2
+source "$CORE_DIR/utils.sh" 2>/dev/null || echo "警告: 无法加载utils.sh" >&2
+source "$CORE_DIR/initialize.sh" 2>/dev/null || echo "警告: 无法加载initialize.sh" >&2
+source "$CORE_DIR/validation.sh" 2>/dev/null || echo "警告: 无法加载validation.sh" >&2
+
 # 配置Datakit
 configure_datakit() {
     log_info "=== 步骤4: 配置Datakit ==="

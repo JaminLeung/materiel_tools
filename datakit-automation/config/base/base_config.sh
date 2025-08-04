@@ -21,12 +21,12 @@ readonly SCENARIO_DIR="$PROJECT_ROOT/scenario"
 readonly LOG_FILE="${DATAKIT_LOG_FILE:-/var/log/datakit_install.log}"
 readonly LOG_LEVEL="${LOG_LEVEL:-1}"
 
-# 安装路径配置
-readonly DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-/opt/datakit_install}"
-readonly DATAKIT_BIN_DIR="/usr/local/bin"
-readonly DATAKIT_CONFIG_DIR="/usr/local/datakit/conf.d"
-readonly DATAKIT_DATA_DIR="/usr/local/datakit/data"
-readonly DATAKIT_LOG_DIR="/var/log/datakit"
+# 安装路径配置（可被环境配置覆盖）
+DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-/opt/datakit_install}"
+DATAKIT_BIN_DIR="/usr/local/bin"
+DATAKIT_CONFIG_DIR="/usr/local/datakit/conf.d"
+DATAKIT_DATA_DIR="/usr/local/datakit/data"
+DATAKIT_LOG_DIR="/var/log/datakit"
 
 # 外部脚本配置
 readonly CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}" 

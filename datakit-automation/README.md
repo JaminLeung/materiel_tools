@@ -5,7 +5,6 @@
 ```
 datakit-automation/
 ├── README.md                    # 项目说明文档
-├── changelog.md                 # 版本发布记录
 ├── installer.sh                 # 主入口脚本 (重命名)
 ├── config/                      # 配置管理
 │   ├── base/                    # 基础配置
@@ -36,20 +35,6 @@ datakit-automation/
 │   ├── backup.sh                # 备份工具
 │   ├── rollback.sh              # 回滚工具
 │   └── cleanup.sh               # 清理工具
-├── tests/                       # 单元测试模块
-│   ├── README.md                # 测试说明文档
-│   ├── run_tests.sh             # 测试运行器
-│   ├── test_utils.sh            # 测试工具函数
-│   ├── core/                    # 核心模块测试
-│   │   ├── test_utils.sh        # 工具函数测试
-│   │   ├── test_logging.sh      # 日志系统测试
-│   │   ├── test_validation.sh   # 验证系统测试
-│   │   └── test_initialize.sh   # 初始化系统测试
-│   ├── mocks/                   # 模拟数据
-│   │   └── mock_config.sh       # 模拟配置
-│   └── results/                 # 测试结果
-│       ├── test_reports/        # 测试报告
-│       └── coverage/            # 覆盖率报告
 ├── docs/                        # 文档
 │   ├── installation.md          # 安装指南
 │   ├── configuration.md         # 配置说明
@@ -110,38 +95,6 @@ export OPS_ADDR=http://ops.example.com:5000
 - `S3_SECRET_KEY`: S3秘密密钥
 - `DATAWAY_URL`: Dataway地址
 - `OPS_ADDR`: 运维平台地址
-
-## 🧪 测试
-
-### 运行测试
-```bash
-# 运行所有测试
-./tests/run_tests.sh
-
-# 运行核心模块测试
-./tests/run_tests.sh core
-
-# 运行特定模块测试
-./tests/run_tests.sh core/utils
-./tests/run_tests.sh core/logging
-./tests/run_tests.sh core/validation
-./tests/run_tests.sh core/initialize
-
-# 详细输出并并行执行
-./tests/run_tests.sh -v -p
-
-# 生成覆盖率报告
-./tests/run_tests.sh -c
-
-# 过滤测试文件
-./tests/run_tests.sh -f "utils"
-```
-
-### 测试报告
-测试完成后会在 `tests/results/` 目录下生成：
-- 测试结果摘要
-- 详细的测试报告
-- 覆盖率统计（如果启用）
 
 ## 🔧 工具使用
 

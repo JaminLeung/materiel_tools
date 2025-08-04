@@ -6,6 +6,12 @@
 # 功能: 环境变量验证、系统资源检查、网络连通性测试、配置文件验证
 #=================================================
 
+# 获取脚本所在目录
+CORE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 加载依赖模块
+source "$CORE_DIR/config_file.sh"
+
 # 验证必需的命令
 validate_required_commands() {
     local required_commands=("curl" "jq" "systemctl")
@@ -107,6 +113,8 @@ validate_network_connectivity() {
 validate_config() {
     log_info "验证配置参数..."
     local validation_passed=true
+    local missing_required=()
+    local warnings=()
     
     # 检查必需的配置项
     local required_configs=(
@@ -117,25 +125,132 @@ validate_config() {
     )
     
     for config_key in "${required_configs[@]}"; do
-        if [ -z "${CONFIG[$config_key]}" ]; then
-            log_error "缺少必需的配置项: $config_key"
+        # 支持CONFIG数组和直接环境变量两种方式
+        local config_value
+        if [ -n "${CONFIG[$config_key]}" ]; then
+            config_value="${CONFIG[$config_key]}"
+        else
+            config_value="${!config_key}"
+        fi
+        
+        if [ -z "$config_value" ]; then
+            missing_required+=("$config_key")
             validation_passed=false
         fi
     done
     
-    # 检查S3配置完整性
-    if [ -z "${CONFIG[S3_ACCESS_KEY]}" ] || [ -z "${CONFIG[S3_SECRET_KEY]}" ]; then
-        log_warning "S3访问密钥未配置，可能影响文件下载"
-        validation_passed=false
+    # 检查版本格式
+    local version_value
+    if [ -n "${CONFIG[DATAKIT_VERSION]}" ]; then
+        version_value="${CONFIG[DATAKIT_VERSION]}"
+    else
+        version_value="${DATAKIT_VERSION}"
+    fi
+    
+    if [ -n "$version_value" ]; then
+        if ! [[ "$version_value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            warnings+=("DATAKIT_VERSION格式可能不正确 (应为x.y.z格式): $version_value")
+        fi
+    fi
+    
+    # 检查S3配置
+    local bucket_value
+    if [ -n "${CONFIG[S3_BUCKET]}" ]; then
+        bucket_value="${CONFIG[S3_BUCKET]}"
+    else
+        bucket_value="${S3_BUCKET}"
+    fi
+    
+    if [ -n "$bucket_value" ]; then
+        if [[ "$bucket_value" =~ [^a-zA-Z0-9\-\.] ]]; then
+            warnings+=("S3_BUCKET包含特殊字符，可能无效: $bucket_value")
+        fi
+    fi
+    
+    # 检查S3密钥长度
+    local access_key_value
+    if [ -n "${CONFIG[S3_ACCESS_KEY]}" ]; then
+        access_key_value="${CONFIG[S3_ACCESS_KEY]}"
+    else
+        access_key_value="${S3_ACCESS_KEY}"
+    fi
+    
+    if [ -n "$access_key_value" ] && [ ${#access_key_value} -lt 10 ]; then
+        warnings+=("S3_ACCESS_KEY长度过短，可能无效")
+    fi
+    
+    local secret_key_value
+    if [ -n "${CONFIG[S3_SECRET_KEY]}" ]; then
+        secret_key_value="${CONFIG[S3_SECRET_KEY]}"
+    else
+        secret_key_value="${S3_SECRET_KEY}"
+    fi
+    
+    if [ -n "$secret_key_value" ] && [ ${#secret_key_value} -lt 10 ]; then
+        warnings+=("S3_SECRET_KEY长度过短，可能无效")
+    fi
+    
+    # 检查URL格式
+    local dataway_url_value
+    if [ -n "${CONFIG[DATAWAY_URL]}" ]; then
+        dataway_url_value="${CONFIG[DATAWAY_URL]}"
+    else
+        dataway_url_value="${DATAWAY_URL}"
+    fi
+    
+    if [ -n "$dataway_url_value" ]; then
+        if ! [[ "$dataway_url_value" =~ ^https?:// ]]; then
+            warnings+=("DATAWAY_URL格式错误 (应以http://或https://开头): $dataway_url_value")
+        fi
+    fi
+    
+    local ops_addr_value
+    if [ -n "${CONFIG[OPS_ADDR]}" ]; then
+        ops_addr_value="${CONFIG[OPS_ADDR]}"
+    else
+        ops_addr_value="${OPS_ADDR}"
+    fi
+    
+    if [ -n "$ops_addr_value" ]; then
+        if ! [[ "$ops_addr_value" =~ ^https?:// ]]; then
+            warnings+=("OPS_ADDR格式错误 (应以http://或https://开头): $ops_addr_value")
+        fi
     fi
     
     # 检查路径配置
-    if [ ! -d "$(dirname "${CONFIG[LOG_FILE]}")" ]; then
-        log_warning "日志文件目录不存在: $(dirname "${CONFIG[LOG_FILE]}")"
+    local log_file_value
+    if [ -n "${CONFIG[LOG_FILE]}" ]; then
+        log_file_value="${CONFIG[LOG_FILE]}"
+    else
+        log_file_value="${LOG_FILE}"
     fi
     
-    if [ ! -d "$(dirname "${CONFIG[DATAKIT_INSTALL_DIR]}")" ]; then
-        log_warning "安装目录父目录不存在: $(dirname "${CONFIG[DATAKIT_INSTALL_DIR]}")"
+    if [ -n "$log_file_value" ] && [ ! -d "$(dirname "$log_file_value")" ]; then
+        log_warning "日志文件目录不存在: $(dirname "$log_file_value")"
+    fi
+    
+    local install_dir_value
+    if [ -n "${CONFIG[DATAKIT_INSTALL_DIR]}" ]; then
+        install_dir_value="${CONFIG[DATAKIT_INSTALL_DIR]}"
+    else
+        install_dir_value="${DATAKIT_INSTALL_DIR}"
+    fi
+    
+    if [ -n "$install_dir_value" ] && [ ! -d "$(dirname "$install_dir_value")" ]; then
+        log_warning "安装目录父目录不存在: $(dirname "$install_dir_value")"
+    fi
+    
+    # 显示验证结果
+    if [ ${#missing_required[@]} -gt 0 ]; then
+        log_error "缺少必需配置: ${missing_required[*]}"
+        validation_passed=false
+    fi
+    
+    if [ ${#warnings[@]} -gt 0 ]; then
+        log_warning "配置警告:"
+        for warning in "${warnings[@]}"; do
+            log_warning "  $warning"
+        done
     fi
     
     if [ "$validation_passed" = true ]; then
@@ -178,4 +293,132 @@ validate_environment() {
     
     log_success "环境完整性验证通过"
     return 0
+}
+
+# =============================================================================
+# 通用验证函数 - 供其他模块复用
+# =============================================================================
+
+# 验证进程是否运行
+validate_process_running() {
+    local process_name="$1"
+    local max_retries="${2:-1}"
+    local retry_interval="${3:-5}"
+    
+    for ((i=1; i<=max_retries; i++)); do
+        if pgrep -x "$process_name" >/dev/null; then
+            log_info "$process_name 进程运行正常 (尝试 $i/$max_retries)"
+            return 0
+        else
+            if [ $i -lt $max_retries ]; then
+                log_info "$process_name 进程未运行，等待 ${retry_interval}秒后重试 ($i/$max_retries)"
+                sleep $retry_interval
+            else
+                log_error "$process_name 进程验证失败，已重试 $max_retries 次"
+                return 1
+            fi
+        fi
+    done
+}
+
+# 验证端口是否监听
+validate_port_listening() {
+    local port="$1"
+    local protocol="${2:-tcp}"
+    
+    if netstat -tlnp 2>/dev/null | grep -q ":$port " || \
+       ss -tlnp 2>/dev/null | grep -q ":$port "; then
+        log_info "端口 $port ($protocol) 监听正常"
+        return 0
+    else
+        log_warning "端口 $port ($protocol) 未监听"
+        return 1
+    fi
+}
+
+# 验证文件是否存在
+validate_file_exists() {
+    local file_path="$1"
+    local description="${2:-文件}"
+    
+    if [ -f "$file_path" ]; then
+        log_info "$description 存在: $file_path"
+        return 0
+    else
+        log_error "$description 不存在: $file_path"
+        return 1
+    fi
+}
+
+# 验证目录是否存在
+validate_directory_exists() {
+    local dir_path="$1"
+    local description="${2:-目录}"
+    
+    if [ -d "$dir_path" ]; then
+        log_info "$description 存在: $dir_path"
+        return 0
+    else
+        log_warning "$description 不存在: $dir_path"
+        return 1
+    fi
+}
+
+# 验证服务状态
+validate_service_status() {
+    local service_name="$1"
+    local expected_status="${2:-active}"
+    
+    if systemctl is-$expected_status --quiet "$service_name" 2>/dev/null; then
+        log_info "$service_name 服务状态正常 ($expected_status)"
+        return 0
+    else
+        log_warning "$service_name 服务状态异常 (期望: $expected_status)"
+        return 1
+    fi
+}
+
+# 验证配置文件内容
+validate_config_file() {
+    local config_file="$1"
+    local config_key="$2"
+    local expected_value="$3"
+    local description="${4:-配置项}"
+    
+    if [ ! -f "$config_file" ]; then
+        log_error "配置文件不存在: $config_file"
+        return 1
+    fi
+    
+    # 尝试读取配置值
+    local actual_value
+    if command_exists "yj" && command_exists "jq"; then
+        # 使用yj和jq读取TOML配置
+        actual_value=$(read_toml_config "$config_file" 2>/dev/null | jq -r "$config_key // empty" 2>/dev/null)
+    else
+        # 使用grep简单匹配
+        actual_value=$(grep -o "$config_key[[:space:]]*=[[:space:]]*[^[:space:]]*" "$config_file" 2>/dev/null | cut -d'=' -f2 | tr -d ' "')
+    fi
+    
+    if [ "$actual_value" = "$expected_value" ]; then
+        log_info "$description 配置正确: $expected_value"
+        return 0
+    else
+        log_warning "$description 配置不匹配 (期望: $expected_value, 实际: $actual_value)"
+        return 1
+    fi
+}
+
+# 验证cron任务配置
+validate_cron_job() {
+    local cron_pattern="$1"
+    local description="${2:-定时任务}"
+    
+    if crontab -l 2>/dev/null | grep -q "$cron_pattern"; then
+        log_info "$description 配置存在"
+        return 0
+    else
+        log_error "$description 配置不存在"
+        return 1
+    fi
 } 

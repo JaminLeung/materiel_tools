@@ -2,8 +2,8 @@
 
 #=================================================
 # Datakit 回滚脚本
-#=================================================
-# 功能: 从备份恢复Datakit配置和数据
+# 版本: 2.0.0
+# 描述: 回滚Datakit配置和数据
 #=================================================
 
 # 脚本目录
@@ -11,8 +11,50 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly MODULES_DIR="$SCRIPT_DIR/../modules"
 readonly CONFIG_DIR="$SCRIPT_DIR/../config"
 
-# 加载配置和模块
-source "$CONFIG_DIR/production_config.sh"
+# 配置加载函数
+load_tool_config() {
+    # 检查是否通过installer.sh调用，如果是则配置已加载
+    # 否则尝试加载默认配置或从环境变量获取
+    if [[ -z "${DATAKIT_VERSION:-}" ]]; then
+        # 尝试从环境变量获取配置文件路径
+        local config_file="${DATAKIT_CONFIG_FILE:-}"
+        
+        if [[ -n "$config_file" ]]; then
+            # 加载指定的配置文件
+            if [[ -f "$config_file" ]]; then
+                source "$config_file"
+            elif [[ -f "$CONFIG_DIR/env/$config_file" ]]; then
+                source "$CONFIG_DIR/env/$config_file"
+            else
+                echo "[ERROR] 指定的配置文件不存在: $config_file" >&2
+                exit 1
+            fi
+        else
+            # 尝试加载默认配置
+            local default_configs=("benjamin.sh" "production.sh" "development.sh")
+            local config_loaded=false
+            
+            for config in "${default_configs[@]}"; do
+                if [[ -f "$CONFIG_DIR/env/$config" ]]; then
+                    echo "[INFO] 加载默认配置文件: $config"
+                    source "$CONFIG_DIR/env/$config"
+                    config_loaded=true
+                    break
+                fi
+            done
+            
+            if [[ "$config_loaded" == "false" ]]; then
+                echo "[ERROR] 未找到可用的配置文件，请设置 DATAKIT_CONFIG_FILE 环境变量" >&2
+                exit 1
+            fi
+        fi
+    fi
+}
+
+# 加载配置
+load_tool_config
+
+# 加载模块
 source "$MODULES_DIR/core/logging.sh"
 source "$MODULES_DIR/core/utils.sh"
 

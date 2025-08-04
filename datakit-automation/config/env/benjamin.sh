@@ -1,10 +1,9 @@
 #!/bin/bash
 
 #=================================================
-# Datakit 环境配置文件模板
+# Datakit Benjamin 环境配置文件
 #=================================================
-# 使用方法：复制此文件为具体环境的配置文件（如 production.sh, staging.sh）
-# 并修改相应的配置值
+# 包含 config_update.sh 脚本的配置参数
 #=================================================
 
 # 加载基础配置（如果未加载）
@@ -34,10 +33,8 @@ readonly CONFIG_UPDATE_BACKUP_DIR="$CONFIG_UPDATE_BACKUP_DATE_DIR/config_update"
 # =============================================================================
 # API配置
 # =============================================================================
-# 运维平台API地址
 readonly CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-http://localhost:5000/api/v2/cmdb/observation-agent}"
-# Dataway地址
-readonly CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://openway.guance.com?token=YOUR_TOKEN_HERE}"
+readonly CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
 
 # =============================================================================
 # 全局变量初始化
@@ -94,12 +91,11 @@ readonly CONFIG_UPDATE_REQUIRED_COMMANDS="jq yj curl systemctl datakit"
 # =============================================================================
 # main_install.sh 特定配置
 # =============================================================================
-
 # S3配置
 readonly S3_ENDPOINT="${S3_ENDPOINT:-https://s3.ap-southeast-1.amazonaws.com}"
-readonly S3_ACCESS_KEY="${S3_ACCESS_KEY:-YOUR_S3_ACCESS_KEY}"
+readonly S3_ACCESS_KEY="${S3_ACCESS_KEY:-AWS_ACCESS_KEY_ID_PLACEHOLDER}"
 readonly S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
-readonly S3_BUCKET="${S3_BUCKET:-YOUR_S3_BUCKET_NAME}"
+readonly S3_BUCKET="${S3_BUCKET:-benjamin-test}"
 readonly S3_DATAKIT_DIR="${S3_DATAKIT_DIR:-datakit}"
 
 # Datakit版本和安装配置（覆盖base配置）
@@ -108,11 +104,11 @@ readonly DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-/opt/datakit_install}"
 
 # 运维平台配置
 readonly OPS_ADDR="${OPS_ADDR:-http://localhost:5000}"
-readonly OPS_TOKEN="${OPS_TOKEN:-YOUR_OPS_TOKEN}"
+readonly OPS_TOKEN="${OPS_TOKEN:-mock_token}"
 
 # Dataway配置
-readonly DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com?token=YOUR_DATAWAY_TOKEN}"
-readonly DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-https://openway.guance.com/v1/write/logging?token=YOUR_DATAWAY_TOKEN}"
+readonly DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
+readonly DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-https://openway.guance.com/v1/write/logging?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
 
 # 资源限制配置
 readonly CGROUP_CPU_LIMIT="${CGROUP_CPU_LIMIT:-}"
@@ -128,27 +124,4 @@ readonly SERVICE_START_TIMEOUT="${SERVICE_START_TIMEOUT:-60}"
 
 # 重试配置
 readonly MAX_RETRY_ATTEMPTS="${MAX_RETRY_ATTEMPTS:-3}"
-readonly RETRY_DELAY="${RETRY_DELAY:-5}"
-
-# =============================================================================
-# 环境特定配置（请根据实际环境修改）
-# =============================================================================
-
-# 环境标识
-readonly ENV_NAME="${ENV_NAME:-example}"
-readonly ENV_TYPE="${ENV_TYPE:-development}"
-
-# 网络配置
-readonly PROXY_URL="${PROXY_URL:-}"
-readonly PROXY_USER="${PROXY_USER:-}"
-readonly PROXY_PASS="${PROXY_PASS:-}"
-
-# 安全配置
-readonly ENABLE_SSL_VERIFY="${ENABLE_SSL_VERIFY:-true}"
-readonly SSL_CA_CERT="${SSL_CA_CERT:-}"
-
-# 性能配置
-readonly DATAKIT_MAX_CPU="${DATAKIT_MAX_CPU:-}"
-readonly DATAKIT_MAX_MEMORY="${DATAKIT_MAX_MEMORY:-}"
-
-echo "✅ 环境变量配置已加载 - 环境: $ENV_NAME ($ENV_TYPE)" 
+readonly RETRY_DELAY="${RETRY_DELAY:-5}" 

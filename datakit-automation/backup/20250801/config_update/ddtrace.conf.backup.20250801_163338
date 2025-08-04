@@ -1,0 +1,6 @@
+[inputs]
+
+[[inputs.ddtrace]]
+endpoints = ["/v0.3/traces", "/v0.4/traces", "/v0.5/traces"]
+customer_tagstttaaaaa = ["sink_project", "custom_dd_tagaaaabbbbbbsssssaaaaaaaaa"]
+customer_tagstttaaaaa1111 = ["sink_project", "custom_dd_tagaaaa"]

@@ -97,10 +97,10 @@ record_script_end() {
     "script_version": "$SCRIPT_VERSION",
     "pid": "$$",
     "action": "end",
-    "exit_code": "${SCRIPT_EXIT_CODE}",
-    "total_time": "${PERFORMANCE_TOTAL_TIME}",
-    "current_step": "${SCRIPT_CURRENT_STEP}",
-    "error_message": "${SCRIPT_ERROR_MESSAGE}"
+    "exit_code": "${SCRIPT_EXIT_CODE:-0}",
+    "total_time": "${PERFORMANCE_TOTAL_TIME:-0}",
+    "current_step": "${SCRIPT_CURRENT_STEP:-unknown}",
+    "error_message": "${SCRIPT_ERROR_MESSAGE:-}"
 }
 EOF
 )

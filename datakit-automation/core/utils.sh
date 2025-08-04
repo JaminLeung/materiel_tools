@@ -6,6 +6,60 @@
 # 功能: 通用工具函数、文件操作、网络操作、系统操作
 #=================================================
 
+# 获取脚本所在目录
+CORE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source外部脚本
+source "$CORE_SCRIPT_DIR/logging.sh" 2>/dev/null || echo "警告: 无法加载logging.sh" >&2
+source "$CORE_SCRIPT_DIR/initialize.sh" 2>/dev/null || echo "警告: 无法加载initialize.sh" >&2
+
+# 声明全局状态变量
+declare -A GLOBAL_STATE
+
+# Dataway日志上报函数
+dataway_log() {
+    local level="$1"
+    local message="$2"
+    
+    # 构建上报数据结构
+    local log_data=$(cat <<EOF
+{
+    "measurement": "datakit_host",
+    "tags": {
+        "level": "$level",
+        "host_ip": "$(get_global_state 'HOST_IP')",
+        "env": "$(get_global_state 'ENV')",
+        "workspace": "$(get_global_state 'WORKSPACE')"
+    },
+    "fields": {
+        "message": "$message"
+    }
+}
+EOF
+)
+    
+    # 上报到Dataway
+    local dataway_url="$(get_global_state 'DATAWAY_FULL_URL')"
+    if [ -n "$dataway_url" ]; then
+        curl -s -X POST "$dataway_url" \
+            -H "Content-Type: application/json" \
+            -d "$log_data" >/dev/null 2>&1 || true
+    fi
+    
+    # 同时记录到本地日志
+    case "$level" in
+        "info")
+            log_info "$message"
+            ;;
+        "error")
+            log_error "$message"
+            ;;
+        *)
+            log_info "$message"
+            ;;
+    esac
+}
+
 # 检查命令是否存在
 command_exists() {
     command -v "$1" >/dev/null 2>&1
@@ -231,70 +285,48 @@ get_host_ip() {
 
 # 获取运维平台配置
 get_ops_config() {
-    log_info "获取运维平台配置..."
+    log_info "获取运维平台配置"
     
-    # 确保已获取主机IP
-    if [ -z "$(get_global_state 'HOST_IP')" ]; then
-        if ! get_host_ip; then
-            log_error "获取本机IP地址失败"
-            return 1
-        fi
-    fi
-    
-    local host_ip=$(get_global_state 'HOST_IP')
-    local ops_addr="${CONFIG[OPS_ADDR]}"
-    local ops_token="${CONFIG[OPS_TOKEN]}"
-    
-    # 调用运维平台接口获取配置信息
-    local response
-    if response=$(curl -s -X POST "$ops_addr/api/v2/cmdb/observation-agent" \
-        -H "Content-Type: application/json" \
-        -d "{\"server_ip\": \"$host_ip\"}" 2>/dev/null); then
+    # 首先尝试使用source_get_ops_config获取基础配置
+    if source_get_ops_config; then
+        # 获取基础信息
+        local host_ip=$(get_global_state 'HOST_IP')
+        local env=$(get_global_state 'ENV')
+        local workspace=$(get_global_state 'WORKSPACE')
         
-        # 输出response并jq解析
-        echo "$response" | jq . 2>/dev/null || log_warning "无法解析JSON响应"
+        # 获取Datakit配置
+        local response
+        local ops_addr="${CONFIG_UPDATE_OPS_API_URL:-${CONFIG[OPS_ADDR]}}"
         
-        if [ -n "$response" ]; then
-            # 解析返回数据
-            local env=$(echo "$response" | jq -r '.env // empty' 2>/dev/null)
-            local workspace=$(echo "$response" | jq -r '.workspace // empty' 2>/dev/null)
-            local global_tags=$(echo "$response" | jq -r '.global_tags.global_source // empty' 2>/dev/null)
-            local dataway_url=$(echo "$response" | jq -r '.dataway_url // empty' 2>/dev/null)
-            local workspace_token=$(echo "$response" | jq -r '.workspace_token // empty' 2>/dev/null)
+        if response=$(curl -s -X POST "$ops_addr" \
+            -H "Content-Type: application/json" \
+            -d "{\"server_ip\": \"$host_ip\"}" 2>/dev/null); then
             
-            if [ -n "$env" ] && [ -n "$workspace" ] && [ -n "$workspace_token" ]; then
-                # 构建完整的Dataway URL
-                local dataway_full_url="$dataway_url?token=$workspace_token"
-                
-                # 设置全局状态
-                set_global_state "ENV" "$env"
-                set_global_state "WORKSPACE" "$workspace"
-                set_global_state "GLOBAL_TAGS" "$global_tags"
-                set_global_state "WORKSPACE_TOKEN" "$workspace_token"
-                set_global_state "DATAWAY_FULL_URL" "$dataway_full_url"
-                
-                log_success "获取运维平台配置成功"
-                log_info "环境: $env"
-                log_info "工作空间: $workspace"
-                log_info "全局标签: $global_tags"
-                log_info "Dataway地址: $dataway_full_url"
-                
-                # 上报成功日志
-                dataway_log "info" "成功获取运维平台配置: env=$env, workspace=$workspace"
-                return 0
+            if [ $? -eq 0 ] && [ -n "$response" ]; then
+                local datakit_config=$(echo "$response" | jq '.datakit_config // empty' 2>/dev/null)
+                if [ -n "$datakit_config" ]; then
+                    # 设置Datakit配置到全局状态
+                    set_global_state "DATAKIT_CONFIG" "$datakit_config"
+                    
+                    log_success "获取运维平台配置成功"
+                    log_info "环境: $env"
+                    log_info "工作空间: $workspace"
+                    log_info "Datakit配置: $(echo "$datakit_config" | jq -c . 2>/dev/null || echo "$datakit_config")"
+                    return 0
+                else
+                    log_error "无法获取Datakit配置"
+                    return 1
+                fi
             else
-                log_error "从运维平台接口获取的配置信息不完整"
-                log_error "ENV: $env"
-                log_error "WORKSPACE: $workspace"
-                log_error "WORKSPACE_TOKEN: $workspace_token"
+                log_error "调用运维平台接口失败"
                 return 1
             fi
         else
-            log_error "运维平台接口返回空响应"
+            log_error "调用运维平台接口失败"
             return 1
         fi
     else
-        log_error "调用运维平台接口失败"
+        log_error "获取运维平台配置失败"
         return 1
     fi
 }
@@ -337,7 +369,7 @@ set_global_state() {
 # 获取全局状态
 get_global_state() {
     local key="$1"
-    echo "${GLOBAL_STATE[$key]}"
+    echo "${GLOBAL_STATE[$key]:-}"
 }
 
 # 检查全局状态是否完整
@@ -346,7 +378,7 @@ check_global_state() {
     local missing_keys=()
     
     for key in "${required_keys[@]}"; do
-        if [ -z "${GLOBAL_STATE[$key]}" ]; then
+        if [ -z "${GLOBAL_STATE[$key]:-}" ]; then
             missing_keys+=("$key")
         fi
     done
@@ -360,3 +392,71 @@ check_global_state() {
     return 0
 } 
 
+source_get_ops_config() {
+    local host_ip=$(get_global_state 'HOST_IP')
+    if [ -z "$host_ip" ]; then
+        if ! get_host_ip; then
+            return 1
+        fi
+        host_ip=$(get_global_state 'HOST_IP')
+    fi
+    
+    # 支持多种API地址配置
+    local ops_addr="${CONFIG_UPDATE_OPS_API_URL:-${CONFIG[OPS_ADDR]}}"
+    if [ -z "$ops_addr" ]; then
+        log_error "未配置运维平台API地址"
+        return 1
+    fi
+    
+    # 构建API路径
+    local api_path=""
+    if [[ "$ops_addr" == *"/api/v2/cmdb/observation-agent" ]]; then
+        api_path="$ops_addr"
+    else
+        api_path="$ops_addr/api/v2/cmdb/observation-agent"
+    fi
+    
+    local response
+    if response=$(curl -s -X POST "$api_path" \
+        -H "Content-Type: application/json" \
+        -d "{\"server_ip\": \"$host_ip\"}" 2>/dev/null); then
+        
+        echo "$response" | jq . 2>/dev/null || log_warning "无法解析JSON响应"
+        
+        if [ -n "$response" ]; then
+            local env=$(echo "$response" | jq -r '.env // empty' 2>/dev/null)
+            local workspace=$(echo "$response" | jq -r '.workspace // empty' 2>/dev/null)
+            local global_tags=$(echo "$response" | jq -r '.global_tags.global_source // empty' 2>/dev/null)
+            local dataway_url=$(echo "$response" | jq -r '.dataway_url // empty' 2>/dev/null)
+            local workspace_token=$(echo "$response" | jq -r '.workspace_token // empty' 2>/dev/null)
+            
+            if [ -n "$env" ] && [ -n "$workspace" ] && [ -n "$workspace_token" ]; then
+                local dataway_full_url="$dataway_url?token=$workspace_token"
+                set_global_state "ENV" "$env"
+                set_global_state "WORKSPACE" "$workspace"
+                set_global_state "GLOBAL_TAGS" "$global_tags"
+                set_global_state "WORKSPACE_TOKEN" "$workspace_token"
+                set_global_state "DATAWAY_FULL_URL" "$dataway_full_url"
+                
+                log_success "获取运维平台配置成功"
+                log_info "环境: $env"
+                log_info "工作空间: $workspace"
+                log_info "全局标签: $global_tags"
+                log_info "Dataway地址: $dataway_full_url"
+                return 0
+            else
+                log_error "从运维平台接口获取的配置信息不完整"
+                log_error "ENV: $env"
+                log_error "WORKSPACE: $workspace"
+                log_error "WORKSPACE_TOKEN: $workspace_token"
+                return 1
+            fi
+        else
+            log_error "运维平台接口返回空响应"
+            return 1
+        fi
+    else
+        log_error "调用运维平台接口失败"
+        return 1
+    fi
+} 

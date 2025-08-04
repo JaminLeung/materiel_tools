@@ -40,6 +40,19 @@ create_backup_directory() {
     fi
 }
 
+# 检查当前操作权限，如果不是root，则跳过步骤，如果是则继续执行
+check_current_user_permission() {
+    if [[ $EUID -ne 0 ]]; then
+        if command -v log_warning >/dev/null 2>&1; then
+            log_warning "非root用户运行，跳过步骤"
+        else
+            echo "[WARN] 非root用户运行，跳过步骤" >&2
+            # 跳过步骤
+            return 1
+        fi
+    fi
+}
+
 # 验证系统资源
 validate_system_resources() {
     # 检查磁盘空间
@@ -65,7 +78,7 @@ validate_config() {
     local missing_vars=()
     
     for var in "${required_vars[@]}"; do
-        if [[ -z "${!var}" ]]; then
+        if [[ -z "${!var:-}" ]]; then
             missing_vars+=("$var")
         fi
     done
