@@ -92,10 +92,11 @@ readonly CONFIG_UPDATE_REQUIRED_COMMANDS="jq yj curl systemctl datakit"
 # main_install.sh 特定配置
 # =============================================================================
 # S3配置
+readonly S3_REGION="${S3_REGION:-ap-southeast-1}"
 readonly S3_ENDPOINT="${S3_ENDPOINT:-https://s3.ap-southeast-1.amazonaws.com}"
 readonly S3_ACCESS_KEY="${S3_ACCESS_KEY:-AWS_ACCESS_KEY_ID_PLACEHOLDER}"
 readonly S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
-readonly S3_BUCKET="${S3_BUCKET:-benjamin-test}"
+readonly S3_BUCKET="${S3_BUCKET:-benjamin--test}"
 readonly S3_DATAKIT_DIR="${S3_DATAKIT_DIR:-datakit}"
 
 # Datakit版本和安装配置（覆盖base配置）

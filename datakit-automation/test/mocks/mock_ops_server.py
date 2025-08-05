@@ -25,7 +25,7 @@ app = Flask(__name__)
 # 模拟数据库或配置存储
 # 在实际应用中，这些数据应该从数据库或配置文件中读取
 MOCK_SERVER_CONFIGS = {
-    "172.31.16.4": {
+    "data": {
         "env": "prod",
         "workspace": "业务工作空间",
         "global_tags": {
@@ -76,43 +76,25 @@ MOCK_SERVER_CONFIGS = {
                 
             ]
         }
-    },
-    "192.168.1.100": {
-        "env": "test",
-        "workspace": "测试工作空间",
-        "global_tags": {
-            "global_source": {
-                "app": "datakit",
-                "env": "test",
-                "region": "ap-southeast-1",
-                "service": "monitoring",
-                "team": "dev"
-            }
-        },
-        "dataway_url": "https://openway.guance.com",
-        "workspace_token": "tkn_3a0052c9f6d3498c8ce9ca0988fd9c82",
-        "datakit_config": {
-            "enable": True,
-            "global_config": [],
-            "input_config": []
-        }
     }
 }
 
 MOCK_METADATA_CONFIGS = {
-    "172.31.16.4": {
+    "data": [{
         "serviceA": {
             "logging": [
                 {
                     "logfiles": [
-                        "/home/app/bon-gateway-svr/logs/*access_normal.log"
+                        "/home/app/bon-gateway-svr/logs/*access_normal.log",
+                        "/home/app/bon-gateway-svr/logs/*access_normal11111eeeeeee.log",
+                        # "/home/app/bon-gateway-svr/logs/*access_normal22222.log"
                     ],
                     "source": "ec2-java-logging",
                     "service": "bon-gateway-svr",
                     "tags": {
-                        "logType": "access",
+                        "logType": "accewwwwws",
                         "lang": "java",
-                        "group_name": "gateway-group"
+                        "group_name": "gateway-groupqqqqq"
                     }
                 },
                 {
@@ -124,30 +106,32 @@ MOCK_METADATA_CONFIGS = {
                     "tags": {
                         "logType": "other",
                         "lang": "java",
-                        "group_name": "gateway-group"
+                        "group_name": "gateway-groupaaaa"
                     }
                 }
             ],
             "metrics": [
                 {
                     "urls": [
-                        "http://172.31.16.4:9100/metrics"
+                        "http://172.31.16.4:9100/metricsaaaabbbb"
                     ],
                     "source": "ec2-java-metrics",
                     "measurement_name": "bon-gateway-svr",
                     "tags": {
-                        "service": "bon-gateway-svr",
-                        "group_name": "gateway-group"
+                        "service": "bon-gateway-svraaaaa",
+                        "group_name": "gateway-groupdddd",
+                        # "group_name111": "gateway-group1111"
                     }
                 }
             ],
             "health": [
                 {
-                    "http_urls": ["http://172.31.16.4:8080/health"],
+                    "http_urls": ["http://172.31.16.4:8080/healthnnnn"],
                     "expect_status": 200,
                     "tags": {
                         "service": "bon-gateway-svr",
-                        "group_name": "gateway-group"
+                        "group_name": "gateway-grouaaaaaaaap",
+                        # "group_name1111": "gateway-group1111"
                     }
                 }
             ]
@@ -157,48 +141,8 @@ MOCK_METADATA_CONFIGS = {
             "metrics": [],
             "health": []
         }
-    },
-    "192.168.1.100": {
-        "serviceC": {
-            "logging": [
-                {
-                    "logfiles": [
-                        "/var/log/nginx/access.log"
-                    ],
-                    "source": "ec2-nginx-logging",
-                    "service": "web-service",
-                    "tags": {
-                        "logType": "access",
-                        "lang": "nginx",
-                        "group_name": "web-group"
-                    }
-                }
-            ],
-            "metrics": [
-                {
-                    "urls": [
-                        "http://192.168.1.100:9090/metrics"
-                    ],
-                    "source": "ec2-nginx-metrics",
-                    "measurement_name": "web-service",
-                    "tags": {
-                        "service": "web-service",
-                        "group_name": "web-group"
-                    }
-                }
-            ],
-            "health": [
-                {
-                    "http_urls": ["http://192.168.1.100:80/health"],
-                    "expect_status": 200,
-                    "tags": {
-                        "service": "web-service",
-                        "group_name": "web-group"
-                    }
-                }
-            ]
-        }
-    }
+    }]
+    
 }
 
 
@@ -234,7 +178,8 @@ def get_metadata_config(server_ip: str) -> Dict[str, Any]:
     根据服务器IP获取元数据配置信息
     在实际应用中，这里应该查询数据库或配置文件
     """
-    return MOCK_METADATA_CONFIGS.get(server_ip, {})
+    # 对于所有IP都返回相同的元数据配置
+    return MOCK_METADATA_CONFIGS
 
 
 @app.route('/api/v2/cmdb/observation-agent', methods=['POST'])
@@ -355,4 +300,4 @@ if __name__ == '__main__':
         host=host,
         port=port,
         debug=os.environ.get('DEBUG', 'false').lower() == 'true'
-    ) 
+    )

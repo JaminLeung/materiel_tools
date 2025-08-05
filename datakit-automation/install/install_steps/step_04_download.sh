@@ -3,7 +3,7 @@
 #=================================================
 # 步骤4: 下载安装包
 #=================================================
-# 功能: 下载Datakit安装包、验证、解压
+# 功能: 下载Datakit安装包、验证
 #=================================================
 
 step_04_download_packages() {
@@ -27,13 +27,6 @@ step_04_download_packages() {
     if ! download_bundle_file; then
         log_error "下载bundle文件失败"
         dataway_log "error" "下载bundle文件失败"
-        return 1
-    fi
-    
-    # 验证和解压bundle文件
-    if ! extract_bundle_file; then
-        log_error "解压bundle文件失败"
-        dataway_log "error" "解压bundle文件失败"
         return 1
     fi
     
@@ -114,38 +107,5 @@ download_bundle_file() {
     fi
     
     log_success "Bundle文件下载和验证完成"
-    return 0
-}
-
-# 解压bundle文件
-extract_bundle_file() {
-    log_info "解压bundle文件..."
-    
-    cd "$DATAKIT_INSTALL_DIR"
-    
-    local bundle_name="datakit_bundle-linux-amd64-$DATAKIT_VERSION.tar.gz"
-    
-    # 解压bundle文件
-    if ! extract_package "$bundle_name" "."; then
-        log_error "解压bundle文件失败"
-        return 1
-    fi
-    
-    # 检查解压后的文件
-    local required_files=(
-        "./installer-linux-amd64-$DATAKIT_VERSION"
-        "./datakit-linux-amd64-$DATAKIT_VERSION.tar.gz"
-        "./dk_upgrader-linux-amd64.tar.gz"
-        "./data.tar.gz"
-    )
-    
-    for file in "${required_files[@]}"; do
-        if [ ! -f "$file" ]; then
-            log_error "Bundle文件解压后缺少必要文件: $file"
-            return 1
-        fi
-    done
-    
-    log_success "Bundle文件解压完成，所有文件准备就绪"
     return 0
 } 

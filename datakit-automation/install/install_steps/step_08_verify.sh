@@ -156,12 +156,12 @@ verify_resource_limits() {
 # 4. 验证定时任务配置
 verify_cron_jobs() {
     # 检查crontab中是否包含config_update.sh的配置
-    if ! validate_cron_job "config_update_wrapper.sh" "config_update.sh定时任务"; then
+    if ! validate_cron_job "cron_wrapper.sh" "config_update.sh定时任务"; then
         return 1
     fi
     
     # 检查包装脚本是否存在
-    local wrapper_script="$SCENARIO_PROJECT_ROOT/install/install_utils/config_update_wrapper.sh"
+    local wrapper_script="$SCENARIO_PROJECT_ROOT/install/install_utils/cron_wrapper.sh"
     if ! validate_file_exists "$wrapper_script" "定时任务包装脚本"; then
         return 1
     fi

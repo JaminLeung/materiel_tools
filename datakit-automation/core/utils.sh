@@ -41,6 +41,7 @@ EOF
     # 上报到Dataway
     local dataway_url="$(get_global_state 'DATAWAY_FULL_URL')"
     if [ -n "$dataway_url" ]; then
+        
         curl -s -X POST "$dataway_url" \
             -H "Content-Type: application/json" \
             -d "$log_data" >/dev/null 2>&1 || true
@@ -296,7 +297,9 @@ get_ops_config() {
         
         # 获取Datakit配置
         local response
-        local ops_addr="${CONFIG_UPDATE_OPS_API_URL:-${CONFIG[OPS_ADDR]}}"
+        local ops_addr="${OPS_ADDR:-${CONFIG[OPS_ADDR]}}"
+        
+
         
         if response=$(curl -s -X POST "$ops_addr" \
             -H "Content-Type: application/json" \
@@ -392,6 +395,49 @@ check_global_state() {
     return 0
 } 
 
+# =============================================================================
+# 清理旧备份目录
+# =============================================================================
+cleanup_old_backup_dirs() {
+    local backup_base_dir="$1"
+    local keep_days="${2:-7}"
+    
+    log_info "清理旧备份目录"
+    
+    local current_date=$(date +%Y%m%d)
+    
+    if [ -d "$backup_base_dir" ]; then
+        find "$backup_base_dir" -maxdepth 1 -type d -name "20*" | while read -r dir; do
+            local dir_date=$(basename "$dir")
+            
+            # 检查目录日期是否超过保留天数
+            if [ "$dir_date" != "$current_date" ]; then
+                local days_diff=0
+                if command_exists dateutils.ddiff; then
+                    days_diff=$(dateutils.ddiff "$dir_date" "$current_date" 2>/dev/null || echo "999")
+                else
+                    # 简单的日期比较（假设日期格式为YYYYMMDD）
+                    local dir_year=${dir_date:0:4}
+                    local dir_month=${dir_date:4:2}
+                    local dir_day=${dir_date:6:2}
+                    local current_year=${current_date:0:4}
+                    local current_month=${current_date:4:2}
+                    local current_day=${current_date:6:2}
+                    
+                    # 简单的天数计算（近似值）
+                    days_diff=$(( (current_year - dir_year) * 365 + (current_month - dir_month) * 30 + (current_day - dir_day) ))
+                fi
+                
+                if [ "$days_diff" -gt "$keep_days" ]; then
+                    log_info "删除旧备份目录: $dir_date (已保留 $days_diff 天)"
+                    rm -rf "$dir"
+                fi
+            fi
+        done
+    fi
+    
+    log_success "旧备份目录清理完成"
+}
 source_get_ops_config() {
     local host_ip=$(get_global_state 'HOST_IP')
     if [ -z "$host_ip" ]; then
@@ -416,6 +462,11 @@ source_get_ops_config() {
         api_path="$ops_addr/api/v2/cmdb/observation-agent"
     fi
     
+    # 随机休眠避免并发请求
+    local random_number=$((RANDOM % 60 + 1))
+    log_info "随机休眠 $random_number 秒"
+    sleep $random_number
+
     local response
     if response=$(curl -s -X POST "$api_path" \
         -H "Content-Type: application/json" \

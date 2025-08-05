@@ -23,6 +23,11 @@ LOG_LEVEL_SUCCESS=4
 # 当前日志级别（可通过环境变量设置）
 CURRENT_LOG_LEVEL=${LOG_LEVEL:-1}  # 默认INFO级别
 
+# 日志文件路径（可通过环境变量设置）
+if [ -z "${LOG_FILE:-}" ]; then
+    LOG_FILE="/var/log/datakit_install.log"
+fi
+
 # 日志系统初始化
 init_logging() {
     local log_file="${LOG_FILE}"

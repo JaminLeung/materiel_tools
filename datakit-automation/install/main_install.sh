@@ -147,6 +147,11 @@ get_ops_config() {
         exit 1
     fi
     
+    # 随机休眠避免并发请求
+    local random_number=$((RANDOM % 60 + 1))
+    log_info "随机休眠 $random_number 秒"
+    sleep $random_number
+    
     # 调用运维平台接口获取配置信息
     local response=$(curl -s -X POST "$OPS_ADDR/api/v2/cmdb/observation-agent" \
         -H "Content-Type: application/json" \
