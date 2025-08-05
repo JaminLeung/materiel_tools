@@ -173,7 +173,7 @@ execute_existing_installation() {
     # 步骤4: 下载安装包
     INSTALLATION_STATE["current_step"]="step_04_download"
     log_info "=== 步骤4: 下载安装包 ==="
-    step_04_download_packages
+    # step_04_download_packages
     
     # 步骤5: 执行安装
     INSTALLATION_STATE["current_step"]="step_05_install"

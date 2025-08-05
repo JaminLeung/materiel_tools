@@ -3,11 +3,18 @@
 #=================================================
 # 步骤5: 执行安装
 #=================================================
-# 功能: 安装Node Exporter和Datakit
+# 功能: 解压安装包、安装Node Exporter和Datakit
 #=================================================
 
 step_05_install_components() {
     log_info "=== 步骤5: 执行安装 ==="
+    
+    # 解压bundle文件
+    if ! extract_bundle_file; then
+        log_error "解压bundle文件失败"
+        dataway_log "error" "解压bundle文件失败"
+        return 1
+    fi
     
     # 安装Node Exporter
     if ! install_node_exporter; then
@@ -25,6 +32,39 @@ step_05_install_components() {
     
     log_success "组件安装完成"
     dataway_log "info" "组件安装完成"
+    return 0
+}
+
+# 解压bundle文件
+extract_bundle_file() {
+    log_info "解压bundle文件..."
+    
+    cd "$DATAKIT_INSTALL_DIR"
+    
+    local bundle_name="datakit_bundle-linux-amd64-$DATAKIT_VERSION.tar.gz"
+    
+    # 解压bundle文件
+    if ! extract_package "$bundle_name" "."; then
+        log_error "解压bundle文件失败"
+        return 1
+    fi
+    
+    # 检查解压后的文件
+    local required_files=(
+        "./installer-linux-amd64-$DATAKIT_VERSION"
+        "./datakit-linux-amd64-$DATAKIT_VERSION.tar.gz"
+        "./dk_upgrader-linux-amd64.tar.gz"
+        "./data.tar.gz"
+    )
+    
+    for file in "${required_files[@]}"; do
+        if [ ! -f "$file" ]; then
+            log_error "Bundle文件解压后缺少必要文件: $file"
+            return 1
+        fi
+    done
+    
+    log_success "Bundle文件解压完成，所有文件准备就绪"
     return 0
 }
 

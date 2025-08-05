@@ -17,18 +17,16 @@ fi
 # =============================================================================
 readonly CONFIG_UPDATE_SCRIPT_NAME="datakit_config_update"
 readonly CONFIG_UPDATE_SCRIPT_VERSION="2.0.0"
-readonly CONFIG_UPDATE_LOG_FILE="/var/log/datakit_config_update.log"
+
 
 # =============================================================================
 # 路径配置
 # =============================================================================
-readonly CONFIG_UPDATE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../scripts" && pwd)"
 readonly CONFIG_UPDATE_CORE_DIR="$(dirname "$CONFIG_UPDATE_SCRIPT_DIR")/core"
 readonly CONFIG_UPDATE_DATAKIT_CONF="/usr/local/datakit/conf.d/datakit.conf"
 readonly CONFIG_UPDATE_DATAKIT_CONF_DIR="/usr/local/datakit/conf.d"
 readonly CONFIG_UPDATE_HEALTH_CHECK_SCRIPT="$CONFIG_UPDATE_SCRIPT_DIR/datakit_health_check.sh"
 readonly CONFIG_UPDATE_BACKUP_BASE_DIR="$(dirname "$CONFIG_UPDATE_SCRIPT_DIR")/backup"
-readonly CONFIG_UPDATE_BACKUP_DATE_DIR="$CONFIG_UPDATE_BACKUP_BASE_DIR/$(date +%Y%m%d)"
 readonly CONFIG_UPDATE_BACKUP_DIR="$CONFIG_UPDATE_BACKUP_DATE_DIR/config_update"
 
 # =============================================================================
@@ -37,7 +35,7 @@ readonly CONFIG_UPDATE_BACKUP_DIR="$CONFIG_UPDATE_BACKUP_DATE_DIR/config_update"
 # 运维平台API地址
 readonly CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-http://localhost:5000/api/v2/cmdb/observation-agent}"
 # Dataway地址
-readonly CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://openway.guance.com?token=YOUR_TOKEN_HERE}"
+readonly DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com?token=YOUR_TOKEN_HERE}"
 
 # =============================================================================
 # 全局变量初始化
@@ -50,46 +48,14 @@ readonly CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://openway
 # CONFIG_CHANGED=false
 
 # =============================================================================
-# 健康检查配置
-# =============================================================================
-readonly CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT="${CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT:-10}"
-readonly CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
-
-# =============================================================================
 # 服务控制配置
 # =============================================================================
-readonly CONFIG_UPDATE_SYSTEMD_SERVICE_NAME="datakit"
-readonly CONFIG_UPDATE_HEALTH_CHECK_SERVICE_NAME="datakit-health-check"
 
 # =============================================================================
 # 备份配置
 # =============================================================================
-readonly CONFIG_UPDATE_BACKUP_RETENTION_DAYS="${CONFIG_UPDATE_BACKUP_RETENTION_DAYS:-7}"
-readonly CONFIG_UPDATE_BACKUP_TIMESTAMP_FORMAT="%Y%m%d_%H%M%S"
 
-# =============================================================================
-# 配置处理配置
-# =============================================================================
-readonly CONFIG_UPDATE_SAMPLE_FILE_SUFFIX=".sample"
-readonly CONFIG_UPDATE_BACKUP_FILE_SUFFIX=".backup"
-readonly CONFIG_UPDATE_DELETED_FILE_SUFFIX=".deleted"
 
-# =============================================================================
-# 日志配置
-# =============================================================================
-readonly CONFIG_UPDATE_LOG_LEVEL="${CONFIG_UPDATE_LOG_LEVEL:-INFO}"
-readonly CONFIG_UPDATE_LOG_FORMAT="${CONFIG_UPDATE_LOG_FORMAT:-json}"
-
-# =============================================================================
-# 错误处理配置
-# =============================================================================
-readonly CONFIG_UPDATE_MAX_RETRY_ATTEMPTS="${CONFIG_UPDATE_MAX_RETRY_ATTEMPTS:-3}"
-readonly CONFIG_UPDATE_COMMAND_TIMEOUT="${CONFIG_UPDATE_COMMAND_TIMEOUT:-30}"
-
-# =============================================================================
-# 验证配置
-# =============================================================================
-readonly CONFIG_UPDATE_REQUIRED_COMMANDS="jq yj curl systemctl datakit"
 
 # =============================================================================
 # main_install.sh 特定配置
@@ -139,16 +105,16 @@ readonly ENV_NAME="${ENV_NAME:-example}"
 readonly ENV_TYPE="${ENV_TYPE:-development}"
 
 # 网络配置
-readonly PROXY_URL="${PROXY_URL:-}"
-readonly PROXY_USER="${PROXY_USER:-}"
-readonly PROXY_PASS="${PROXY_PASS:-}"
+# readonly PROXY_URL="${PROXY_URL:-}"
+# readonly PROXY_USER="${PROXY_USER:-}"
+# readonly PROXY_PASS="${PROXY_PASS:-}"
 
 # 安全配置
-readonly ENABLE_SSL_VERIFY="${ENABLE_SSL_VERIFY:-true}"
-readonly SSL_CA_CERT="${SSL_CA_CERT:-}"
+# readonly ENABLE_SSL_VERIFY="${ENABLE_SSL_VERIFY:-true}"
+# readonly SSL_CA_CERT="${SSL_CA_CERT:-}"
 
 # 性能配置
-readonly DATAKIT_MAX_CPU="${DATAKIT_MAX_CPU:-}"
-readonly DATAKIT_MAX_MEMORY="${DATAKIT_MAX_MEMORY:-}"
+# readonly DATAKIT_MAX_CPU="${DATAKIT_MAX_CPU:-}"
+# readonly DATAKIT_MAX_MEMORY="${DATAKIT_MAX_MEMORY:-}"
 
 echo "✅ 环境变量配置已加载 - 环境: $ENV_NAME ($ENV_TYPE)" 

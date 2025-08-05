@@ -26,7 +26,7 @@ download_from_s3_with_curl() {
     local canonical_querystring=""
     local timestamp=$(date -u +%Y%m%dT%H%M%SZ)
     local date_stamp=$(date -u +%Y%m%d)
-    local region="eu-west-1"
+    local region="${S3_REGION:-ap-southeast-1}"
     local service="s3"
     local host="$bucket.s3.$region.amazonaws.com"
     
@@ -47,15 +47,37 @@ download_from_s3_with_curl() {
     local credential_scope="$date_stamp/$region/$service/aws4_request"
     local string_to_sign="AWS4-HMAC-SHA256"$'\n'"$timestamp"$'\n'"$credential_scope"$'\n'"$canonical_request_hash"
     
-    # 生成签名密钥
+    # 生成签名密钥 - 使用简单方法避免null byte问题
     local kSecret="AWS4$S3_SECRET_KEY"
-    local kDate=$(printf "%s" "$date_stamp" | openssl dgst -sha256 -hmac "$kSecret" -binary)
-    local kRegion=$(printf "%s" "$region" | openssl dgst -sha256 -hmac "$kDate" -binary)
-    local kService=$(printf "%s" "$service" | openssl dgst -sha256 -hmac "$kRegion" -binary)
-    local kSigning=$(printf "%s" "aws4_request" | openssl dgst -sha256 -hmac "$kService" -binary)
+    local temp_dir=$(mktemp -d)
+    # 注意：trap 在函数内部可能导致过早清理，改为手动清理
+    # 确保临时目录存在
+    if [ ! -d "$temp_dir" ]; then
+        log_error "无法创建临时目录"
+        return 1
+    fi
+    
+    # 调试信息
+    log_info "临时目录: $temp_dir"
+    log_info "kSecret: ${kSecret:0:20}..."
+    log_info "S3_SECRET_KEY: ${S3_SECRET_KEY:0:10}..."
+    log_info "S3_ACCESS_KEY: ${S3_ACCESS_KEY:0:10}..."
+    
+    # kDate
+    local kDate=$(echo -n "$date_stamp" | openssl dgst -sha256 -hmac "$kSecret" -binary)
+    
+    # kRegion
+    local kRegion=$(echo -n "$region" | openssl dgst -sha256 -hmac "$kDate" -binary)
+    
+    # kService
+    local kService=$(echo -n "$service" | openssl dgst -sha256 -hmac "$kRegion" -binary)
+    
+    # kSigning
+    local kSigning=$(echo -n "aws4_request" | openssl dgst -sha256 -hmac "$kService" -binary)
     
     # 生成签名
-    local signature=$(printf "%s" "$string_to_sign" | openssl dgst -sha256 -hmac "$kSigning" | awk '{print $2}')
+    echo -n "$string_to_sign" > "$temp_dir/string_input"
+    local signature=$(openssl dgst -sha256 -hmac "$kSigning" "$temp_dir/string_input" | awk '{print $2}')
     
     # 生成授权头
     local authorization_header="AWS4-HMAC-SHA256 Credential=$S3_ACCESS_KEY/$credential_scope,SignedHeaders=$signed_headers,Signature=$signature"
@@ -63,13 +85,12 @@ download_from_s3_with_curl() {
     # 构建完整URL
     local s3_url="https://$host$canonical_uri"
     
-    # 使用curl下载（带进度条）
+    # 使用curl下载
     log_info "开始下载文件..."
     if curl -L -o "$local_path" "$s3_url" \
         -H "Authorization: $authorization_header" \
         -H "x-amz-content-sha256: $payload_hash" \
         -H "x-amz-date: $timestamp" \
-        --progress-bar \
         --connect-timeout 30 --max-time "$DOWNLOAD_TIMEOUT"; then
         
         # 检查文件大小，确保下载成功
@@ -83,8 +104,13 @@ download_from_s3_with_curl() {
         fi
     else
         log_error "下载失败: $key"
+        # 清理临时目录
+        rm -rf "$temp_dir" 2>/dev/null || true
         return 1
     fi
+    
+    # 清理临时目录
+    rm -rf "$temp_dir" 2>/dev/null || true
 }
 
 # 带重试的S3下载

@@ -2,6 +2,12 @@
 
 # 配置文件处理相关函数
 
+# 全局配置变量
+declare -A CONFIG_VALUES
+
+# 默认配置文件路径
+DEFAULT_CONFIG_FILE=""
+
 read_toml_config() {
     local toml_file="$1"
     [ -f "$toml_file" ] || die "配置文件不存在: $toml_file"
@@ -80,4 +86,196 @@ set_json_path_value() {
         return 0
     fi
     return 1
-} 
+}
+
+# =============================================================================
+# 配置管理函数
+# =============================================================================
+
+# 设置默认配置文件路径
+set_default_config_file() {
+    local config_file="$1"
+    DEFAULT_CONFIG_FILE="$config_file"
+}
+
+# 加载配置文件
+load_config_file() {
+    local config_file="${1:-$DEFAULT_CONFIG_FILE}"
+    
+    if [ -z "$config_file" ]; then
+        log_error "未指定配置文件路径"
+        return 1
+    fi
+    
+    if [ ! -f "$config_file" ]; then
+        log_error "配置文件不存在: $config_file"
+        return 1
+    fi
+    
+    log_info "加载配置文件: $config_file"
+    
+    # 清空现有配置
+    CONFIG_VALUES=()
+    
+    # 读取TOML配置文件并转换为JSON
+    local json_config
+    json_config=$(yj -t < "$config_file" 2>/dev/null) || {
+        log_error "配置文件格式错误: $config_file"
+        return 1
+    }
+    
+    # 解析配置项并存储到关联数组中
+    local sections
+    sections=$(echo "$json_config" | jq -r 'keys[]' 2>/dev/null)
+    
+    for section in $sections; do
+        local section_data
+        section_data=$(echo "$json_config" | jq -r ".[\"$section\"]" 2>/dev/null)
+        
+        if [ "$section_data" != "null" ]; then
+            local keys
+            keys=$(echo "$section_data" | jq -r 'keys[]' 2>/dev/null)
+            
+            for key in $keys; do
+                local value
+                value=$(echo "$section_data" | jq -r ".[\"$key\"]" 2>/dev/null)
+                CONFIG_VALUES["${section}_${key}"]="$value"
+                log_debug "加载配置: ${section}_${key} = $value"
+            done
+        fi
+    done
+    
+    log_success "配置文件加载完成: $config_file"
+    return 0
+}
+
+# 获取配置值
+get_config_value() {
+    local key="$1"
+    local default_value="${2:-}"
+    
+    if [ -z "$key" ]; then
+        log_error "配置键不能为空"
+        return 1
+    fi
+    
+    local value="${CONFIG_VALUES[$key]:-}"
+    
+    if [ -z "$value" ]; then
+        if [ -n "$default_value" ]; then
+            log_debug "配置键 '$key' 未找到，使用默认值: $default_value"
+            echo "$default_value"
+            return 0
+        else
+            log_error "配置键 '$key' 未找到且无默认值"
+            return 1
+        fi
+    fi
+    
+    echo "$value"
+    return 0
+}
+
+# 设置配置值
+set_config_value() {
+    local key="$1"
+    local value="$2"
+    
+    if [ -z "$key" ]; then
+        log_error "配置键不能为空"
+        return 1
+    fi
+    
+    CONFIG_VALUES["$key"]="$value"
+    log_debug "设置配置: $key = $value"
+    return 0
+}
+
+# 检查配置键是否存在
+has_config_key() {
+    local key="$1"
+    
+    if [ -z "$key" ]; then
+        return 1
+    fi
+    
+    [ -n "${CONFIG_VALUES[$key]:-}" ]
+}
+
+# 列出所有配置键
+list_config_keys() {
+    local pattern="${1:-*}"
+    
+    for key in "${!CONFIG_VALUES[@]}"; do
+        if [[ "$key" == $pattern ]]; then
+            echo "$key"
+        fi
+    done
+}
+
+# 导出配置为环境变量
+export_config_as_env() {
+    local prefix="${1:-CONFIG_}"
+    
+    for key in "${!CONFIG_VALUES[@]}"; do
+        local env_key="${prefix}${key^^}"
+        export "$env_key"="${CONFIG_VALUES[$key]}"
+        log_debug "导出环境变量: $env_key = ${CONFIG_VALUES[$key]}"
+    done
+    
+    log_info "配置已导出为环境变量 (前缀: $prefix)"
+}
+
+# 验证必需配置项
+validate_required_config() {
+    local required_keys=("$@")
+    local missing_keys=()
+    
+    for key in "${required_keys[@]}"; do
+        if ! has_config_key "$key"; then
+            missing_keys+=("$key")
+        fi
+    done
+    
+    if [ ${#missing_keys[@]} -gt 0 ]; then
+        log_error "缺少必需的配置项: ${missing_keys[*]}"
+        return 1
+    fi
+    
+    log_success "所有必需配置项验证通过"
+    return 0
+}
+
+# 生成配置模板
+generate_config_template() {
+    local output_file="$1"
+    local template_content="$2"
+    
+    if [ -z "$output_file" ]; then
+        log_error "输出文件路径不能为空"
+        return 1
+    fi
+    
+    if [ -z "$template_content" ]; then
+        log_error "模板内容不能为空"
+        return 1
+    fi
+    
+    # 创建目录
+    local dir=$(dirname "$output_file")
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir" || {
+            log_error "创建目录失败: $dir"
+            return 1
+        }
+    fi
+    
+    # 写入模板文件
+    echo "$template_content" > "$output_file" || {
+        log_error "写入模板文件失败: $output_file"
+        return 1
+    }
+    
+    log_success "配置模板已生成: $output_file"
+    return 0
+}

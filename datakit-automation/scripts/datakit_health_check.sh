@@ -2,7 +2,7 @@
 
 # Datakit健康检查脚本
 # 功能：定期检查Datakit健康状态，异常时自动重启
-# 版本：1.0.0
+# 版本：2.0.0
 # 作者：Datakit运维团队
 
 set -euo pipefail
@@ -57,8 +57,8 @@ load_script_config
 # 健康检查专用配置
 # =============================================================================
 readonly HEALTH_CHECK_SCRIPT_NAME="datakit_health_check"
-readonly HEALTH_CHECK_SCRIPT_VERSION="1.0.0"
-readonly HEALTH_CHECK_LOG_FILE="/var/log/datakit_health_check.log"
+readonly HEALTH_CHECK_SCRIPT_VERSION="2.0.0"
+readonly HEALTH_CHECK_LOG_FILE="/var/log/datakit/health_check.log"
 readonly HEALTH_CHECK_LOCK_FILE="/var/run/datakit_health_check.lock"
 readonly HEALTH_CHECK_FAILURE_COUNT_FILE="/var/run/datakit_health_check_failure_count"
 
@@ -70,9 +70,6 @@ readonly HEALTH_CHECK_PING_URL="http://localhost:9529/v1/ping"
 # =============================================================================
 # 全局变量
 # =============================================================================
-HOST_IP=""
-ENV=""
-WORKSPACE=""
 FAILURE_COUNT=0
 
 # =============================================================================
@@ -91,7 +88,6 @@ init_logging
 # =============================================================================
 die() {
     log_error "$1"
-    dataway_log "error" "$1"
     exit 1
 }
 
@@ -184,7 +180,6 @@ perform_health_check() {
         local current_count=$(get_failure_count)
         if [ "$current_count" -gt 0 ]; then
             log_success "Datakit恢复正常，重置失败计数"
-            dataway_log "info" "Datakit恢复正常，重置失败计数"
             reset_failure_count
         fi
     else
@@ -194,20 +189,16 @@ perform_health_check() {
         set_failure_count "$new_count"
         
         log_warning "Datakit健康检查失败 (第 $new_count 次)"
-        dataway_log "warning" "Datakit健康检查失败 (第 $new_count 次)"
         
         # 达到最大失败次数时重启
         if [ "$new_count" -ge "$HEALTH_CHECK_MAX_FAILURE_COUNT" ]; then
             log_error "Datakit连续失败 $HEALTH_CHECK_MAX_FAILURE_COUNT 次，执行重启"
-            dataway_log "error" "Datakit连续失败 $HEALTH_CHECK_MAX_FAILURE_COUNT 次，执行重启"
             
             if restart_datakit; then
                 log_success "Datakit重启成功"
-                dataway_log "info" "Datakit重启成功"
                 reset_failure_count
             else
                 log_error "Datakit重启失败"
-                dataway_log "error" "Datakit重启失败"
             fi
         fi
     fi
@@ -215,52 +206,6 @@ perform_health_check() {
     # 清理锁文件
     remove_lock
     log_info "Datakit健康检查完成"
-}
-
-# =============================================================================
-# 定时任务管理
-# =============================================================================
-install_cron_job() {
-    log_info "安装Datakit健康检查定时任务"
-    
-    local script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-    local cron_job="*/5 * * * * $script_path >/dev/null 2>&1"
-    
-    # 检查是否已存在定时任务
-    if crontab -l 2>/dev/null | grep -q "$script_path"; then
-        log_warning "定时任务已存在"
-        return 0
-    fi
-    
-    # 添加定时任务
-    (crontab -l 2>/dev/null; echo "$cron_job") | crontab -
-    
-    if [ $? -eq 0 ]; then
-        log_success "定时任务安装成功"
-        dataway_log "info" "Datakit健康检查定时任务安装成功"
-    else
-        log_error "定时任务安装失败"
-        dataway_log "error" "Datakit健康检查定时任务安装失败"
-        return 1
-    fi
-}
-
-uninstall_cron_job() {
-    log_info "卸载Datakit健康检查定时任务"
-    
-    local script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-    
-    # 移除定时任务
-    crontab -l 2>/dev/null | grep -v "$script_path" | crontab -
-    
-    if [ $? -eq 0 ]; then
-        log_success "定时任务卸载成功"
-        dataway_log "info" "Datakit健康检查定时任务卸载成功"
-    else
-        log_error "定时任务卸载失败"
-        dataway_log "error" "Datakit健康检查定时任务卸载失败"
-        return 1
-    fi
 }
 
 # =============================================================================
@@ -284,15 +229,6 @@ show_status() {
     # 显示失败计数
     local failure_count=$(get_failure_count)
     log_info "当前失败计数: $failure_count/$HEALTH_CHECK_MAX_FAILURE_COUNT"
-    
-    # 检查定时任务
-    local script_path="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
-    if crontab -l 2>/dev/null | grep -q "$script_path"; then
-        log_success "定时任务已安装"
-        crontab -l | grep "$script_path"
-    else
-        log_warning "定时任务未安装"
-    fi
     
     # 检查Datakit状态
     if check_datakit_health; then
@@ -322,21 +258,11 @@ main() {
     # 检查依赖
     validate_required_commands || die "依赖检查失败"
     
-    # 获取配置
-    get_host_ip || die "获取主机IP失败"
-    get_ops_config || log_warning "获取运维平台配置失败，使用默认配置"
-    
     # 创建日志文件
     touch "$HEALTH_CHECK_LOG_FILE"
     
     # 解析命令行参数
     case "${1:-}" in
-        install-cron)
-            install_cron_job
-            ;;
-        uninstall-cron)
-            uninstall_cron_job
-            ;;
         status)
             show_status
             ;;
@@ -345,16 +271,9 @@ main() {
             perform_health_check
             ;;
     esac
-    
-    # 记录脚本结束
-    SCRIPT_EXIT_CODE=0
-    record_script_end
 }
 
 # =============================================================================
 # 脚本入口
 # =============================================================================
-# 设置错误处理
-trap 'SCRIPT_EXIT_CODE=$?; SCRIPT_ERROR_MESSAGE="脚本执行出错"; record_script_end; exit $SCRIPT_EXIT_CODE' ERR
-
 main "$@" 
