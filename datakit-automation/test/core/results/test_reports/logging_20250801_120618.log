@@ -1,0 +1,40 @@
+  [0;32m✓ PASS[0m test_log_level_filtering (0s)
+  [0;32m✓ PASS[0m test_log_level_filtering (0s)
+  [0;31m✗ FAIL[0m test_log_level_filtering: WARNING日志应该出现在WARNING级别 (0s)
+  [0;31m✗ FAIL[0m test_log_level_filtering: ERROR日志应该出现在WARNING级别 (0s)
+  [0;31m✗ FAIL[0m test_log_level_filtering: SUCCESS日志应该出现在WARNING级别 (0s)
+运行测试函数: test_log_levels
+  [0;32m✓ PASS[0m test_log_levels (0s)
+  [0;32m✓ PASS[0m test_log_levels (0s)
+  [0;32m✓ PASS[0m test_log_levels (0s)
+  [0;32m✓ PASS[0m test_log_levels (0s)
+运行测试函数: test_log_rotation
+  [0;32m✓ PASS[0m test_log_rotation (0s)
+运行测试函数: test_script_end_record
+  [0;32m✓ PASS[0m test_script_end_record (0s)
+  [0;32m✓ PASS[0m test_script_end_record (0s)
+  [0;32m✓ PASS[0m test_script_end_record (0s)
+  [0;32m✓ PASS[0m test_script_end_record (0s)
+  [0;32m✓ PASS[0m test_script_end_record (0s)
+  [0;32m✓ PASS[0m test_script_end_record (0s)
+  [0;32m✓ PASS[0m test_script_end_record (0s)
+运行测试函数: test_script_start_record
+  [0;32m✓ PASS[0m test_script_start_record (0s)
+  [0;32m✓ PASS[0m test_script_start_record (0s)
+  [0;32m✓ PASS[0m test_script_start_record (0s)
+  [0;32m✓ PASS[0m test_script_start_record (0s)
+  [0;32m✓ PASS[0m test_script_start_record (0s)
+  [0;32m✓ PASS[0m test_script_start_record (0s)
+运行测试函数: test_special_characters
+  [0;32m✓ PASS[0m test_special_characters (0s)
+  [0;31m✗ FAIL[0m test_special_characters: 日志应该包含特殊字符 (0s)
+  [0;31m✗ FAIL[0m test_special_characters: 日志应该包含中文 (0s)
+
+=== 测试摘要 ===
+总测试数: 39
+通过: 25
+失败: 14
+跳过: 0
+成功率: 64.10%
+执行时间: 0秒
+报告文件: results/test_reports/logging_20250801_120618.json
