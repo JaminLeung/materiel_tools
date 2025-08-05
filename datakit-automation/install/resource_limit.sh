@@ -6,11 +6,11 @@
 # 功能: 获取机器规格并设置资源限制
 #=================================================
 
-step_03_set_resource_limits() {
+set_resource_limits() {
     log_info "=== 步骤3: 设置资源限制 ==="
     
     # 验证系统资源
-    if ! validate_system_resources; then
+    if ! validate_system_resources_specs; then
         log_error "系统资源验证失败"
         dataway_log "error" "系统资源验证失败"
         return 1

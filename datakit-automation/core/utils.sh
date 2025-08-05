@@ -3,9 +3,8 @@
 #=================================================
 # 工具函数模块
 #=================================================
-# 功能: 提供通用工具函数、文件操作、网络操作、系统操作等基础功能
+# 功能: 通用工具函数、文件操作、网络操作、系统操作
 #=================================================
-
 
 # 获取脚本所在目录
 CORE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,7 +23,7 @@ dataway_log() {
     
     # 构建上报数据结构
     local log_data=$(cat <<EOF
-{
+[{
     "measurement": "datakit_host",
     "tags": {
         "level": "$level",
@@ -32,18 +31,29 @@ dataway_log() {
         "env": "$(get_global_state 'ENV')",
         "workspace": "$(get_global_state 'WORKSPACE')"
     },
+
     "fields": {
         "message": "$message"
     }
-}
+}]
 EOF
 )
     
     # 上报到Dataway
-    local dataway_url="$(get_global_state 'DATAWAY_FULL_URL')"
-    if [ -n "$dataway_url" ]; then
+
+    # dataway_host 是从 DATAWAY_URL 中提取的
+    local dataway_host=$(echo $DATAWAY_URL | awk -F'?' '{print $1}')
+    local dataway_token=$(echo $DATAWAY_URL | awk -F'token=' '{print $2}')
+    
+    log_info "log_data: $log_data"
+
+    if [ -n "$dataway_host" ]; then
+
+
+        log_info "执行命令：curl -s -X POST $dataway_host/v1/write/logging?token=$dataway_token&echo=json&precision=ms -H 'Content-Type: application/json' -d '$log_data'"
+
         
-        curl -s -X POST "$dataway_url" \
+        curl -s -X POST "$dataway_host/v1/write/logging?token=$dataway_token&echo=json&precision=ms" \
             -H "Content-Type: application/json" \
             -d "$log_data" >/dev/null 2>&1 || true
     fi
@@ -289,48 +299,166 @@ get_host_ip() {
 get_ops_config() {
     log_info "获取运维平台配置"
     
-    # 首先尝试使用source_get_ops_config获取基础配置
-    if source_get_ops_config; then
-        # 获取基础信息
-        local host_ip=$(get_global_state 'HOST_IP')
-        local env=$(get_global_state 'ENV')
-        local workspace=$(get_global_state 'WORKSPACE')
-        
-        # 获取Datakit配置
-        local response
-        local ops_addr="${OPS_ADDR:-${CONFIG[OPS_ADDR]}}"
-        
+    # 获取主机IP
+    local host_ip=$(get_global_state 'HOST_IP')
+    if [ -z "$host_ip" ]; then
+        if ! get_host_ip; then
+            return 1
+        fi
+        host_ip=$(get_global_state 'HOST_IP')
+    fi
+    
+    # 从配置文件获取OPS_TOKEN
+    local ops_token=""
+    local config_py_file="${CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}"
+    
+    if [ -f "$config_py_file" ]; then
+        ops_token=$(grep -v '^\s*#' "$config_py_file" | grep -oP "ops_token = '\K[^']+" 2>/dev/null || echo "")
+        log_info "从配置文件获取OPS_TOKEN: ${ops_token:0:10}..."
+    else
+        log_warning "配置文件不存在: $config_py_file"
+    fi
+    
+    # 如果从配置文件获取失败，尝试使用环境变量
+    if [ -z "$ops_token" ]; then
+        ops_token="${OPS_TOKEN:-}"
+        log_info "使用环境变量OPS_TOKEN: ${ops_token:0:10}..."
+    fi
+    
+    # 支持多种API地址配置
+    local ops_addr="${CONFIG_UPDATE_OPS_API_URL:-${OPS_ADDR:-}}"
+    
+    if [ -z "$ops_addr" ]; then
+        log_error "未配置运维平台API地址"
+        log_error "CONFIG_UPDATE_OPS_API_URL: ${CONFIG_UPDATE_OPS_API_URL:-未设置}"
+        log_error "OPS_ADDR: ${OPS_ADDR:-未设置}"
+        return 1
+    fi
+    
+    if [ -z "$ops_token" ]; then
+        log_error "未配置OPS_TOKEN"
+        log_error "请检查配置文件: $config_py_file 或环境变量OPS_TOKEN"
+        return 1
+    fi
+    
+    log_info "使用API地址: $ops_addr"
+    log_info "使用OPS_TOKEN: ${ops_token:0:10}..."
+    
+    # 构建API路径
+    local api_path=""
+    if [[ "$ops_addr" == *"/api/v2/cmdb/observation-agent" ]]; then
+        api_path="$ops_addr"
+    else
+        api_path="$ops_addr/api/v2/cmdb/observation-agent"
+    fi
+    
+    log_info "最终API路径: $api_path"
+    
+    # 随机休眠避免并发请求
+    local random_number=$((RANDOM % 60 + 1))
+    log_info "随机休眠 $random_number 秒"
+    sleep $random_number
 
+    # 调用运维平台API
+    log_info "调用API: $api_path"
+    log_info "请求数据: {\"server_ip\": \"$host_ip\"}"
+    
+    local response
+    if response=$(curl -s -w "%{http_code}" -X POST "$api_path" \
+        -H "Authorization: Token $ops_token" \
+        -H "Content-Type: application/json;charset=UTF-8" \
+        -d "{\"server_ip\": \"$host_ip\"}" \
+        --connect-timeout 10 \
+        --max-time 30 2>/dev/null); then
         
-        if response=$(curl -s -X POST "$ops_addr" \
-            -H "Content-Type: application/json" \
-            -d "{\"server_ip\": \"$host_ip\"}" 2>/dev/null); then
+        # 检查HTTP状态码
+        local http_code=$(echo "$response" | tail -n1)
+        local response_body=$(echo "$response" | head -n -1)
+        
+        if [ "$http_code" -eq 28 ]; then
+            log_error "请求超时，当前连接超时设置为10s，最大请求时间为30s"
+            return 1
+        elif [ "$http_code" -ne 200 ]; then
+            case "$http_code" in
+                400) log_error "错误请求，可能是请求参数有误" ;;
+                401) log_error "未授权，检查Token是否有效" ;;
+                403) log_error "禁止访问，您没有权限访问该资源" ;;
+                404) log_error "未找到，检查URL是否正确" ;;
+                500) log_error "服务器内部错误，请稍后重试" ;;
+                502) log_error "错误网关，可能是上游服务器问题" ;;
+                503) log_error "服务不可用，服务器当前无法处理请求" ;;
+                504) log_error "网关超时，服务器未能及时响应" ;;
+                *) log_error "其他错误，HTTP状态码: $http_code" ;;
+            esac
+            return 1
+        fi
+        
+        if [ -n "$response_body" ]; then
+            # 输出响应内容用于调试
+            echo "$response_body" | jq . 2>/dev/null || log_warning "无法解析JSON响应"
             
-            if [ $? -eq 0 ] && [ -n "$response" ]; then
-                local datakit_config=$(echo "$response" | jq '.datakit_config // empty' 2>/dev/null)
-                if [ -n "$datakit_config" ]; then
+            # 验证JSON格式
+            if ! echo "$response_body" | jq empty 2>/dev/null; then
+                log_error "响应结果不是有效的JSON格式"
+                return 1
+            fi
+            
+            # 适配mock服务器的返回格式
+            # 检查是否有data包装层
+            local response_data="$response_body"
+            if echo "$response_body" | jq -e '.data' >/dev/null 2>&1; then
+                response_data=$(echo "$response_body" | jq -r '.data' 2>/dev/null)
+            fi
+            
+            # 解析基础配置信息
+            local env=$(echo "$response_data" | jq -r '.env // empty' 2>/dev/null)
+            local workspace=$(echo "$response_data" | jq -r '.workspace // empty' 2>/dev/null)
+            local global_tags=$(echo "$response_data" | jq -r '.global_tags.global_source // empty' 2>/dev/null)
+            local dataway_url=$(echo "$response_data" | jq -r '.dataway_url // empty' 2>/dev/null)
+            local workspace_token=$(echo "$response_data" | jq -r '.workspace_token // empty' 2>/dev/null)
+            
+            # 验证必需字段
+            if [ -n "$env" ] && [ -n "$workspace" ] && [ -n "$workspace_token" ]; then
+                # 设置基础配置到全局状态
+                local dataway_full_url="$dataway_url?token=$workspace_token"
+                set_global_state "ENV" "$env"
+                set_global_state "WORKSPACE" "$workspace"
+                set_global_state "GLOBAL_TAGS" "$global_tags"
+                set_global_state "WORKSPACE_TOKEN" "$workspace_token"
+                set_global_state "DATAWAY_FULL_URL" "$dataway_full_url"
+                
+                # 解析Datakit配置
+                local datakit_config=$(echo "$response_data" | jq '.datakit_config // empty' 2>/dev/null)
+                if [ -n "$datakit_config" ] && [ "$datakit_config" != "null" ]; then
                     # 设置Datakit配置到全局状态
                     set_global_state "DATAKIT_CONFIG" "$datakit_config"
-                    
-                    log_success "获取运维平台配置成功"
-                    log_info "环境: $env"
-                    log_info "工作空间: $workspace"
-                    log_info "Datakit配置: $(echo "$datakit_config" | jq -c . 2>/dev/null || echo "$datakit_config")"
-                    return 0
+                    log_success "获取Datakit配置成功"
                 else
-                    log_error "无法获取Datakit配置"
-                    return 1
+                    log_warning "响应中未包含Datakit配置，使用默认配置"
+                    # 设置默认Datakit配置
+                    local default_datakit_config='{"enable": true, "global_config": [], "input_config": []}'
+                    set_global_state "DATAKIT_CONFIG" "$default_datakit_config"
                 fi
+                
+                log_success "获取运维平台配置成功"
+                log_info "环境: $env"
+                log_info "工作空间: $workspace"
+                log_info "全局标签: $global_tags"
+                log_info "Dataway地址: $dataway_full_url"
+                return 0
             else
-                log_error "调用运维平台接口失败"
+                log_error "从运维平台接口获取的配置信息不完整"
+                log_error "ENV: $env"
+                log_error "WORKSPACE: $workspace"
+                log_error "WORKSPACE_TOKEN: $workspace_token"
                 return 1
             fi
         else
-            log_error "调用运维平台接口失败"
+            log_error "运维平台接口返回空响应"
             return 1
         fi
     else
-        log_error "获取运维平台配置失败"
+        log_error "调用运维平台接口失败"
         return 1
     fi
 }
@@ -440,76 +568,401 @@ cleanup_old_backup_dirs() {
     log_success "旧备份目录清理完成"
 }
 
-source_get_ops_config() {
-    local host_ip=$(get_global_state 'HOST_IP')
-    if [ -z "$host_ip" ]; then
-        if ! get_host_ip; then
-            return 1
-        fi
-        host_ip=$(get_global_state 'HOST_IP')
-    fi
+# =============================================================================
+# S3下载工具函数（从install_utils整合）
+# =============================================================================
+
+# 使用curl下载私有S3文件（AWS签名v4）
+download_from_s3_with_curl() {
+    local bucket="$1"
+    local key="$2"
+    local local_path="$3"
     
-    # 支持多种API地址配置
-    local ops_addr="${CONFIG_UPDATE_OPS_API_URL:-${CONFIG[OPS_ADDR]}}"
-    if [ -z "$ops_addr" ]; then
-        log_error "未配置运维平台API地址"
+    log_info "使用curl从私有S3下载: $key"
+    
+    # 检查AWS凭证
+    if [ -z "$S3_ACCESS_KEY" ] || [ -z "$S3_SECRET_KEY" ]; then
+        log_error "缺少AWS凭证，无法访问私有S3 bucket"
         return 1
     fi
     
-    # 构建API路径
-    local api_path=""
-    if [[ "$ops_addr" == *"/api/v2/cmdb/observation-agent" ]]; then
-        api_path="$ops_addr"
-    else
-        api_path="$ops_addr/api/v2/cmdb/observation-agent"
+    # 设置变量
+    local http_method="GET"
+    local canonical_uri="/$key"
+    local canonical_querystring=""
+    local timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+    local date_stamp=$(date -u +%Y%m%d)
+    local region="${S3_REGION:-ap-southeast-1}"
+    local service="s3"
+    local host="$bucket.s3.$region.amazonaws.com"
+    
+    # 生成负载哈希（GET请求为空）
+    local payload_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    
+    # 构建Canonical Headers - 确保格式完全正确
+    local canonical_headers="host:$host"$'\n'"x-amz-content-sha256:$payload_hash"$'\n'"x-amz-date:$timestamp"$'\n'
+    local signed_headers="host;x-amz-content-sha256;x-amz-date"
+    
+    # 构建Canonical Request - 使用精确的换行符
+    local canonical_request="$http_method"$'\n'"$canonical_uri"$'\n'"$canonical_querystring"$'\n'"$canonical_headers"$'\n'"$signed_headers"$'\n'"$payload_hash"
+    
+    # 计算Canonical Request哈希
+    local canonical_request_hash=$(printf "%s" "$canonical_request" | sha256sum | awk '{print $1}')
+    
+    # 构建String to Sign
+    local credential_scope="$date_stamp/$region/$service/aws4_request"
+    local string_to_sign="AWS4-HMAC-SHA256"$'\n'"$timestamp"$'\n'"$credential_scope"$'\n'"$canonical_request_hash"
+    
+    # 生成签名密钥 - 使用简单方法避免null byte问题
+    local kSecret="AWS4$S3_SECRET_KEY"
+    local temp_dir=$(mktemp -d)
+    # 注意：trap 在函数内部可能导致过早清理，改为手动清理
+    # 确保临时目录存在
+    if [ ! -d "$temp_dir" ]; then
+        log_error "无法创建临时目录"
+        return 1
     fi
     
-    # 随机休眠避免并发请求
-    local random_number=$((RANDOM % 60 + 1))
-    log_info "随机休眠 $random_number 秒"
-    sleep $random_number
+    # 调试信息
+    log_info "临时目录: $temp_dir"
+    log_info "kSecret: ${kSecret:0:20}..."
+    log_info "S3_SECRET_KEY: ${S3_SECRET_KEY:0:10}..."
+    log_info "S3_ACCESS_KEY: ${S3_ACCESS_KEY:0:10}..."
+    
+    # kDate
+    local kDate=$(echo -n "$date_stamp" | openssl dgst -sha256 -hmac "$kSecret" -binary)
+    
+    # kRegion
+    local kRegion=$(echo -n "$region" | openssl dgst -sha256 -hmac "$kDate" -binary)
+    
+    # kService
+    local kService=$(echo -n "$service" | openssl dgst -sha256 -hmac "$kRegion" -binary)
+    
+    # kSigning
+    local kSigning=$(echo -n "aws4_request" | openssl dgst -sha256 -hmac "$kService" -binary)
+    
+    # 生成签名
+    echo -n "$string_to_sign" > "$temp_dir/string_input"
+    local signature=$(openssl dgst -sha256 -hmac "$kSigning" "$temp_dir/string_input" | awk '{print $2}')
+    
+    # 生成授权头
+    local authorization_header="AWS4-HMAC-SHA256 Credential=$S3_ACCESS_KEY/$credential_scope,SignedHeaders=$signed_headers,Signature=$signature"
+    
+    # 构建完整URL
+    local s3_url="https://$host$canonical_uri"
+    
+    # 使用curl下载
+    log_info "开始下载文件..."
+    if curl -L -o "$local_path" "$s3_url" \
+        -H "Authorization: $authorization_header" \
+        -H "x-amz-content-sha256: $payload_hash" \
+        -H "x-amz-date: $timestamp" \
+        --connect-timeout 30 --max-time "${DOWNLOAD_TIMEOUT:-300}"; then
+        
+        # 检查文件大小，确保下载成功
+        local file_size=$(stat -c%s "$local_path" 2>/dev/null || stat -f%z "$local_path" 2>/dev/null)
+        if [ "$file_size" -gt 0 ]; then
+            log_success "文件下载成功: $local_path (${file_size} bytes)"
+            return 0
+        else
+            log_error "下载的文件为空: $key"
+            return 1
+        fi
+    else
+        log_error "下载失败: $key"
+        # 清理临时目录
+        rm -rf "$temp_dir" 2>/dev/null || true
+        return 1
+    fi
+    
+    # 清理临时目录
+    rm -rf "$temp_dir" 2>/dev/null || true
+}
 
-    local response
-    if response=$(curl -s -X POST "$api_path" \
-        -H "Content-Type: application/json" \
-        -d "{\"server_ip\": \"$host_ip\"}" 2>/dev/null); then
+# 带重试的S3下载
+download_from_s3_with_retry() {
+    local bucket="$1"
+    local key="$2"
+    local local_path="$3"
+    local max_attempts="${4:-${MAX_RETRY_ATTEMPTS:-3}}"
+    local delay="${5:-${RETRY_DELAY:-5}}"
+    
+    local attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        log_info "下载尝试 $attempt/$max_attempts: $key"
         
-        echo "$response" | jq . 2>/dev/null || log_warning "无法解析JSON响应"
+        if download_from_s3_with_curl "$bucket" "$key" "$local_path"; then
+            log_success "下载成功: $key"
+            return 0
+        fi
         
-        if [ -n "$response" ]; then
-            local env=$(echo "$response" | jq -r '.env // empty' 2>/dev/null)
-            local workspace=$(echo "$response" | jq -r '.workspace // empty' 2>/dev/null)
-            local global_tags=$(echo "$response" | jq -r '.global_tags.global_source // empty' 2>/dev/null)
-            local dataway_url=$(echo "$response" | jq -r '.dataway_url // empty' 2>/dev/null)
-            local workspace_token=$(echo "$response" | jq -r '.workspace_token // empty' 2>/dev/null)
-            
-            if [ -n "$env" ] && [ -n "$workspace" ] && [ -n "$workspace_token" ]; then
-                local dataway_full_url="$dataway_url?token=$workspace_token"
-                set_global_state "ENV" "$env"
-                set_global_state "WORKSPACE" "$workspace"
-                set_global_state "GLOBAL_TAGS" "$global_tags"
-                set_global_state "WORKSPACE_TOKEN" "$workspace_token"
-                set_global_state "DATAWAY_FULL_URL" "$dataway_full_url"
-                
-                log_success "获取运维平台配置成功"
-                log_info "环境: $env"
-                log_info "工作空间: $workspace"
-                log_info "全局标签: $global_tags"
-                log_info "Dataway地址: $dataway_full_url"
+        if [ $attempt -lt $max_attempts ]; then
+            log_warning "下载失败，${delay}秒后重试..."
+            sleep "$delay"
+        fi
+        
+        attempt=$((attempt + 1))
+    done
+    
+    log_error "下载失败，已尝试 $max_attempts 次: $key"
+    return 1
+}
+
+# 验证文件MD5
+verify_file_md5() {
+    local file_path="$1"
+    local expected_md5="$2"
+    
+    if [ ! -f "$file_path" ]; then
+        log_error "文件不存在: $file_path"
+        return 1
+    fi
+    
+    local actual_md5=$(md5sum "$file_path" | awk '{print $1}')
+    
+    if [ "$expected_md5" = "$actual_md5" ]; then
+        log_success "MD5验证成功: $file_path"
+        return 0
+    else
+        log_error "MD5验证失败: $file_path"
+        log_error "期望: $expected_md5"
+        log_error "实际: $actual_md5"
+        return 1
+    fi
+}
+
+# =============================================================================
+# 包安装工具函数（从install_utils整合）
+# =============================================================================
+
+# 解压文件
+extract_package() {
+    local package_path="$1"
+    local extract_dir="$2"
+    
+    log_info "解压文件: $package_path"
+    
+    if [ ! -f "$package_path" ]; then
+        log_error "文件不存在: $package_path"
+        return 1
+    fi
+    
+    # 创建解压目录
+    mkdir -p "$extract_dir"
+    cd "$extract_dir"
+    
+    # 根据文件类型解压
+    case "$package_path" in
+        *.tar.gz|*.tgz)
+            if tar -xzf "$package_path"; then
+                log_success "解压成功: $package_path"
                 return 0
             else
-                log_error "从运维平台接口获取的配置信息不完整"
-                log_error "ENV: $env"
-                log_error "WORKSPACE: $workspace"
-                log_error "WORKSPACE_TOKEN: $workspace_token"
+                log_error "解压失败: $package_path"
                 return 1
             fi
-        else
-            log_error "运维平台接口返回空响应"
+            ;;
+        *.tar)
+            if tar -xf "$package_path"; then
+                log_success "解压成功: $package_path"
+                return 0
+            else
+                log_error "解压失败: $package_path"
+                return 1
+            fi
+            ;;
+        *.zip)
+            if unzip -q "$package_path"; then
+                log_success "解压成功: $package_path"
+                return 0
+            else
+                log_error "解压失败: $package_path"
+                return 1
+            fi
+            ;;
+        *)
+            log_error "不支持的文件格式: $package_path"
             return 1
-        fi
-    else
-        log_error "调用运维平台接口失败"
+            ;;
+    esac
+}
+
+# 安装工具到系统目录
+install_tools() {
+    local tools_dir="$1"
+    
+    log_info "安装工具到系统目录..."
+    
+    if [ ! -d "$tools_dir" ]; then
+        log_error "工具目录不存在: $tools_dir"
         return 1
     fi
-} 
+    
+    cd "$tools_dir"
+    
+    # 安装jq
+    if [ -f "./jq" ]; then
+        cp ./jq /usr/local/bin/ && chmod +x /usr/local/bin/jq
+        log_info "jq工具安装完成"
+    fi
+    
+    # 安装yj
+    if [ -f "./yj" ]; then
+        cp ./yj /usr/local/bin/ && chmod +x /usr/local/bin/yj
+        log_info "yj工具安装完成"
+    fi
+    
+    log_success "工具安装完成"
+}
+
+# 检查必需的工具
+check_required_tools() {
+    local missing_tools=()
+    
+    # 检查必需的工具
+    local required_tools=("curl" "jq" "systemctl" "tar")
+    
+    for tool in "${required_tools[@]}"; do
+        if ! command_exists "$tool"; then
+            missing_tools+=("$tool")
+        fi
+    done
+    
+    if [ ${#missing_tools[@]} -gt 0 ]; then
+        log_error "缺少必需的工具: ${missing_tools[*]}"
+        return 1
+    fi
+    
+    log_success "所有必需工具检查通过"
+    return 0
+}
+
+# 创建备份（重命名避免冲突）
+create_package_backup() {
+    local source_path="$1"
+    local backup_dir="$2"
+    
+    if [ ! -e "$source_path" ]; then
+        log_info "源路径不存在，无需备份: $source_path"
+        return 0
+    fi
+    
+    # 创建备份目录
+    mkdir -p "$backup_dir"
+    
+    # 生成备份文件名
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local basename=$(basename "$source_path")
+    local backup_path="$backup_dir/${basename}.backup.${timestamp}"
+    
+    # 执行备份
+    if cp -r "$source_path" "$backup_path"; then
+        log_success "备份创建成功: $backup_path"
+        return 0
+    else
+        log_error "备份创建失败: $source_path"
+        return 1
+    fi
+}
+
+# 清理临时文件（重命名避免冲突）
+cleanup_package_temp_files() {
+    local temp_dir="$1"
+    
+    if [ -n "$temp_dir" ] && [ -d "$temp_dir" ]; then
+        log_info "清理临时文件: $temp_dir"
+        rm -rf "$temp_dir"
+        log_success "临时文件清理完成"
+    fi
+}
+
+# =============================================================================
+# 机器规格检测工具函数（从install_utils整合）
+# =============================================================================
+
+# 获取机器规格并设置资源限制
+get_machine_specs() {
+    log_info "获取机器规格并设置资源限制..."
+    
+    # 获取CPU规格
+    local cpu_cores=$(lscpu | grep "CPU(s)" | cut -d ':' -f 2 | sed 's/^ //' | awk '{print $1}' | head -n 1)
+    
+    # 获取内存规格（GB）
+    local memory_gb=$(free -g | grep "Mem" | awk '{print $2}')
+    
+    log_info "机器规格: ${cpu_cores}核 ${memory_gb}GB"
+    
+    # 根据规格设置资源限制
+    if [ "$cpu_cores" -lt 4 ] || [ "$memory_gb" -lt 8 ]; then
+        # 2C4G ~ 4C8G: 使用规格的12.5%，最低0.5C0.5G
+        local cpu_limit_raw=$(echo "$cpu_cores * 0.125" | bc | sed 's/^\./0./' | sed 's/\.$//')
+        local memory_limit_raw=$(echo "$memory_gb * 0.125 * 1024" | bc | sed 's/^\./0./' | sed 's/\.$//')
+        
+        # 确保最低限制：0.5C0.5G
+        local cpu_limit
+        if (( $(echo "$cpu_limit_raw < 0.5" | bc -l) )); then
+            cpu_limit="0.5"
+        else
+            cpu_limit="$cpu_limit_raw"
+        fi
+        
+        local memory_limit
+        if (( $(echo "$memory_limit_raw < 0.5" | bc -l) )); then
+            memory_limit="512"  # 0.5GB = 512MB
+        else
+            memory_limit=$(echo "$memory_limit_raw " | bc | sed 's/^\./0./' | sed 's/\.$//')    
+        fi
+        
+        # 设置全局状态
+        set_global_state "CGROUP_CPU_LIMIT" "$cpu_limit"
+        set_global_state "CGROUP_MEMORY_LIMIT" "$memory_limit"
+        
+        log_info "2C4G~4C8G 规格资源限制计算:"
+        log_info "CPU原始限制: ${cpu_limit_raw}C (规格的12.5%)"
+        log_info "内存原始限制: ${memory_limit_raw}GB (规格的12.5%)"
+        log_info "CPU最终限制: ${cpu_limit}C (应用最低限制0.5C)"
+        log_info "内存最终限制: ${memory_limit}MB (应用最低限制0.5GB)"
+        log_info "设置动态资源限制: ${cpu_limit}C${memory_limit}MB"
+        
+    else
+        # ≥ 4C8G: 使用固定限制
+        set_global_state "CGROUP_CPU_LIMIT" "1"
+        set_global_state "CGROUP_MEMORY_LIMIT" "2048"
+        log_info "≥4C8G规格，设置默认资源限制: 1C2G"
+    fi
+    
+    dataway_log "info" "设置资源限制: $(get_global_state 'CGROUP_CPU_LIMIT')C$(get_global_state 'CGROUP_MEMORY_LIMIT')MB"
+}
+
+# 验证系统资源（重命名避免冲突）
+validate_system_resources_specs() {
+    log_info "验证系统资源..."
+    
+    # 检查磁盘空间
+    local available_space=$(df / | awk 'NR==2 {print $4}')
+    local required_space=1048576  # 1GB in KB
+    
+    if [[ $available_space -lt $required_space ]]; then
+        log_error "磁盘空间不足: 可用 ${available_space}KB，需要 ${required_space}KB"
+        return 1
+    fi
+    
+    # 检查内存
+    local available_memory=$(free -k | awk 'NR==2 {print $7}')
+    local required_memory=524288  # 512MB in KB
+    
+    if [[ $available_memory -lt $required_memory ]]; then
+        log_warning "可用内存较少: 可用 ${available_memory}KB，建议 ${required_memory}KB"
+    fi
+    
+    # 检查CPU负载
+    local load_average=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
+    if (( $(echo "$load_average > 5.0" | bc -l) )); then
+        log_warning "系统负载较高: $load_average"
+    fi
+    
+    log_success "系统资源验证通过"
+    return 0
+}
+ 
+ 

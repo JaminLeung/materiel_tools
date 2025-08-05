@@ -113,6 +113,9 @@ load_config() {
         echo "[INFO] 未指定环境配置文件，使用默认配置"
     fi
     
+    # 设置默认的DATAKIT_VERSION（如果未设置）
+    export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+    
     echo "[INFO] 配置加载完成"
 }
 
@@ -330,6 +333,18 @@ execute_existing_installation() {
         
         # 传递配置信息给场景脚本
         export DATAKIT_CONFIG_FILE="$env_config_file"
+        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+        
+        # 导出所有关键配置变量
+        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
+        export OPS_ADDR="${OPS_ADDR:-}"
+        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
+        export DATAWAY_URL="${DATAWAY_URL:-}"
+        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
+        export S3_BUCKET="${S3_BUCKET:-}"
+        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
+        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
+        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
         
         # 执行场景脚本
         bash "$scenario_script"

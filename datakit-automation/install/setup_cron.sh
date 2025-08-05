@@ -6,7 +6,7 @@
 # 功能: 设置config_update.sh和健康检测的定时任务
 #=================================================
 
-step_07_setup_cron_jobs() {
+setup_cron_jobs() {
     log_info "=== 步骤7: 设置定时任务 ==="
     
     # 设置定时任务
@@ -58,7 +58,7 @@ setup_cron_jobs() {
     mkdir -p /var/log/datakit
     
     # 使用通用包装脚本
-    local wrapper_script="$SCENARIO_PROJECT_ROOT/install/install_utils/cron_wrapper.sh"
+    local wrapper_script="$SCENARIO_PROJECT_ROOT/install/cron_wrapper.sh"
     
     if [ ! -f "$wrapper_script" ]; then
         log_error "通用包装脚本不存在: $wrapper_script"

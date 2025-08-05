@@ -10,7 +10,7 @@ set -e
 
 # 脚本目录
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly MODULES_DIR="$SCRIPT_DIR/../modules"
+readonly MODULES_DIR="$SCRIPT_DIR/../core"
 readonly CONFIG_DIR="$SCRIPT_DIR/../config"
 
 # 配置加载函数
@@ -57,8 +57,8 @@ load_scenario_config() {
 load_scenario_config
 
 # 加载模块
-source "$MODULES_DIR/core/logging.sh"
-source "$MODULES_DIR/core/utils.sh"
+source "$MODULES_DIR/logging.sh"
+source "$MODULES_DIR/utils.sh"
 
 # 配置更新场景
 execute_config_update() {
@@ -103,11 +103,13 @@ update_datakit_config() {
         echo "[INFO] 更新Datakit配置..."
     fi
     
-    # 这里调用配置模块的函数
-    if command -v configure_datakit >/dev/null 2>&1; then
-        configure_datakit
+    # 调用scripts/config_update.sh中的main函数
+    local config_update_script="$SCRIPT_DIR/../scripts/config_update.sh"
+    if [ -f "$config_update_script" ]; then
+        bash "$config_update_script"
     else
-        echo "[WARN] configure_datakit函数未找到，跳过配置更新"
+        echo "[ERROR] 配置更新脚本不存在: $config_update_script" >&2
+        return 1
     fi
 }
 # 创建配置文件配备份

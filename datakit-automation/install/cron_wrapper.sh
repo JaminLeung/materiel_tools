@@ -4,25 +4,34 @@
 # 功能：确保定时任务不会重复执行，支持多种任务类型
 # 用法：./cron_wrapper.sh <task_type> <script_path>
 
+# =============================================================================
+# 加载基础配置
+# =============================================================================
+# 获取脚本所在目录
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# 加载基础配置
+source "$SCRIPT_DIR/../../config/base/base_config.sh" 2>/dev/null || echo "警告: 无法加载base_config.sh" >&2
+
 TASK_TYPE="$1"
 SCRIPT_PATH="$2"
 
-# 根据任务类型设置配置
+# 根据任务类型设置配置（从base_config.sh获取）
 case "$TASK_TYPE" in
     "config_update")
-        LOCK_FILE="/var/run/config_update.lock"
-        LOG_FILE="/var/log/datakit/config_update.log"
-        TASK_NAME="config_update.sh"
+        LOCK_FILE="$CONFIG_UPDATE_LOCK_FILE"
+        LOG_FILE="$CONFIG_UPDATE_LOG_FILE"
+        TASK_NAME="$CONFIG_UPDATE_TASK_NAME"
         ;;
     "health_check")
-        LOCK_FILE="/var/run/datakit_health_check.lock"
-        LOG_FILE="/var/log/datakit/health_check.log"
-        TASK_NAME="datakit_health_check.sh"
+        LOCK_FILE="$HEALTH_CHECK_LOCK_FILE"
+        LOG_FILE="$HEALTH_CHECK_LOG_FILE"
+        TASK_NAME="$HEALTH_CHECK_TASK_NAME"
         ;;
     "app_init")
-        LOCK_FILE="/var/run/app_init.lock"
-        LOG_FILE="/var/log/datakit/app_init.log"
-        TASK_NAME="app_init.sh"
+        LOCK_FILE="$APP_INIT_LOCK_FILE"
+        LOG_FILE="$APP_INIT_LOG_FILE"
+        TASK_NAME="$APP_INIT_TASK_NAME"
         ;;
     *)
         echo "$(date '+%Y-%m-%d %H:%M:%S') - 错误：未知的任务类型: $TASK_TYPE" >&2
