@@ -7,7 +7,7 @@
 #=================================================
 
 get_host_info() {
-    log_info "=== 步骤1: 获取主机信息 ==="
+    log_info "=== 获取主机信息 ==="
     
     # 获取本机IP地址
     if ! get_host_ip; then
@@ -17,6 +17,7 @@ get_host_info() {
     fi
     
     # 获取运维平台配置
+    # TODO 缺省配置逻辑
     if ! get_ops_config; then
         log_warning "获取运维平台配置失败，使用默认配置"
         dataway_log "warning" "获取运维平台配置失败，使用默认配置"
@@ -54,6 +55,7 @@ get_host_info() {
 }
 
 # 验证主机信息完整性
+# TODO 去掉
 validate_host_info() {
     log_info "验证主机信息完整性..."
     

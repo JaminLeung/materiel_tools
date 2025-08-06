@@ -7,7 +7,7 @@
 #=================================================
 
 check_installation_status() {
-    log_info "=== 步骤2: 检查安装状态 ==="
+    log_info "=== 检查安装状态 ==="
     
     # 检查Datakit进程
     if check_datakit_process; then
@@ -29,10 +29,7 @@ check_installation_status() {
         dataway_log "info" "Datakit配置文件已存在，跳过安装"
         exit 0
     fi
-    
-    # 检查Node Exporter状态
-    check_node_exporter_status
-    
+        
     log_success "Datakit未安装，可以继续安装"
     dataway_log "info" "Datakit未安装，可以继续安装"
     return 0

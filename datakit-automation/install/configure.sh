@@ -7,7 +7,7 @@
 #=================================================
 
 configure_and_verify() {
-    log_info "=== 步骤6: 配置和验证 ==="
+    log_info "=== 配置和验证 ==="
     
     # 配置Datakit主配置文件
     if ! configure_datakit_main_config; then

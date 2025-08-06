@@ -7,7 +7,7 @@
 #=================================================
 
 verify_installation() {
-    log_info "=== 步骤8: 验证安装结果 ==="
+    log_info "=== 验证安装结果 ==="
     log_info "开始执行安装总结验证..."
     
     local verification_passed=true
