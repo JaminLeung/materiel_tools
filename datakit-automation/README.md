@@ -125,3 +125,10 @@ export OPS_ADDR=http://ops.example.com:5000
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！ 
+
+
+
+
+
+# TODO 
+install 目录只包含安装相关的脚本，其他的脚本都放在 core 目录下

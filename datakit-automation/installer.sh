@@ -287,6 +287,7 @@ main() {
     initialize_installer
 
     # 执行命令
+    # 添加定时任务场景命令
     case "$command" in
         existing-install)
             execute_existing_installation

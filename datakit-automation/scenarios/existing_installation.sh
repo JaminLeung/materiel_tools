@@ -83,6 +83,8 @@ INSTALLATION_STATE["start_time"]=$(date +%s)
 INSTALLATION_STATE["current_step"]=""
 INSTALLATION_STATE["failed_step"]=""
 
+
+# TODO 场景脚本里不定义异常处理，复用全局
 # 错误处理函数
 handle_error() {
     local exit_code=$?
@@ -109,6 +111,8 @@ handle_error() {
 # 设置错误处理
 trap handle_error ERR
 
+
+# TODO  清理和回滚函数放到 core 里
 # 清理函数
 cleanup_temp_files() {
     local temp_dir="$1"
@@ -151,28 +155,33 @@ execute_existing_installation() {
     
     # 初始化日志文件
     touch "$LOG_FILE"
+
+    # TODO 所有步骤做状态检测
     
-    # 执行安装步骤
-    # 步骤1: 获取主机信息
-    INSTALLATION_STATE["current_step"]="host_info"
-    get_host_info
-    
-    # 步骤2: 检查安装状态
+    # 步骤1: 检查安装状态
     INSTALLATION_STATE["current_step"]="status_check"
     check_installation_status
-    
+
     # 步骤3: 设置资源限制
     INSTALLATION_STATE["current_step"]="resource_limit"
     set_resource_limits
     
+
     # 步骤4: 下载安装包
     INSTALLATION_STATE["current_step"]="download"
     # download_packages
-    
+
+
+   # 执行安装步骤
+    # 获取 ops 主机安装参数
+    INSTALLATION_STATE["current_step"]="host_info"
+    get_host_info
+
     # 步骤5: 执行安装
     INSTALLATION_STATE["current_step"]="install"
     install_components
     
+
     # 步骤6: 配置和验证
     INSTALLATION_STATE["current_step"]="configure"
     configure_and_verify
