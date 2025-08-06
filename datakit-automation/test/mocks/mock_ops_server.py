@@ -31,10 +31,10 @@ MOCK_SERVER_CONFIGS = {
         "global_tags": {
             "global_source": {
                 "app": "datakit",
-                "env": "production",
-                "region": "ap-southeast-1",
-                "service": "monitoring",
-                "team": "ops11112222222222222222222"
+                "env1": "production",
+                "region1": "ap-southeast-1",
+                "service1": "monitoring",
+                "team1": "ops"
             }
         },
         "dataway_url": "https://openway.guance.com",
@@ -49,12 +49,12 @@ MOCK_SERVER_CONFIGS = {
                 },
                                 {
                     "key": "http_api.request_rate_limit",
-                    "value": 50,
+                    "value": 51,
                     "enable": True
                 },
                 {
                     "key": "global_host_tags.sssss",
-                    "value": "info111",
+                    "value": "info",
                     "enable": True
                 }
             ],
@@ -62,14 +62,14 @@ MOCK_SERVER_CONFIGS = {
                 {
                     "input_name": "ddtrace",
                     "input_path": "/usr/local/datakit/conf.d/ddtrace/ddtrace.conf",
-                    "key": "inputs.ddtrace[0].customer_tagstttaaaaaaaaaaaaaabbabbbb",
-                    "value": ["sink_project", "custom_dd_tagaaaabbbbbbsssssaaaaaaaaa"],
+                    "key": "inputs.ddtrace[0].customer_tags",
+                    "value": ["sink_project", "custom_dd_tag"],
                     "enable": True
                 },
                 {
                     "input_name": "ddtrace",
                     "input_path": "/usr/local/datakit/conf.d/ddtrace/ddtrace.conf",
-                    "key": "inputs.ddtrace[0].customer_tagstttaaaaa1111bbbb",
+                    "key": "inputs.ddtrace[0].customer_tagstttaaaaa1111bbbcccc",
                     "value": ["sink_project", "custom_dd_tagaaaa"],
                     "enable": True
                 }
@@ -151,26 +151,8 @@ def get_server_config(server_ip: str) -> Dict[str, Any]:
     根据服务器IP获取配置信息
     在实际应用中，这里应该查询数据库或配置文件
     """
-    return MOCK_SERVER_CONFIGS.get(server_ip, {
-        "env": "prod",
-        "workspace": "默认工作空间",
-        "global_tags": {
-            "global_source": "global_source",
-            "env": "env",
-            "workspace": "workspace",
-            "env111": "env",
-            "workspace111": "workspaceaaaaa",
-            "env222": "env",
-            "workspace2": "workspaceaaaaa",
-        },
-        "dataway_url": "https://openway.guance.com",
-        "workspace_token": "tkn_3a0052c9f6d3498c8ce9ca0988fd9c82",
-        "datakit_config": {
-            "enable": True,
-            "global_config": [],
-            "input_config": []
-        }
-    })
+    # 对于所有IP都返回相同的服务器配置
+    return MOCK_SERVER_CONFIGS
 
 
 def get_metadata_config(server_ip: str) -> Dict[str, Any]:

@@ -8,66 +8,15 @@
 set -euo pipefail
 
 # =============================================================================
-# 加载环境配置
+# 加载基础配置
 # =============================================================================
-# 配置加载函数
-load_script_config() {
-    # 检查是否通过installer.sh调用，如果是则配置已加载
-    # 否则尝试加载默认配置或从环境变量获取
-    if [[ -z "${DATAKIT_VERSION:-}" ]]; then
-        # 尝试从环境变量获取配置文件路径
-        local config_file="${DATAKIT_CONFIG_FILE:-}"
-        
-        if [[ -n "$config_file" ]]; then
-            # 加载指定的配置文件
-            if [[ -f "$config_file" ]]; then
-                source "$config_file"
-            elif [[ -f "$(dirname "${BASH_SOURCE[0]}")/../config/env/$config_file" ]]; then
-                source "$(dirname "${BASH_SOURCE[0]}")/../config/env/$config_file"
-            else
-                echo "[ERROR] 指定的配置文件不存在: $config_file" >&2
-                exit 1
-            fi
-        else
-            # 尝试加载默认配置
-            local default_configs=("benjamin.sh" "production.sh" "development.sh")
-            local config_loaded=false
-            
-            for config in "${default_configs[@]}"; do
-                if [[ -f "$(dirname "${BASH_SOURCE[0]}")/../config/env/$config" ]]; then
-                    echo "[INFO] 加载默认配置文件: $config"
-                    source "$(dirname "${BASH_SOURCE[0]}")/../config/env/$config"
-                    config_loaded=true
-                    break
-                fi
-            done
-            
-            if [[ "$config_loaded" == "false" ]]; then
-                echo "[ERROR] 未找到可用的配置文件，请设置 DATAKIT_CONFIG_FILE 环境变量" >&2
-                exit 1
-            fi
-        fi
-    fi
-}
+# 获取脚本所在目录
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 加载配置
-load_script_config
+# 加载基础配置
+source "$SCRIPT_DIR/../config/base/base_config.sh" 2>/dev/null || echo "警告: 无法加载base_config.sh" >&2
 
-# =============================================================================
-# 脚本配置（从环境配置中获取）
-# =============================================================================
-# 注意：基础配置中的变量（SCRIPT_NAME, SCRIPT_VERSION, LOG_FILE等）会被环境配置覆盖
-# 这里直接使用环境配置中的变量，不重新定义
-
-# =============================================================================
-# 路径配置（从环境配置中获取）
-# =============================================================================
-# 直接使用环境配置中的变量，不重新定义
-
-# =============================================================================
-# API配置（从环境配置中获取）
-# =============================================================================
-# 直接使用环境配置中的变量，不重新定义
+source "$SCRIPT_DIR/../config/env/benjamin.sh" 2>/dev/null || echo "警告: benjamin.sh" >&2
 
 # =============================================================================
 # 全局变量
@@ -124,6 +73,9 @@ verify_datakit_health() {
 # =============================================================================
 handle_global_config() {
     log_info "处理全局配置"
+    
+    # 检查并更新dataway配置
+    handle_dataway_config
     
     local global_config
     global_config=$(echo "$DATAKIT_CONFIG" | jq '.global_config // empty' 2>/dev/null) || return 0
@@ -195,6 +147,85 @@ handle_global_config() {
     # 应用配置变更（不重启，等待所有配置完成后统一重启）
     if [ "$CONFIG_CHANGED" = "true" ]; then
         update_toml_config "$CONFIG_UPDATE_DATAKIT_CONF" "$updated_config" || die "配置文件更新失败"
+    fi
+}
+
+# =============================================================================
+# Dataway配置处理
+# =============================================================================
+handle_dataway_config() {
+    log_info "处理Dataway配置"
+    
+    # 从全局状态获取dataway_url和workspace_token
+    local ops_dataway_url
+    local ops_workspace_token
+    ops_dataway_url=$(get_global_state 'DATAWAY_FULL_URL')
+    ops_workspace_token=$(get_global_state 'WORKSPACE_TOKEN')
+    
+    if [ -z "$ops_dataway_url" ] || [ -z "$ops_workspace_token" ]; then
+        log_warning "未获取到Dataway配置信息，跳过Dataway配置更新"
+        return 0
+    fi
+    
+    log_info "运维平台Dataway配置:"
+    log_info "  URL: $ops_dataway_url"
+    log_info "  Token: $ops_workspace_token"
+    
+    [ -f "$CONFIG_UPDATE_DATAKIT_CONF" ] || {
+        log_warning "Datakit配置文件不存在，跳过Dataway配置更新"
+        return 0
+    }
+    
+    local current_config
+    current_config=$(read_toml_config "$CONFIG_UPDATE_DATAKIT_CONF") || {
+        log_error "读取Datakit配置文件失败"
+        return 1
+    }
+    
+    # 获取当前配置文件中的dataway配置
+    local current_dataway_url=""
+    
+    # 尝试从.dataway.urls[0]获取当前URL
+    if get_json_path_value "$current_config" ".dataway.urls[0]" >/dev/null; then
+        current_dataway_url=$(echo "$current_config" | jq -r '.dataway.urls[0]' 2>/dev/null)
+        log_info "当前配置文件Dataway URL: $current_dataway_url"
+    else
+        log_info "配置文件中未找到.dataway.urls[0]配置"
+    fi
+    
+    # 构建期望的完整URL（基础URL + token）
+    local expected_dataway_url="${ops_dataway_url}"
+    log_info "期望的Dataway URL: $expected_dataway_url"
+    
+    local updated_config="$current_config"
+    local config_changed=false
+    
+    # 比较并更新URL
+    if [ "$current_dataway_url" != "$expected_dataway_url" ]; then
+        log_info "Dataway URL不一致，需要更新"
+        log_info "当前值: $current_dataway_url"
+        log_info "期望值: $expected_dataway_url"
+        
+        # 更新.dataway.urls[0]
+        updated_config=$(set_json_path_value "$updated_config" ".dataway.urls[0]" "$expected_dataway_url") || {
+            log_error "更新Dataway URL失败"
+            return 1
+        }
+        config_changed=true
+    else
+        log_info "Dataway URL相同，无需更新"
+    fi
+    
+    # 应用配置变更
+    if [ "$config_changed" = "true" ]; then
+        update_toml_config "$CONFIG_UPDATE_DATAKIT_CONF" "$updated_config" || {
+            log_error "更新Datakit配置文件失败"
+            return 1
+        }
+        CONFIG_CHANGED=true
+        log_success "Dataway配置更新完成"
+    else
+        log_info "Dataway配置无需更新"
     fi
 }
 
@@ -533,10 +564,10 @@ handle_input_delete_key() {
 # =============================================================================
 main() {
     # 记录脚本开始
-    record_script_start
+    # record_script_start
     
     # 重置配置变更标志
-    CONFIG_CHANGED=false
+    # CONFIG_CHANGED=false
     
     log_info "开始执行 $CONFIG_UPDATE_SCRIPT_NAME v$CONFIG_UPDATE_SCRIPT_VERSION"
     
@@ -664,7 +695,6 @@ main() {
 # =============================================================================
 # 脚本入口
 # =============================================================================
-# 设置错误处理
-trap 'SCRIPT_EXIT_CODE=$?; SCRIPT_ERROR_MESSAGE="脚本执行出错"; record_script_end; exit $SCRIPT_EXIT_CODE' ERR
+
 
 main "$@"

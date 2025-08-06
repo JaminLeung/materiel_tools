@@ -6,7 +6,7 @@
 # 功能: 获取本机IP、调用运维平台API获取配置
 #=================================================
 
-step_01_get_host_info() {
+get_host_info() {
     log_info "=== 步骤1: 获取主机信息 ==="
     
     # 获取本机IP地址
@@ -26,12 +26,19 @@ step_01_get_host_info() {
         set_global_state "WORKSPACE" "default"
         set_global_state "GLOBAL_TAGS" "{}"
         set_global_state "WORKSPACE_TOKEN" "default_token"
-        set_global_state "DATAWAY_FULL_URL" "$DATAWAY_LOG_URL"
         
-        log_info "使用默认配置:"
-        log_info "  - 环境: test"
-        log_info "  - 工作空间: default"
-        log_info "  - Dataway地址: $DATAWAY_LOG_URL"
+        # 使用可用的Dataway URL
+        local dataway_url="${DATAWAY_LOG_URL:-${DATAWAY_URL:-${CONFIG_UPDATE_DATAWAY_URL:-}}}"
+        if [ -n "$dataway_url" ]; then
+            set_global_state "DATAWAY_FULL_URL" "$dataway_url"
+            log_info "使用默认配置:"
+            log_info "  - 环境: test"
+            log_info "  - 工作空间: default"
+            log_info "  - Dataway地址: $dataway_url"
+        else
+            log_error "所有Dataway URL都未设置"
+            return 1
+        fi
     fi
     
     # 验证主机信息完整性

@@ -1,51 +1,80 @@
 #!/bin/bash
 
 #=================================================
-# 配置模块
+# 步骤6: 配置和验证
 #=================================================
-# 功能: Datakit配置、采集器配置、资源限制设置、全局标签配置
+# 功能: 配置Datakit、采集器、定时任务、验证安装
 #=================================================
 
-# 获取脚本所在目录
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CORE_DIR="$(dirname "$SCRIPT_DIR")/core"
+configure_and_verify() {
+    log_info "=== 步骤6: 配置和验证 ==="
+    
+    # 配置Datakit主配置文件
+    if ! configure_datakit_main_config; then
+        log_error "配置Datakit主配置文件失败"
+        dataway_log "error" "配置Datakit主配置文件失败"
+        return 1
+    fi
+    
+    # 配置采集器
+    if ! configure_datakit_inputs; then
+        log_error "配置采集器失败"
+        dataway_log "error" "配置采集器失败"
+        return 1
+    fi
+    
+    # 重启Datakit
+    if ! restart_datakit; then
+        log_error "重启Datakit失败"
+        dataway_log "error" "重启Datakit失败"
+        return 1
+    fi
+    
+    log_success "配置完成"
+    dataway_log "info" "配置完成"
+    return 0
+}
 
-# Source外部脚本
-source "$CORE_DIR/logging.sh" 2>/dev/null || echo "警告: 无法加载logging.sh" >&2
-source "$CORE_DIR/utils.sh" 2>/dev/null || echo "警告: 无法加载utils.sh" >&2
-source "$CORE_DIR/initialize.sh" 2>/dev/null || echo "警告: 无法加载initialize.sh" >&2
-source "$CORE_DIR/validation.sh" 2>/dev/null || echo "警告: 无法加载validation.sh" >&2
-
-# 配置Datakit
-configure_datakit() {
-    log_info "=== 步骤4: 配置Datakit ==="
+# 配置Datakit主配置文件
+configure_datakit_main_config() {
+    log_info "配置Datakit主配置文件..."
     
     local datakit_conf="/usr/local/datakit/conf.d/datakit.conf"
     
     if [ ! -f "$datakit_conf" ]; then
-        log_error "Datakit配置文件不存在: $datakit_conf"
+        log_error "Datakit配置文件不存在"
         return 1
     fi
     
-    # 设置日志分片
-    if ! safe_execute "yq eval '.logging.rotate = \"32\"' \"$datakit_conf\" -i" "设置日志分片"; then
+    # 读取当前配置
+    local current_config
+    log_info "读取Datakit配置文件: $datakit_conf"
+    if ! current_config=$(read_toml_config "$datakit_conf"); then
+        log_error "读取Datakit配置文件失败"
         return 1
     fi
+    
+    # 使用jq更新配置项
+    # 设置日志分片 (int类型)
+    current_config=$(echo "$current_config" | jq '.logging.rotate = 32')
+    log_info "设置日志分片: 32 (int类型)"
+    
+    # 设置HTTP API监听地址
+    current_config=$(echo "$current_config" | jq '.http_api.listen = "0.0.0.0:9529"')
+    log_info "设置HTTP API监听地址: 0.0.0.0:9529"
     
     # 设置Cgroup配置
     local cpu_limit=$(get_global_state 'CGROUP_CPU_LIMIT')
     local memory_limit=$(get_global_state 'CGROUP_MEMORY_LIMIT')
     
     if [ -n "$cpu_limit" ]; then
-        if ! safe_execute "yq eval \".resource_limit.cpu_cores = \\\"$cpu_limit\\\"\" \"$datakit_conf\" -i" "设置CPU限制"; then
-            return 1
-        fi
+        current_config=$(echo "$current_config" | jq ".resource_limit.cpu_cores = $cpu_limit")
+        log_info "设置CPU限制: $cpu_limit (float类型)"
     fi
     
     if [ -n "$memory_limit" ]; then
-        if ! safe_execute "yq eval \".resource_limit.mem_max_mb = \\\"$memory_limit\\\"\" \"$datakit_conf\" -i" "设置内存限制"; then
-            return 1
-        fi
+        current_config=$(echo "$current_config" | jq ".resource_limit.mem_max_mb = ($memory_limit | floor)")
+        log_info "设置内存限制: $memory_limit MB (int类型，已去除小数点)"
     fi
     
     # 设置全局标签
@@ -54,51 +83,81 @@ configure_datakit() {
     local global_tags=$(get_global_state 'GLOBAL_TAGS')
     
     if [ -n "$env" ]; then
-        if ! safe_execute "yq eval \".global_host_tags.env = \\\"$env\\\"\" \"$datakit_conf\" -i" "设置环境标签"; then
-            return 1
-        fi
+        current_config=$(echo "$current_config" | jq ".global_host_tags.env = \"$env\"")
+        log_info "设置环境标签: $env"
     fi
     
     if [ -n "$workspace" ]; then
-        if ! safe_execute "yq eval \".global_host_tags.workspace = \\\"$workspace\\\"\" \"$datakit_conf\" -i" "设置工作空间标签"; then
-            return 1
-        fi
+        current_config=$(echo "$current_config" | jq ".global_host_tags.workspace = \"$workspace\"")
+        log_info "设置工作空间标签: $workspace"
     fi
     
+    # 设置GLOBAL_TAGS
     if [ -n "$global_tags" ]; then
-        if ! safe_execute "yq eval \".global_host_tags.global_source = \\\"$global_tags\\\"\" \"$datakit_conf\" -i" "设置全局标签"; then
-            return 1
+        if echo "$global_tags" | jq -e . >/dev/null 2>&1; then
+            log_info "检测到GLOBAL_TAGS为JSON对象，开始遍历配置..."
+            
+            local keys=$(echo "$global_tags" | jq -r 'keys[]' 2>/dev/null)
+            if [ -n "$keys" ]; then
+                for key in $keys; do
+                    local value=$(echo "$global_tags" | jq -r ".[\"$key\"]" 2>/dev/null)
+                    if [ "$value" != "null" ] && [ -n "$value" ]; then
+                        current_config=$(echo "$current_config" | jq ".global_host_tags[\"$key\"] = \"$value\"")
+                        log_info "设置全局标签: $key=$value (可能覆盖默认值)"
+                    fi
+                done
+            fi
+        else
+            current_config=$(echo "$current_config" | jq ".global_host_tags.global_source = \"$global_tags\"")
+            log_info "设置全局标签: $global_tags"
         fi
     fi
     
     # 修改Dataway地址
     local dataway_url=$(get_global_state 'DATAWAY_FULL_URL')
-    if [ -n "$dataway_url" ]; then
-        if ! safe_execute "yq eval \".dataway.dataway_url = [\\\"$dataway_url\\\"]\" \"$datakit_conf\" -i" "设置Dataway地址"; then
-            return 1
-        fi
+    current_config=$(echo "$current_config" | jq ".dataway.urls = [\"$dataway_url\"]")
+    log_info "设置Dataway地址: $dataway_url"
+    
+    # 备份原配置文件
+    cp "$datakit_conf" "$datakit_conf.backup.$(date +%Y%m%d%H%M%S)"
+    
+    # 创建临时配置文件
+    local temp_conf="/tmp/datakit.conf.tmp"
+    
+    # 使用yj将更新后的JSON转换回TOML格式
+    if ! echo "$current_config" | yj -jt > "$temp_conf"; then
+        log_error "转换配置文件格式失败"
+        return 1
     fi
     
-    log_success "Datakit配置完成"
-    dataway_log "info" "Datakit配置完成"
+    # 替换原配置文件
+    mv "$temp_conf" "$datakit_conf"
+    
+    # 验证配置是否正确
+    if ! read_toml_config "$datakit_conf" >/dev/null; then
+        log_error "配置文件验证失败，恢复备份"
+        mv "$datakit_conf.backup.$(date +%Y%m%d%H%M%S)" "$datakit_conf"
+        return 1
+    fi
+    
+    log_success "Datakit主配置文件配置完成"
+    dataway_log "info" "Datakit主配置文件配置完成"
     return 0
 }
 
 # 配置采集器
-configure_inputs() {
-    log_info "=== 步骤5: 配置采集器 ==="
+configure_datakit_inputs() {
+    log_info "配置采集器..."
     
     local conf_dir="/usr/local/datakit/conf.d"
     
-    # 确保配置目录存在
-    if ! dir_exists "$conf_dir"; then
-        log_error "Datakit配置目录不存在: $conf_dir"
-        return 1
+    # Prometheus配置
+    if [ -f "$conf_dir/prom/prom_node_exporter.conf" ]; then
+        cp "$conf_dir/prom/prom_node_exporter.conf" "$conf_dir/prom/prom_node_exporter.conf.backup.$(date +%Y%m%d%H%M%S)"
     fi
     
-    # Prometheus配置
-    cat > "$conf_dir/prom_node_exporter.conf" << 'EOF'
-# {"version": "1.63.1", "desc": "do NOT edit this line"}
+    cat > "$conf_dir/prom/prom_node_exporter.conf" << 'EOF'
+# {"version": "1.78.0", "desc": "do NOT edit this line"}
 
 [[inputs.prom]]
   ## Exporter URLs.
@@ -156,8 +215,12 @@ configure_inputs() {
 EOF
 
     # OpenTelemetry配置
-    cat > "$conf_dir/opentelemetry.conf" << 'EOF'
-# {"version": "1.64.1", "desc": "do NOT edit this line"}
+    if [ -f "$conf_dir/opentelemetry/opentelemetry.conf" ]; then
+        cp "$conf_dir/opentelemetry/opentelemetry.conf" "$conf_dir/opentelemetry/opentelemetry.conf.backup.$(date +%Y%m%d%H%M%S)"
+    fi
+    
+    cat > "$conf_dir/opentelemetry/opentelemetry.conf" << 'EOF'
+# {"version": "1.78.0", "desc": "do NOT edit this line"}
 [[inputs.opentelemetry]]
   [inputs.opentelemetry.http]
    enable = true
@@ -173,7 +236,11 @@ EOF
 EOF
 
     # 日志配置
-    cat > "$conf_dir/logging.conf" << 'EOF'
+    if [ -f "$conf_dir/log/logging.conf" ]; then
+        cp "$conf_dir/log/logging.conf" "$conf_dir/log/logging.conf.backup.$(date +%Y%m%d%H%M%S)"
+    fi
+    
+    cat > "$conf_dir/log/logging.conf" << 'EOF'
 [[inputs.logging]]
   logfiles = [
     "/var/log/syslog",
@@ -212,7 +279,11 @@ EOF
 EOF
 
     # Pushgateway配置
-    cat > "$conf_dir/pushgateway.conf" << 'EOF'
+    if [ -f "$conf_dir/pushgateway/pushgateway.conf" ]; then
+        cp "$conf_dir/pushgateway/pushgateway.conf" "$conf_dir/pushgateway/pushgateway.conf.backup.$(date +%Y%m%d%H%M%S)"
+    fi
+    
+    cat > "$conf_dir/pushgateway/pushgateway.conf" << 'EOF'
 [[inputs.pushgateway]]
   ## Prefix for the internal routes of web endpoints. Defaults to empty.
   route_prefix = "/v1/pushgateway"
@@ -223,127 +294,9 @@ EOF
 
     log_success "采集器配置完成"
     dataway_log "info" "采集器配置完成"
+    return 0
 }
 
-# 设置资源限制
-set_resource_limits() {
-    log_info "设置资源限制..."
-    
-    local datakit_conf="/usr/local/datakit/conf.d/datakit.conf"
-    
-    if [ ! -f "$datakit_conf" ]; then
-        log_error "Datakit配置文件不存在: $datakit_conf"
-        return 1
-    fi
-    
-    # 设置CPU限制
-    local cpu_limit=$(get_global_state 'CGROUP_CPU_LIMIT')
-    if [ -n "$cpu_limit" ]; then
-        if ! safe_execute "yq eval \".resource_limit.cpu_cores = \\\"$cpu_limit\\\"\" \"$datakit_conf\" -i" "设置CPU限制"; then
-            log_warning "设置CPU限制失败"
-        fi
-    fi
-    
-    # 设置内存限制
-    local memory_limit=$(get_global_state 'CGROUP_MEMORY_LIMIT')
-    if [ -n "$memory_limit" ]; then
-        if ! safe_execute "yq eval \".resource_limit.mem_max_mb = \\\"$memory_limit\\\"\" \"$datakit_conf\" -i" "设置内存限制"; then
-            log_warning "设置内存限制失败"
-        fi
-    fi
-    
-    log_success "资源限制设置完成"
-}
 
-# 设置全局标签
-set_global_tags() {
-    log_info "设置全局标签..."
-    
-    local datakit_conf="/usr/local/datakit/conf.d/datakit.conf"
-    
-    if [ ! -f "$datakit_conf" ]; then
-        log_error "Datakit配置文件不存在: $datakit_conf"
-        return 1
-    fi
-    
-    # 设置环境标签
-    local env=$(get_global_state 'ENV')
-    if [ -n "$env" ]; then
-        if ! safe_execute "yq eval \".global_host_tags.env = \\\"$env\\\"\" \"$datakit_conf\" -i" "设置环境标签"; then
-            log_warning "设置环境标签失败"
-        fi
-    fi
-    
-    # 设置工作空间标签
-    local workspace=$(get_global_state 'WORKSPACE')
-    if [ -n "$workspace" ]; then
-        if ! safe_execute "yq eval \".global_host_tags.workspace = \\\"$workspace\\\"\" \"$datakit_conf\" -i" "设置工作空间标签"; then
-            log_warning "设置工作空间标签失败"
-        fi
-    fi
-    
-    # 设置全局标签
-    local global_tags=$(get_global_state 'GLOBAL_TAGS')
-    if [ -n "$global_tags" ]; then
-        if ! safe_execute "yq eval \".global_host_tags.global_source = \\\"$global_tags\\\"\" \"$datakit_conf\" -i" "设置全局标签"; then
-            log_warning "设置全局标签失败"
-        fi
-    fi
-    
-    log_success "全局标签设置完成"
-}
 
-# 通过yj读取TOML文件并转换为JSON格式
-read_toml_as_json() {
-    local toml_file="$1"
-    local json_path="$2"
-    
-    log_info "读取TOML文件: $toml_file"
-    
-    # 检查文件是否存在
-    if [ ! -f "$toml_file" ]; then
-        log_error "TOML文件不存在: $toml_file"
-        return 1
-    fi
-    
-    # 检查yj工具是否可用
-    if ! command -v yj >/dev/null 2>&1; then
-        log_error "yj工具不可用，请先安装yj"
-        return 1
-    fi
-    
-    # 使用yj将TOML转换为JSON
-    local json_output
-    if json_output=$(yj -t < "$toml_file" 2>/dev/null); then
-        # 如果指定了JSON路径，则提取该路径的值
-        if [ -n "$json_path" ]; then
-            if command -v jq >/dev/null 2>&1; then
-                local extracted_value
-                if extracted_value=$(echo "$json_output" | jq -r "$json_path" 2>/dev/null); then
-                    if [ "$extracted_value" != "null" ]; then
-                        echo "$extracted_value"
-                        log_info "成功提取JSON路径 $json_path 的值"
-                        return 0
-                    else
-                        log_warning "JSON路径 $json_path 的值为null"
-                        return 1
-                    fi
-                else
-                    log_error "jq解析JSON路径失败: $json_path"
-                    return 1
-                fi
-            else
-                log_error "jq工具不可用，无法提取JSON路径"
-                return 1
-            fi
-        else
-            # 没有指定路径，返回完整JSON
-            echo "$json_output"
-            log_info "成功转换TOML为JSON格式"
-            return 0
-        fi
-    else
-        log_error "yj转换TOML文件失败: $toml_file"
-        return 1
-    fi
-} 
+ 

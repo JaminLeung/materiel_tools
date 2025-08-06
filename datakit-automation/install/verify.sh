@@ -6,7 +6,7 @@
 # 功能: 验证Datakit安装是否成功，作为1-7步骤的总结验证
 #=================================================
 
-step_08_verify_installation() {
+verify_installation() {
     log_info "=== 步骤8: 验证安装结果 ==="
     log_info "开始执行安装总结验证..."
     
@@ -161,7 +161,7 @@ verify_cron_jobs() {
     fi
     
     # 检查包装脚本是否存在
-    local wrapper_script="$SCENARIO_PROJECT_ROOT/install/install_utils/cron_wrapper.sh"
+    local wrapper_script="$SCENARIO_PROJECT_ROOT/install/cron_wrapper.sh"
     if ! validate_file_exists "$wrapper_script" "定时任务包装脚本"; then
         return 1
     fi

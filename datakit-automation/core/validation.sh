@@ -50,8 +50,8 @@ validate_system_environment() {
     return 0
 }
 
-# 验证系统资源
-validate_system_resources() {
+# 验证系统资源（重命名避免冲突）
+validate_system_resources_validation() {
     log_info "验证系统资源..."
     
     # 检查磁盘空间
@@ -272,7 +272,7 @@ validate_environment() {
     fi
     
     # 验证系统资源
-    if ! validate_system_resources; then
+    if ! validate_system_resources_validation; then
         return 1
     fi
     

@@ -53,8 +53,8 @@ check_current_user_permission() {
     fi
 }
 
-# 验证系统资源
-validate_system_resources() {
+# 验证系统资源（重命名避免冲突）
+validate_system_resources_initialize() {
     # 检查磁盘空间
     local required_space=100  # MB
     local available_space=$(df -m / | awk 'NR==2 {print $4}')
@@ -161,7 +161,7 @@ initialize_script() {
     create_backup_directory
     
     # 验证系统资源
-    if ! validate_system_resources; then
+    if ! validate_system_resources_initialize; then
         if command -v log_error >/dev/null 2>&1; then
             log_error "系统资源验证失败"
         else

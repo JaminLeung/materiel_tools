@@ -14,69 +14,24 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CORE_DIR="$SCRIPT_DIR/../core"
 
+# 加载基础配置
+source "$SCRIPT_DIR/../config/base/base_config.sh" 2>/dev/null || echo "警告: 无法加载base_config.sh" >&2
+
 # 加载核心模块
 source "$CORE_DIR/logging.sh" 2>/dev/null || echo "警告: 无法加载logging.sh" >&2
 source "$CORE_DIR/utils.sh" 2>/dev/null || echo "警告: 无法加载utils.sh" >&2
 source "$CORE_DIR/datakit_service.sh" 2>/dev/null || echo "警告: 无法加载datakit_service.sh" >&2
-source "$CORE_DIR/config_file.sh" 2>/dev/null || echo "警告: 无法加载config_file.sh" >&2
 
 # =============================================================================
-# 配置管理
+# 配置变量（从base_config.sh加载）
 # =============================================================================
-# 设置配置文件路径
-readonly CONFIG_FILE="$SCRIPT_DIR/../config/app_init.conf"
-
-# 加载配置文件
-load_config_file "$CONFIG_FILE" || die "无法加载配置文件: $CONFIG_FILE"
-
-# 验证必需配置项
-validate_required_config "script_name" "script_version" "ops_config_py_file" "ops_api_url" || die "配置文件缺少必需项"
-
-# 从配置文件获取配置值
-SCRIPT_NAME=$(get_config_value "script_name")
-SCRIPT_VERSION=$(get_config_value "script_version")
-LOG_FILE=$(get_config_value "script_log_file")
-CONFIG_PY_FILE=$(get_config_value "ops_config_py_file")
-OPS_API_URL=$(get_config_value "ops_api_url")
-DATAWAY_URL=$(get_config_value "ops_dataway_url")
-
-# Datakit配置目录
-LOGGING_DIR=$(get_config_value "datakit_logging_dir")
-METRICS_DIR=$(get_config_value "datakit_metrics_dir")
-HEALTH_DIR=$(get_config_value "datakit_health_dir")
-
-# 备份配置
-BACKUP_BASE_DIR=$(get_config_value "backup_base_dir")
-BACKUP_KEEP_DAYS=$(get_config_value "backup_keep_days" "7")
-BACKUP_DATE_DIR="${BACKUP_BASE_DIR}/$(date +%Y%m%d)"
-BACKUP_APP_INIT_DIR="${BACKUP_DATE_DIR}/app_init"
-
-# 临时存储目录
-LOGGING_TMP_DIR="${BACKUP_APP_INIT_DIR}/log"
-METRICS_TMP_DIR="${BACKUP_APP_INIT_DIR}/prom"
-HEALTH_TMP_DIR="${BACKUP_APP_INIT_DIR}/host"
-
-# 前一次存储目录
-LOGGING_PREV_DIR="${BACKUP_APP_INIT_DIR}/log_prev"
-METRICS_PREV_DIR="${BACKUP_APP_INIT_DIR}/prom_prev"
-HEALTH_PREV_DIR="${BACKUP_APP_INIT_DIR}/host_prev"
-
-# 模板文件路径
-LOGGING_TEMPLATE=$(get_config_value "templates_logging_template")
-METRICS_TEMPLATE=$(get_config_value "templates_metrics_template")
-HEALTH_TEMPLATE=$(get_config_value "templates_health_template")
-
-# API配置
-API_CONNECT_TIMEOUT=$(get_config_value "api_connect_timeout" "10")
-API_MAX_TIME=$(get_config_value "api_max_time" "30")
-API_RANDOM_DELAY_MAX=$(get_config_value "api_random_delay_max" "60")
+# 直接使用base_config.sh中的APP_INIT_变量，无需重新赋值
 
 # =============================================================================
 # 全局变量
 # =============================================================================
 HOST_IP=""
 OPS_TOKEN=""
-OPS_ADDR=""
 CONFIG_CHANGED=false
 
 # 计数器 记录diff 差异
@@ -105,10 +60,10 @@ create_directories() {
     log_info "创建必要的目录"
     
     # 创建备份基础目录
-    local dirs=("$BACKUP_BASE_DIR" "$BACKUP_DATE_DIR" "$BACKUP_APP_INIT_DIR"
-                "$LOGGING_TMP_DIR" "$METRICS_TMP_DIR" "$HEALTH_TMP_DIR" 
-                "$LOGGING_PREV_DIR" "$METRICS_PREV_DIR" "$HEALTH_PREV_DIR"
-                "$LOGGING_DIR" "$METRICS_DIR" "$HEALTH_DIR")
+    local dirs=("$APP_INIT_BACKUP_BASE_DIR" "$APP_INIT_BACKUP_DATE_DIR" "$APP_INIT_BACKUP_APP_INIT_DIR"
+                "$APP_INIT_LOGGING_TMP_DIR" "$APP_INIT_METRICS_TMP_DIR" "$APP_INIT_HEALTH_TMP_DIR" 
+                "$APP_INIT_LOGGING_PREV_DIR" "$APP_INIT_METRICS_PREV_DIR" "$APP_INIT_HEALTH_PREV_DIR"
+                "$APP_INIT_LOGGING_DIR" "$APP_INIT_METRICS_DIR" "$APP_INIT_HEALTH_DIR")
     
     for dir in "${dirs[@]}"; do
         if [ ! -d "$dir" ]; then
@@ -123,76 +78,8 @@ create_directories() {
 # =============================================================================
 # 运维平台API
 # =============================================================================
-get_ops_config() {
-    log_info "获取运维平台配置"
-    
-    # 从配置文件获取OPS配置
-    OPS_TOKEN=$(grep -v '^\s*#' "$CONFIG_PY_FILE" | grep -oP "ops_token = '\K[^']+" 2>/dev/null || echo "")
-    OPS_ADDR=$(grep -v '^\s*#' "$CONFIG_PY_FILE" | grep -oP "ops_addr = '\K[^']+" 2>/dev/null || echo "")
-    
-    if [ -z "$OPS_TOKEN" ] || [ -z "$OPS_ADDR" ]; then
-        die "无法从配置文件获取OPS配置"
-    fi
-    
-    log_info "OPS_TOKEN: $OPS_TOKEN"
-    log_info "OPS_ADDR: $OPS_ADDR"
-    
-    # 随机休眠避免并发请求
-    local random_number=$((RANDOM % API_RANDOM_DELAY_MAX + 1))
-    log_info "随机休眠 $random_number 秒"
-    sleep $random_number
-    
-    # 调用运维平台API
-    local http_code
-    local tmp_json_file="${BACKUP_APP_INIT_DIR}/tmp.json"
-    
-    http_code=$(curl -s -o "$tmp_json_file" -w "%{http_code}" -X POST "$OPS_API_URL" \
-        -H "Authorization: Token $OPS_TOKEN" \
-        -H "Content-Type: application/json;charset=UTF-8" \
-        -d "{\"server_ip\": \"$HOST_IP\"}" \
-        --connect-timeout "$API_CONNECT_TIMEOUT" \
-        --max-time "$API_MAX_TIME")
-    
-    # 检查HTTP状态码
-    if [ "$http_code" -eq 28 ]; then
-        die "请求超时，当前连接超时设置为${API_CONNECT_TIMEOUT}s，最大请求时间为${API_MAX_TIME}s"
-    elif [ "$http_code" -ne 200 ]; then
-        case "$http_code" in
-            400) die "错误请求，可能是请求参数有误" ;;
-            401) die "未授权，检查Token是否有效" ;;
-            403) die "禁止访问，您没有权限访问该资源" ;;
-            404) die "未找到，检查URL是否正确" ;;
-            500) die "服务器内部错误，请稍后重试" ;;
-            502) die "错误网关，可能是上游服务器问题" ;;
-            503) die "服务不可用，服务器当前无法处理请求" ;;
-            504) die "网关超时，服务器未能及时响应" ;;
-            *) die "其他错误，HTTP状态码: $http_code" ;;
-        esac
-    fi
-    
-    # 验证JSON格式
-    if ! jq empty "$tmp_json_file" 2>/dev/null; then
-        die "响应结果不是有效的JSON格式"
-    fi
-    
-    log_success "配置获取成功"
-}
-
+# 运维平台API配置获取（使用utils.sh中的get_ops_config函数）
 # =============================================================================
-# Datakit健康检查
-# =============================================================================
-verify_datakit_health() {
-    log_info "验证Datakit健康状态"
-    sleep 3
-    
-    check_datakit_status || die "Datakit进程未运行"
-    
-    local response
-    response=$(curl -s -m 10 "http://localhost:9529/v1/ping" 2>/dev/null) || die "Datakit健康检查失败"
-    
-    [ -n "$response" ] && log_success "Datakit健康检查通过" || die "Datakit健康检查失败"
-}
-
 # =============================================================================
 # 配置文件处理
 # =============================================================================
@@ -210,7 +97,7 @@ update_toml_config() {
     
     # 备份原文件到备份目录
     local filename=$(basename "$toml_file")
-    local backup_file="${BACKUP_APP_INIT_DIR}/${filename}.backup.$(date +%Y%m%d_%H%M%S)"
+    local backup_file="${APP_INIT_BACKUP_APP_INIT_DIR}/${filename}.backup.$(date +%Y%m%d_%H%M%S)"
     cp "$toml_file" "$backup_file"
     log_info "备份配置文件: $filename -> $(basename "$backup_file")"
     
@@ -269,11 +156,11 @@ process_logging() {
         fi
         
         # 生成临时配置文件
-        local tmp_file="${LOGGING_TMP_DIR}/${service_name}_${log_type}.conf"
+        local tmp_file="${APP_INIT_LOGGING_TMP_DIR}/${service_name}_${log_type}.conf"
         echo "$logging_content_toml" > "$tmp_file"
         
         # 检查差异并处理
-        handle_config_diff "$tmp_file" "${LOGGING_PREV_DIR}/${service_name}_${log_type}.conf" "logging"
+        handle_config_diff "$tmp_file" "${APP_INIT_LOGGING_PREV_DIR}/${service_name}_${log_type}.conf" "logging"
     done
 }
 
@@ -313,11 +200,11 @@ process_metrics() {
         fi
         
         # 生成临时配置文件
-        local tmp_file="${METRICS_TMP_DIR}/${service_name}_metrics.conf"
+        local tmp_file="${APP_INIT_METRICS_TMP_DIR}/${service_name}_metrics.conf"
         echo "$metrics_content_toml" > "$tmp_file"
         
         # 检查差异并处理
-        handle_config_diff "$tmp_file" "${METRICS_PREV_DIR}/${service_name}_metrics.conf" "metrics"
+        handle_config_diff "$tmp_file" "${APP_INIT_METRICS_PREV_DIR}/${service_name}_metrics.conf" "metrics"
     done
 }
 
@@ -359,11 +246,11 @@ process_health() {
         fi
         
         # 生成临时配置文件
-        local tmp_file="${HEALTH_TMP_DIR}/${service_name}_health.conf"
+        local tmp_file="${APP_INIT_HEALTH_TMP_DIR}/${service_name}_health.conf"
         echo "$health_content_toml" > "$tmp_file"
         
         # 检查差异并处理
-        handle_config_diff "$tmp_file" "${HEALTH_PREV_DIR}/${service_name}_health.conf" "health"
+        handle_config_diff "$tmp_file" "${APP_INIT_HEALTH_PREV_DIR}/${service_name}_health.conf" "health"
     done
 }
 
@@ -467,7 +354,7 @@ merge_config_files() {
 merge_logging_config() {
     local source="$1"
     local file=$(basename "$source")
-    local datakit_file="${LOGGING_DIR}/${file}"
+    local datakit_file="${APP_INIT_LOGGING_DIR}/${file}"
     
     log_info "合并日志配置: $file"
     
@@ -507,7 +394,7 @@ merge_logging_config() {
 merge_metrics_config() {
     local source="$1"
     local file=$(basename "$source")
-    local datakit_file="${METRICS_DIR}/${file}"
+    local datakit_file="${APP_INIT_METRICS_DIR}/${file}"
     
     log_info "合并指标配置: $file"
     
@@ -547,7 +434,7 @@ merge_metrics_config() {
 merge_health_config() {
     local source="$1"
     local file=$(basename "$source")
-    local datakit_file="${HEALTH_DIR}/${file}"
+    local datakit_file="${APP_INIT_HEALTH_DIR}/${file}"
     
     log_info "合并健康检查配置: $file"
     
@@ -595,7 +482,7 @@ cleanup_old_configs() {
     local services
     
     # 读取JSON数据并解析
-    local tmp_json_file="${BACKUP_APP_INIT_DIR}/tmp.json"
+    local tmp_json_file="${APP_INIT_BACKUP_APP_INIT_DIR}/tmp.json"
     if jq -e '.data' "$tmp_json_file" >/dev/null 2>&1; then
         services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || return 1
     else
@@ -614,13 +501,13 @@ cleanup_old_configs() {
     log_info "当前服务列表: ${current_services[*]}"
     
     # 清理日志配置
-    cleanup_config_directory "$LOGGING_DIR" "logging" "${current_services[@]}"
+    cleanup_config_directory "$APP_INIT_LOGGING_DIR" "logging" "${current_services[@]}"
     
     # 清理指标配置
-    cleanup_config_directory "$METRICS_DIR" "metrics" "${current_services[@]}"
+    cleanup_config_directory "$APP_INIT_METRICS_DIR" "metrics" "${current_services[@]}"
     
     # 清理健康检查配置
-    cleanup_config_directory "$HEALTH_DIR" "health" "${current_services[@]}"
+    cleanup_config_directory "$APP_INIT_HEALTH_DIR" "health" "${current_services[@]}"
     
     log_success "配置文件清理和备份完成"
 }
@@ -675,9 +562,6 @@ cleanup_config_directory() {
                 if [[ "$filename" =~ ^[^_]+_health\.conf$ ]]; then
                     service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_health\.conf$/\1/p')
                     should_backup=true
-                else
-                    log_info "跳过不符合健康检查格式的文件: $filename (应为 xxx_health.conf)"
-                    continue
                 fi
                 ;;
         esac
@@ -694,8 +578,8 @@ cleanup_config_directory() {
             done
             
             if [ "$found" = false ]; then
-                # 服务不在当前列表中，备份文件到备份目录
-                local backup_file="${BACKUP_APP_INIT_DIR}/${filename}.backup_$(date +%Y%m%d_%H%M%S)"
+                        # 服务不在当前列表中，备份文件到备份目录
+        local backup_file="${APP_INIT_BACKUP_APP_INIT_DIR}/${filename}.backup_$(date +%Y%m%d_%H%M%S)"
                 if mv "$config_file" "$backup_file"; then
                     log_info "备份旧配置文件: $filename -> $(basename "$backup_file")"
                 else
@@ -716,7 +600,7 @@ process_services() {
     
     # 读取JSON数据并解析
     local services
-    local tmp_json_file="${BACKUP_APP_INIT_DIR}/tmp.json"
+    local tmp_json_file="${APP_INIT_BACKUP_APP_INIT_DIR}/tmp.json"
     # 检查是否有data字段，如果没有则直接使用根对象
     if jq -e '.data' "$tmp_json_file" >/dev/null 2>&1; then
         services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || die "JSON数据解析失败"
@@ -751,7 +635,7 @@ process_services() {
 # 主函数
 # =============================================================================
 main() {
-    log_info "开始执行 $SCRIPT_NAME v$SCRIPT_VERSION"
+    log_info "开始执行 $APP_INIT_SCRIPT_NAME v$APP_INIT_SCRIPT_VERSION"
     
     # 检查依赖
     command_exists jq || die "命令 'jq' 不存在"
@@ -764,13 +648,64 @@ main() {
     # 获取配置
     get_host_ip
     HOST_IP=$(get_global_state 'HOST_IP')
-    get_ops_config
     
-    # 验证JSON文件
-    local tmp_json_file="${BACKUP_APP_INIT_DIR}/tmp.json"
-    if [ ! -f "$tmp_json_file" ] || ! jq empty "$tmp_json_file" 2>/dev/null; then
-        die "tmp.json文件不存在或不是有效的JSON格式"
+    # 调用utils.sh中的get_ops_config函数获取基础配置
+    if ! get_ops_config; then
+        die "获取运维平台基础配置失败"
     fi
+    
+    # 获取业务配置数据（需要调用不同的API）
+    log_info "获取业务配置数据"
+    local ops_token=""
+    local config_py_file="${CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}"
+    
+    # 从配置文件获取OPS_TOKEN
+    if [ -f "$config_py_file" ]; then
+        ops_token=$(grep -v '^\s*#' "$config_py_file" | grep -oP "ops_token = '\K[^']+" 2>/dev/null || echo "")
+    fi
+    
+    # 如果从配置文件获取失败，尝试使用环境变量
+    if [ -z "$ops_token" ]; then
+        ops_token="${OPS_TOKEN:-}"
+    fi
+    
+    if [ -z "$ops_token" ]; then
+        die "无法获取OPS_TOKEN"
+    fi
+    
+    # 调用业务配置API
+    local tmp_json_file="${APP_INIT_BACKUP_APP_INIT_DIR}/tmp.json"
+    local http_code
+    http_code=$(curl -s -o "$tmp_json_file" -w "%{http_code}" -X POST "$APP_INIT_OPS_API_URL" \
+        -H "Authorization: Token $ops_token" \
+        -H "Content-Type: application/json;charset=UTF-8" \
+        -d "{\"server_ip\": \"$HOST_IP\"}" \
+        --connect-timeout 10 \
+        --max-time 30)
+    
+    # 检查HTTP状态码
+    if [ "$http_code" -eq 28 ]; then
+        die "请求超时，当前连接超时设置为10s，最大请求时间为30s"
+    elif [ "$http_code" -ne 200 ]; then
+        case "$http_code" in
+            400) die "错误请求，可能是请求参数有误" ;;
+            401) die "未授权，检查Token是否有效" ;;
+            403) die "禁止访问，您没有权限访问该资源" ;;
+            404) die "未找到，检查URL是否正确" ;;
+            500) die "服务器内部错误，请稍后重试" ;;
+            502) die "错误网关，可能是上游服务器问题" ;;
+            503) die "服务不可用，服务器当前无法处理请求" ;;
+            504) die "网关超时，服务器未能及时响应" ;;
+            *) die "其他错误，HTTP状态码: $http_code" ;;
+        esac
+    fi
+    
+    # 验证JSON格式
+    if ! jq empty "$tmp_json_file" 2>/dev/null; then
+        die "响应结果不是有效的JSON格式"
+    fi
+    
+    log_success "业务配置获取成功"
     
     # 处理服务配置
     process_services
@@ -782,7 +717,7 @@ main() {
     cleanup_old_configs
     
     # 清理旧备份目录
-    cleanup_old_backup_dirs "$BACKUP_BASE_DIR" "$BACKUP_KEEP_DAYS"
+    cleanup_old_backup_dirs "$APP_INIT_BACKUP_BASE_DIR" "$APP_INIT_BACKUP_KEEP_DAYS"
     
     # 输出统计信息
     log_info "配置差异统计:"
@@ -795,7 +730,6 @@ main() {
     if [ "$CONFIG_CHANGED" = true ]; then
         log_info "检测到配置变更，重启Datakit"
         restart_datakit
-        verify_datakit_health
         log_success "Datakit重启完成"
     else
         log_info "无配置变更，无需重启Datakit"

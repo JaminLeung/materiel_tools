@@ -6,7 +6,7 @@
 # 功能: 检查Datakit安装状态，避免重复安装
 #=================================================
 
-step_02_check_installation_status() {
+check_installation_status() {
     log_info "=== 步骤2: 检查安装状态 ==="
     
     # 检查Datakit进程

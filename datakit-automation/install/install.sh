@@ -6,7 +6,7 @@
 # 功能: 解压安装包、安装Node Exporter和Datakit
 #=================================================
 
-step_05_install_components() {
+install_components() {
     log_info "=== 步骤5: 执行安装 ==="
     
     # 解压bundle文件
