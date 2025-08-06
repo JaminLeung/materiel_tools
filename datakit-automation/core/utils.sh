@@ -31,7 +31,7 @@ dataway_log() {
         "env": "$(get_global_state 'ENV')",
         "workspace": "$(get_global_state 'WORKSPACE')"
     },
-
+    "time": $(date +%s%N),
     "fields": {
         "message": "$message"
     }
@@ -50,10 +50,10 @@ EOF
     if [ -n "$dataway_host" ]; then
 
 
-        log_info "执行命令：curl -s -X POST $dataway_host/v1/write/logging?token=$dataway_token&echo=json&precision=ms -H 'Content-Type: application/json' -d '$log_data'"
+        log_info "执行命令：curl -s -X POST $dataway_host/v1/write/logging?token=$dataway_token&precision=ns -H 'Content-Type: application/json' -d '$log_data'"
 
         
-        curl -s -X POST "$dataway_host/v1/write/logging?token=$dataway_token&echo=json&precision=ms" \
+        curl -s -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
             -H "Content-Type: application/json" \
             -d "$log_data" >/dev/null 2>&1 || true
     fi
