@@ -70,7 +70,6 @@ source "$SCENARIO_PROJECT_ROOT/core/config_file.sh"
 # 加载安装步骤模块
 source "$SCENARIO_PROJECT_ROOT/install/host_info.sh"
 source "$SCENARIO_PROJECT_ROOT/install/status_check.sh"
-source "$SCENARIO_PROJECT_ROOT/install/resource_limit.sh"
 source "$SCENARIO_PROJECT_ROOT/install/download.sh"
 source "$SCENARIO_PROJECT_ROOT/install/install.sh"
 source "$SCENARIO_PROJECT_ROOT/install/configure.sh"
@@ -83,59 +82,9 @@ INSTALLATION_STATE["start_time"]=$(date +%s)
 INSTALLATION_STATE["current_step"]=""
 INSTALLATION_STATE["failed_step"]=""
 
-# 错误处理函数
-handle_error() {
-    local exit_code=$?
-    local failed_step="${INSTALLATION_STATE["failed_step"]}"
-    
-    log_error "安装失败，退出码: $exit_code"
-    log_error "失败步骤: $failed_step"
-    
-    # 记录失败状态
-    dataway_log "error" "安装失败: 步骤=$failed_step, 退出码=$exit_code"
-    
-    # 清理临时文件
-    cleanup_temp_files "$DATAKIT_INSTALL_DIR"
-    
-    # 如果失败在安装过程中，尝试回滚
-    if [[ "$failed_step" == "install" ]]; then
-        log_warning "尝试回滚安装..."
-        rollback_installation
-    fi
-    
-    exit $exit_code
-}
 
-# 设置错误处理
-trap handle_error ERR
 
-# 清理函数
-cleanup_temp_files() {
-    local temp_dir="$1"
-    if [ -n "$temp_dir" ] && [ -d "$temp_dir" ]; then
-        log_info "清理临时安装目录: $temp_dir"
-        rm -rf "$temp_dir"
-    fi
-}
 
-# 回滚函数
-rollback_installation() {
-    log_warning "执行安装回滚..."
-    
-    # 停止Datakit服务
-    if systemctl is-active --quiet datakit 2>/dev/null; then
-        systemctl stop datakit
-        log_info "已停止Datakit服务"
-    fi
-    
-    # 恢复备份（如果有）
-    if [[ -f "/usr/local/datakit/conf.d/datakit.conf.backup" ]]; then
-        mv "/usr/local/datakit/conf.d/datakit.conf.backup" "/usr/local/datakit/conf.d/datakit.conf"
-        log_info "已恢复配置文件备份"
-    fi
-    
-    dataway_log "warning" "安装回滚完成"
-}
 
 # 存量安装场景主函数
 execute_existing_installation() {
@@ -150,36 +99,72 @@ execute_existing_installation() {
     dataway_log "info" "开始Datakit存量安装: 场景=existing_installation"
     
     # 初始化日志文件
-    touch "$LOG_FILE"
+
     
-    # 执行安装步骤
-    # 步骤1: 获取主机信息
-    INSTALLATION_STATE["current_step"]="host_info"
-    get_host_info
-    
-    # 步骤2: 检查安装状态
+    # 步骤1: 检查安装状态
     INSTALLATION_STATE["current_step"]="status_check"
-    check_installation_status
-    
+    # 检查安装状态，如果返回 1 则跳过脚本
+    if ! check_installation_status; then
+        log_error "不符合安装条件，退出安装"
+        dataway_log "error" "不符合安装条件，退出安装"
+        exit 0
+    fi
+
     # 步骤3: 设置资源限制
     INSTALLATION_STATE["current_step"]="resource_limit"
-    set_resource_limits
-    
+    # 检查资源限制设置，如果返回 1 则跳过脚本
+    if ! set_resource_limits; then
+        log_error "资源限制设置失败，请检查机器规格"
+        dataway_log "error" "资源限制设置失败，请检查机器规格"
+        exit 0
+    fi
+
     # 步骤4: 下载安装包
     INSTALLATION_STATE["current_step"]="download"
-    # download_packages
-    
+    # 检查下载状态，如果返回 1 则跳过脚本
+    # if ! download_packages; then
+    #     log_error "下载任务失败，退出安装"
+    #     dataway_log "error" "下载任务失败，退出安装"
+    #     exit 0
+    # fi
+
+
+   # 执行安装步骤
+    # 获取 ops 主机安装参数
+    INSTALLATION_STATE["current_step"]="host_info"
+    # 检查安装状态，如果返回 1 则跳过脚本
+    if ! get_host_info; then
+        log_error "获取主机信息失败，退出安装"
+        dataway_log "error" "获取主机信息失败，退出安装"
+        return 1
+    fi
+
     # 步骤5: 执行安装
     INSTALLATION_STATE["current_step"]="install"
-    install_components
+    # 检查安装状态，如果返回 1 则跳过脚本
+    if ! install_components; then
+        log_error "安装失败，退出安装"
+        dataway_log "error" "安装失败，退出安装"
+        exit 0
+    fi
     
+
     # 步骤6: 配置和验证
     INSTALLATION_STATE["current_step"]="configure"
-    configure_and_verify
+    if ! configure_and_verify; then
+        log_error "配置和验证失败，退出安装"
+        dataway_log "error" "配置和验证失败，退出安装"
+        return 1
+    fi
     
+    #TODO: 设置定时任务
     # 步骤7: 设置定时任务
     INSTALLATION_STATE["current_step"]="setup_cron"
-    setup_cron_jobs
+    if ! setup_cron_jobs; then
+        log_error "设置定时任务失败，退出安装"
+        dataway_log "error" "设置定时任务失败，退出安装"
+        return 1
+    fi
     
     # 步骤8: 验证安装结果
     INSTALLATION_STATE["current_step"]="verify"

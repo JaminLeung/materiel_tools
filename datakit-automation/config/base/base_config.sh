@@ -23,6 +23,8 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 MODULES_DIR="$PROJECT_ROOT/modules"
 CONFIG_DIR="$PROJECT_ROOT/config"
 SCENARIO_DIR="$PROJECT_ROOT/scenario"
+WORKSPACE=default
+ENV=test
 
 # 日志配置
 LOG_FILE="${DATAKIT_LOG_FILE:-/var/log/datakit_install.log}"

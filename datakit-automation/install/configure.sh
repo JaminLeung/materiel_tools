@@ -7,7 +7,8 @@
 #=================================================
 
 configure_and_verify() {
-    log_info "=== 步骤6: 配置和验证 ==="
+    local Date=$(date +%Y%m%d%H%M%S)
+    log_info "=== 配置和验证 ==="
     
     # 配置Datakit主配置文件
     if ! configure_datakit_main_config; then
@@ -25,9 +26,29 @@ configure_and_verify() {
     
     # 重启Datakit
     if ! restart_datakit; then
-        log_error "重启Datakit失败"
-        dataway_log "error" "重启Datakit失败"
+        log_error "重启Datakit失败，回退配置"
+        dataway_log "error" "重启Datakit失败，回退配置"
+
+        # 备份失败的配置文件
+        mv "$datakit_conf" "$datakit_conf.backup.$Date.failed"
+
+        # 还原回原来的配置文件
+        mv "$datakit_conf.backup.$Date" "$datakit_conf"
+
+        # 重启Datakit
+        if ! restart_datakit; then
+            log_error "重启Datakit失败"
+            dataway_log "error" "重启Datakit失败"
+            return 1
+        else
+            log_success "配置回退成功"
+            dataway_log "info" "配置回退成功"
+            return 0
+        fi
+
         return 1
+
+
     fi
     
     log_success "配置完成"
@@ -119,7 +140,7 @@ configure_datakit_main_config() {
     log_info "设置Dataway地址: $dataway_url"
     
     # 备份原配置文件
-    cp "$datakit_conf" "$datakit_conf.backup.$(date +%Y%m%d%H%M%S)"
+    cp "$datakit_conf" "$datakit_conf.backup.$Date"
     
     # 创建临时配置文件
     local temp_conf="/tmp/datakit.conf.tmp"
@@ -136,7 +157,7 @@ configure_datakit_main_config() {
     # 验证配置是否正确
     if ! read_toml_config "$datakit_conf" >/dev/null; then
         log_error "配置文件验证失败，恢复备份"
-        mv "$datakit_conf.backup.$(date +%Y%m%d%H%M%S)" "$datakit_conf"
+        mv "$datakit_conf.backup.$Date" "$datakit_conf"
         return 1
     fi
     
@@ -153,7 +174,7 @@ configure_datakit_inputs() {
     
     # Prometheus配置
     if [ -f "$conf_dir/prom/prom_node_exporter.conf" ]; then
-        cp "$conf_dir/prom/prom_node_exporter.conf" "$conf_dir/prom/prom_node_exporter.conf.backup.$(date +%Y%m%d%H%M%S)"
+        cp "$conf_dir/prom/prom_node_exporter.conf" "$conf_dir/prom/prom_node_exporter.conf.backup.$Date"
     fi
     
     cat > "$conf_dir/prom/prom_node_exporter.conf" << 'EOF'
@@ -216,7 +237,7 @@ EOF
 
     # OpenTelemetry配置
     if [ -f "$conf_dir/opentelemetry/opentelemetry.conf" ]; then
-        cp "$conf_dir/opentelemetry/opentelemetry.conf" "$conf_dir/opentelemetry/opentelemetry.conf.backup.$(date +%Y%m%d%H%M%S)"
+        cp "$conf_dir/opentelemetry/opentelemetry.conf" "$conf_dir/opentelemetry/opentelemetry.conf.backup.$Date"
     fi
     
     cat > "$conf_dir/opentelemetry/opentelemetry.conf" << 'EOF'
@@ -237,7 +258,7 @@ EOF
 
     # 日志配置
     if [ -f "$conf_dir/log/logging.conf" ]; then
-        cp "$conf_dir/log/logging.conf" "$conf_dir/log/logging.conf.backup.$(date +%Y%m%d%H%M%S)"
+        cp "$conf_dir/log/logging.conf" "$conf_dir/log/logging.conf.backup.$Date"
     fi
     
     cat > "$conf_dir/log/logging.conf" << 'EOF'
@@ -280,7 +301,7 @@ EOF
 
     # Pushgateway配置
     if [ -f "$conf_dir/pushgateway/pushgateway.conf" ]; then
-        cp "$conf_dir/pushgateway/pushgateway.conf" "$conf_dir/pushgateway/pushgateway.conf.backup.$(date +%Y%m%d%H%M%S)"
+        cp "$conf_dir/pushgateway/pushgateway.conf" "$conf_dir/pushgateway/pushgateway.conf.backup.$Date"
     fi
     
     cat > "$conf_dir/pushgateway/pushgateway.conf" << 'EOF'

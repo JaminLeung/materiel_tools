@@ -1,32 +1,31 @@
 #!/bin/bash
 
 #=================================================
-# 步骤5: 执行安装
+# 执行安装
 #=================================================
 # 功能: 解压安装包、安装Node Exporter和Datakit
 #=================================================
 
 install_components() {
-    log_info "=== 步骤5: 执行安装 ==="
+    log_info "执行安装 ==="
     
     # 解压bundle文件
     if ! extract_bundle_file; then
-        log_error "解压bundle文件失败"
-        dataway_log "error" "解压bundle文件失败"
+        log_error "解压bundle文件任务失败"
+        dataway_log "error" "解压bundle文件任务失败"
         return 1
     fi
     
     # 安装Node Exporter
     if ! install_node_exporter; then
-        log_error "Node Exporter安装失败"
-        dataway_log "error" "Node Exporter安装失败"
-        return 1
+        log_error "Node Exporter安装任务失败"
+        dataway_log "error" "Node Exporter安装任务失败"
     fi
     
     # 安装Datakit
     if ! install_datakit; then
-        log_error "Datakit安装失败"
-        dataway_log "error" "Datakit安装失败"
+        log_error "Datakit安装任务失败"
+        dataway_log "error" "Datakit安装任务失败"
         return 1
     fi
     
@@ -180,6 +179,7 @@ install_datakit() {
     
     # 执行离线安装
     log_info "执行Datakit离线安装..."
+    dataway_log "info" "执行Datakit离线安装..."
     
     if ! ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$dataway_url" --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64.tar.gz,data.tar.gz"; then
         log_error "Datakit安装失败"

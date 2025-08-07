@@ -7,7 +7,7 @@
 #=================================================
 
 setup_cron_jobs() {
-    log_info "=== 步骤7: 设置定时任务 ==="
+    log_info "=== 设置定时任务 ==="
     
     # 设置定时任务
     if ! setup_cron_jobs; then
@@ -55,6 +55,7 @@ setup_cron_jobs() {
     chmod +x "$app_init_script"
     
     # 创建日志目录
+    if [ ! -d "/var/log/datakit" ]; then
     mkdir -p /var/log/datakit
     
     # 使用通用包装脚本
@@ -74,6 +75,7 @@ setup_cron_jobs() {
     crontab -l 2>/dev/null > "$current_crontab" || true
     
     # 创建新的crontab内容
+    # TODO 定时任务新增逻辑
     local new_crontab="/tmp/new_crontab_$(date +%Y%m%d%H%M%S)"
     cat > "$new_crontab" << EOF
 # Datakit定时任务配置
