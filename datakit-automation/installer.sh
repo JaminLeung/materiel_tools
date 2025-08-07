@@ -21,29 +21,6 @@ readonly INSTALLER_MONITOR_DIR="$INSTALLER_SCRIPT_DIR/monitor"
 readonly INSTALLER_SCENARIOS_DIR="$INSTALLER_SCRIPT_DIR/scenarios"
 readonly INSTALLER_TOOLS_DIR="$INSTALLER_SCRIPT_DIR/tools"
 
-# 简化的信号处理函数
-cleanup_on_exit() {
-    echo "[INFO] 脚本退出，执行清理..."
-    
-    # 清理临时文件
-    if [[ -d "/tmp/datakit_install_*" ]]; then
-        rm -rf /tmp/datakit_install_* 2>/dev/null || true
-    fi
-    
-    # 释放锁文件
-    if [[ -f "/tmp/datakit_install.lock" ]]; then
-        rm -f /tmp/datakit_install.lock 2>/dev/null || true
-    fi
-}
-
-handle_signal() {
-    echo "[WARN] 收到中断信号，正在退出..." >&2
-    exit 1
-}
-
-# 信号处理
-trap 'cleanup_on_exit' EXIT
-trap 'handle_signal' INT TERM
 
 # 加载配置
 load_config() {
@@ -152,6 +129,15 @@ initialize_installer() {
     load_module "validation" "$INSTALLER_CORE_DIR/validation.sh"
     load_module "utils" "$INSTALLER_CORE_DIR/utils.sh"
     load_module "initialize" "$INSTALLER_CORE_DIR/initialize.sh"
+    
+    # 加载错误处理模块（如果存在）
+    if [[ -f "$INSTALLER_CORE_DIR/error_handler.sh" ]]; then
+        load_module "error_handler" "$INSTALLER_CORE_DIR/error_handler.sh"
+        # 初始化错误处理器
+        if command -v init_error_handler >/dev/null 2>&1; then
+            init_error_handler
+        fi
+    fi
     
     # 安装模块已由scenarios脚本处理，此处不再加载旧模块
     # 执行初始化脚本
