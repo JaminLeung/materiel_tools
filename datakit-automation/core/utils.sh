@@ -11,6 +11,7 @@ CORE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source外部脚本
 source "$CORE_SCRIPT_DIR/logging.sh" 2>/dev/null || echo "警告: 无法加载logging.sh" >&2
+source "$CORE_SCRIPT_DIR/error_handler.sh" 2>/dev/null || echo "警告: 无法加载error_handler.sh" >&2
 source "$CORE_SCRIPT_DIR/initialize.sh" 2>/dev/null || echo "警告: 无法加载initialize.sh" >&2
 
 # 声明全局状态变量
@@ -104,13 +105,18 @@ safe_execute() {
     local cmd="$1"
     local description="${2:-执行命令}"
     
+    set_error_context "执行命令: $description"
+    
     log_info "$description: $cmd"
     if eval "$cmd"; then
         log_success "$description 成功"
+        clear_error_context
         return 0
     else
-        log_error "$description 失败"
-        return 1
+        local exit_code=$?
+        handle_error "COMMAND_ERROR" "$description 失败" "ERROR" "false"
+        clear_error_context
+        return $exit_code
     fi
 }
 
@@ -121,11 +127,14 @@ retry_execute() {
     local delay="${3:-5}"
     local description="${4:-执行命令}"
     
+    set_error_context "重试执行: $description"
+    
     local attempt=1
     while [ $attempt -le $max_attempts ]; do
         log_info "$description (尝试 $attempt/$max_attempts)"
         if eval "$cmd"; then
             log_success "$description 成功"
+            clear_error_context
             return 0
         else
             log_warning "$description 失败 (尝试 $attempt/$max_attempts)"
@@ -137,7 +146,8 @@ retry_execute() {
         attempt=$((attempt + 1))
     done
     
-    log_error "$description 失败，已重试 $max_attempts 次"
+    handle_error "COMMAND_ERROR" "$description 失败，已重试 $max_attempts 次" "ERROR" "false"
+    clear_error_context
     return 1
 }
 
@@ -147,18 +157,22 @@ timeout_execute() {
     local cmd="$2"
     local description="${3:-执行命令}"
     
+    set_error_context "超时执行: $description"
+    
     log_info "$description (超时: ${timeout}秒)"
     
     if timeout "$timeout" bash -c "$cmd"; then
         log_success "$description 成功"
+        clear_error_context
         return 0
     else
         local exit_code=$?
         if [[ $exit_code -eq 124 ]]; then
-            log_error "$description 超时 (${timeout}秒)"
+            handle_error "TIMEOUT_ERROR" "$description 超时 (${timeout}秒)" "ERROR" "false"
         else
-            log_error "$description 失败 (退出码: $exit_code)"
+            handle_error "COMMAND_ERROR" "$description 失败 (退出码: $exit_code)" "ERROR" "false"
         fi
+        clear_error_context
         return $exit_code
     fi
 }
