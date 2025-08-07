@@ -54,9 +54,6 @@ setup_cron_jobs() {
     chmod +x "$health_check_script"
     chmod +x "$app_init_script"
     
-    # 创建日志目录
-    if [ ! -d "/var/log/datakit" ]; then
-    mkdir -p /var/log/datakit
     
     # 使用通用包装脚本
     local wrapper_script="$SCENARIO_PROJECT_ROOT/install/cron_wrapper.sh"

@@ -102,6 +102,7 @@ execute_existing_installation() {
 
     
     # 步骤1: 检查安装状态
+    # 步骤1: 检查安装状态
     INSTALLATION_STATE["current_step"]="status_check"
     # 检查安装状态，如果返回 1 则跳过脚本
     if ! check_installation_status; then
