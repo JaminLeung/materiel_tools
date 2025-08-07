@@ -185,6 +185,7 @@ Datakit 安装器 v$INSTALLER_SCRIPT_VERSION
     version-upgrade       版本更新 - 升级Datakit版本
     config-update         配置更新 - 仅更新配置文件
     reinstall             重装 - 完全重新安装
+    setup-cron            设置定时任务 - 配置Datakit相关定时任务
 
 配置方式:
     1. 环境变量 (推荐):
@@ -262,7 +263,7 @@ main() {
                 show_help
                 exit 0
                 ;;
-            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install)
+            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron)
                 command="$1"
                 shift
                 ;;
@@ -303,6 +304,9 @@ main() {
             ;;
         reinstall)
             execute_reinstall
+            ;;
+        setup-cron)
+            execute_setup_cron
             ;;
         *)
             echo "[ERROR] 未知命令: $command" >&2
@@ -494,6 +498,53 @@ execute_reinstall() {
             log_error "重装场景脚本不存在: $scenario_script"
         else
             echo "[ERROR] 重装场景脚本不存在: $scenario_script" >&2
+        fi
+        exit 1
+    fi
+}
+
+# 设置定时任务场景
+execute_setup_cron() {
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "=== 执行设置定时任务场景 ==="
+        log_info "场景描述: 配置Datakit相关定时任务"
+    else
+        echo "[INFO] === 执行设置定时任务场景 ==="
+        echo "[INFO] 场景描述: 配置Datakit相关定时任务"
+    fi
+    
+    # 调用install目录下的定时任务设置脚本
+    local setup_cron_script="$INSTALLER_INSTALL_DIR/setup_cron.sh"
+    
+    if [[ -f "$setup_cron_script" ]]; then
+        if command -v log_info >/dev/null 2>&1; then
+            log_info "调用定时任务设置脚本: $setup_cron_script"
+        else
+            echo "[INFO] 调用定时任务设置脚本: $setup_cron_script"
+        fi
+        
+        # 传递配置信息给脚本
+        export DATAKIT_CONFIG_FILE="$env_config_file"
+        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+        
+        # 导出所有关键配置变量
+        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
+        export OPS_ADDR="${OPS_ADDR:-}"
+        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
+        export DATAWAY_URL="${DATAWAY_URL:-}"
+        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
+        export S3_BUCKET="${S3_BUCKET:-}"
+        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
+        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
+        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
+        
+        # 执行定时任务设置脚本
+        bash "$setup_cron_script"
+    else
+        if command -v log_error >/dev/null 2>&1; then
+            log_error "定时任务设置脚本不存在: $setup_cron_script"
+        else
+            echo "[ERROR] 定时任务设置脚本不存在: $setup_cron_script" >&2
         fi
         exit 1
     fi

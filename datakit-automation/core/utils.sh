@@ -917,6 +917,8 @@ get_machine_specs() {
         set_global_state "CGROUP_CPU_LIMIT" "$cpu_limit"
         set_global_state "CGROUP_MEMORY_LIMIT" "$memory_limit"
         
+
+
         log_info "2C4G~4C8G 规格资源限制计算:"
         log_info "CPU原始限制: ${cpu_limit_raw}C (规格的12.5%)"
         log_info "内存原始限制: ${memory_limit_raw}GB (规格的12.5%)"
@@ -932,37 +934,38 @@ get_machine_specs() {
     fi
     
     dataway_log "info" "设置资源限制: $(get_global_state 'CGROUP_CPU_LIMIT')C$(get_global_state 'CGROUP_MEMORY_LIMIT')MB"
-}
-
-# 验证系统资源（重命名避免冲突）
-validate_system_resources_specs() {
-    log_info "验证系统资源..."
     
-    # 检查磁盘空间
-    local available_space=$(df / | awk 'NR==2 {print $4}')
-    local required_space=1048576  # 1GB in KB
+    # 验证资源限制是否满足最低要求
+    local cpu_limit=$(get_global_state 'CGROUP_CPU_LIMIT')
+    local memory_limit=$(get_global_state 'CGROUP_MEMORY_LIMIT')
     
-    if [[ $available_space -lt $required_space ]]; then
-        log_error "磁盘空间不足: 可用 ${available_space}KB，需要 ${required_space}KB"
+    # 使用 bc 进行浮点数比较
+    if (( $(echo "$cpu_limit < 0.5" | bc -l) )) || (( $(echo "$memory_limit < 512" | bc -l) )); then
+        log_error "资源限制不满足最低要求: CPU=${cpu_limit}C, 内存=${memory_limit}MB"
+        log_error "最低要求: CPU=0.5C, 内存=512MB"
         return 1
     fi
     
-    # 检查内存
-    local available_memory=$(free -k | awk 'NR==2 {print $7}')
-    local required_memory=524288  # 512MB in KB
+    log_success "资源限制验证通过: CPU=${cpu_limit}C, 内存=${memory_limit}MB"
+    return 0
     
-    if [[ $available_memory -lt $required_memory ]]; then
-        log_warning "可用内存较少: 可用 ${available_memory}KB，建议 ${required_memory}KB"
+}
+
+
+ set_resource_limits() {
+    log_info "=== 设置资源限制 ==="
+    
+    # 获取机器规格并设置资源限制
+    if ! get_machine_specs; then
+        log_error "获取机器规格失败"
+        dataway_log "error" "获取机器规格失败"
+        return 1
     fi
     
-    # 检查CPU负载
-    local load_average=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
-    if (( $(echo "$load_average > 5.0" | bc -l) )); then
-        log_warning "系统负载较高: $load_average"
-    fi
     
-    log_success "系统资源验证通过"
+    log_success "资源限制设置完成"
+    dataway_log "info" "资源限制设置完成"
     return 0
 }
- 
+
  

@@ -20,12 +20,7 @@ source "$SCRIPT_DIR/../config/env/benjamin.sh" 2>/dev/null || echo "警告: benj
 
 # =============================================================================
 # 全局变量
-# TODO 去掉无用的
 # =============================================================================
-HOST_IP=""
-ENV=""
-WORKSPACE=""
-DATAKIT_CONFIG=""
 CONFIG_CHANGED=false
 
 # =============================================================================
@@ -53,7 +48,7 @@ die() {
 
 
 # 使用core模块中的get_host_ip函数
-# TODO 去掉
+
 verify_datakit_health() {
     log_info "验证Datakit健康状态"
     sleep 3
@@ -72,7 +67,6 @@ verify_datakit_health() {
 # =============================================================================
 # 全局配置处理
 # =============================================================================
-# TODO  按照配置场景拆分
 handle_global_config() {
     log_info "处理全局配置"
     
@@ -562,30 +556,11 @@ handle_input_delete_key() {
 }
 
 # =============================================================================
-# 主函数
+# Datakit服务状态控制函数
 # =============================================================================
-main() {
-    # 记录脚本开始
-    # record_script_start
-    
-    # 重置配置变更标志
-    # CONFIG_CHANGED=false
-    
-    log_info "开始执行 $CONFIG_UPDATE_SCRIPT_NAME v$CONFIG_UPDATE_SCRIPT_VERSION"
-    
-    # 检查依赖
-    validate_required_commands || die "依赖检查失败"
-    
-    # 获取配置
-    get_host_ip || die "获取主机IP失败"
-    get_ops_config || die "获取运维平台配置失败"
-    
-    # 处理Datakit服务控制
-    local config_enable
-    
-    # 从全局状态获取DATAKIT_CONFIG
-    local datakit_config
-    datakit_config=$(get_global_state 'DATAKIT_CONFIG')
+handle_datakit_service_control() {
+    local datakit_config="$1"
+    local config_enable=""
     
     # 检查enable字段是否存在（包括false值）
     local has_enable
@@ -633,7 +608,6 @@ main() {
                 log_info "Datakit未运行，启动Datakit和健康检查定时任务"
                 
                 start_datakit
-                # verify_datakit_health
                 
                 # 检查健康检查定时任务是否存在
                 local health_check_script_path="$CONFIG_UPDATE_HEALTH_CHECK_SCRIPT"
@@ -662,6 +636,47 @@ main() {
         log_info "未指定enable状态，使用默认逻辑"
     fi
     
+    # 返回config_enable值供主函数使用
+    echo "$config_enable"
+}
+
+# =============================================================================
+# 主函数
+# =============================================================================
+main() {
+    # 记录脚本开始
+    # record_script_start
+    
+    # 重置配置变更标志
+    # CONFIG_CHANGED=false
+    
+    log_info "开始执行 $CONFIG_UPDATE_SCRIPT_NAME v$CONFIG_UPDATE_SCRIPT_VERSION"
+    
+    # 检查依赖
+    if ! validate_required_commands; then
+        log_error "依赖检查失败"
+        dataway_log "error" "依赖检查失败"
+        return 1
+    fi
+
+
+    # 获取配置
+    get_host_ip || die "获取主机IP失败"
+    get_ops_config || die "获取运维平台配置失败"
+    
+    # 从全局状态获取DATAKIT_CONFIG
+    local datakit_config
+    datakit_config=$(get_global_state 'DATAKIT_CONFIG')
+    
+    # 处理Datakit服务控制
+    local config_enable
+    config_enable=$(handle_datakit_service_control "$datakit_config")
+    
+    # 如果返回0，说明执行了停止操作，直接退出
+    if [ "$?" -eq 0 ]; then
+        return 0
+    fi
+    
     # 处理所有配置修改（不重启）
     # 将datakit_config传递给处理函数
     DATAKIT_CONFIG="$datakit_config"
@@ -674,7 +689,7 @@ main() {
         if [ "$config_enable" = "true" ]; then
             log_info "所有配置已完成，重启Datakit"
             restart_datakit
-            # verify_datakit_health
+
         else
             log_info "配置已更新，但enable=false，不重启Datakit"
         fi

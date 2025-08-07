@@ -17,24 +17,24 @@ get_host_info() {
     fi
     
     # 获取运维平台配置
-    # TODO 缺省配置逻辑
+    
     if ! get_ops_config; then
         log_warning "获取运维平台配置失败，使用默认配置"
         dataway_log "warning" "获取运维平台配置失败，使用默认配置"
         
-        # 设置默认配置
-        set_global_state "ENV" "test"
-        set_global_state "WORKSPACE" "default"
-        set_global_state "GLOBAL_TAGS" "{}"
-        set_global_state "WORKSPACE_TOKEN" "default_token"
+
         
-        # 使用可用的Dataway URL
+        # 使用缺省配置逻辑
         local dataway_url="${DATAWAY_LOG_URL:-${DATAWAY_URL:-${CONFIG_UPDATE_DATAWAY_URL:-}}}"
+        local env="${ENV:-test}"
+        local workspace="${WORKSPACE:-default}"
+
+ 
         if [ -n "$dataway_url" ]; then
             set_global_state "DATAWAY_FULL_URL" "$dataway_url"
             log_info "使用默认配置:"
-            log_info "  - 环境: test"
-            log_info "  - 工作空间: default"
+            log_info "  - 环境: $env"
+            log_info "  - 工作空间: $workspace"
             log_info "  - Dataway地址: $dataway_url"
         else
             log_error "所有Dataway URL都未设置"
@@ -55,47 +55,3 @@ get_host_info() {
 }
 
 # 验证主机信息完整性
-# TODO 去掉
-validate_host_info() {
-    log_info "验证主机信息完整性..."
-    
-    local host_ip=$(get_global_state 'HOST_IP')
-    local env=$(get_global_state 'ENV')
-    local workspace=$(get_global_state 'WORKSPACE')
-    local workspace_token=$(get_global_state 'WORKSPACE_TOKEN')
-    local dataway_full_url=$(get_global_state 'DATAWAY_FULL_URL')
-    
-    # 检查必需的信息
-    if [ -z "$host_ip" ]; then
-        log_error "主机IP地址为空"
-        return 1
-    fi
-    
-    if [ -z "$env" ]; then
-        log_error "环境信息为空"
-        return 1
-    fi
-    
-    if [ -z "$workspace" ]; then
-        log_error "工作空间信息为空"
-        return 1
-    fi
-    
-    if [ -z "$workspace_token" ]; then
-        log_error "工作空间Token为空"
-        return 1
-    fi
-    
-    if [ -z "$dataway_full_url" ]; then
-        log_error "Dataway地址为空"
-        return 1
-    fi
-    
-    log_info "主机信息验证通过:"
-    log_info "  - 主机IP: $host_ip"
-    log_info "  - 环境: $env"
-    log_info "  - 工作空间: $workspace"
-    log_info "  - Dataway地址: $dataway_full_url"
-    
-    return 0
-} 
