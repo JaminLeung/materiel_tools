@@ -7,36 +7,113 @@
 #=================================================
 
 
-# 获取脚本所在目录
-CORE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
+#=================================================
 # 错误代码定义
-declare -A ERROR_CODES
-ERROR_CODES["SUCCESS"]=0
-ERROR_CODES["GENERAL_ERROR"]=1
-ERROR_CODES["CONFIG_ERROR"]=2
-ERROR_CODES["NETWORK_ERROR"]=3
-ERROR_CODES["PERMISSION_ERROR"]=4
-ERROR_CODES["RESOURCE_ERROR"]=5
-ERROR_CODES["VALIDATION_ERROR"]=6
-ERROR_CODES["SERVICE_ERROR"]=7
-ERROR_CODES["TIMEOUT_ERROR"]=8
-ERROR_CODES["DEPENDENCY_ERROR"]=9
-ERROR_CODES["FILE_ERROR"]=10
-ERROR_CODES["COMMAND_ERROR"]=11
-ERROR_CODES["API_ERROR"]=12
-ERROR_CODES["DATABASE_ERROR"]=13
-ERROR_CODES["CRYPTO_ERROR"]=14
-ERROR_CODES["BACKUP_ERROR"]=15
-ERROR_CODES["ROLLBACK_ERROR"]=16
-ERROR_CODES["CLEANUP_ERROR"]=17
+#=================================================
 
+# 系统级错误代码
+ERROR_CODES_NAMES=(
+    "SUCCESS"           # 成功
+    "GENERAL_ERROR"     # 一般错误
+    "CONFIG_ERROR"      # 配置错误
+    "NETWORK_ERROR"     # 网络错误
+    "PERMISSION_ERROR"  # 权限错误
+    "RESOURCE_ERROR"    # 资源错误
+    "VALIDATION_ERROR"  # 验证错误
+    "SERVICE_ERROR"     # 服务错误
+    "TIMEOUT_ERROR"     # 超时错误
+    "DEPENDENCY_ERROR"  # 依赖错误
+    "FILE_ERROR"        # 文件错误
+    "COMMAND_ERROR"     # 命令错误
+    "API_ERROR"         # API错误
+    "DATABASE_ERROR"    # 数据库错误
+    "CRYPTO_ERROR"      # 加密错误
+    "BACKUP_ERROR"      # 备份错误
+    "ROLLBACK_ERROR"    # 回滚错误
+    "CLEANUP_ERROR"     # 清理错误
+)
+
+# 对应的错误代码值
+ERROR_CODES_VALUES=(
+    0   # SUCCESS
+    1   # GENERAL_ERROR
+    2   # CONFIG_ERROR
+    3   # NETWORK_ERROR
+    4   # PERMISSION_ERROR
+    5   # RESOURCE_ERROR
+    6   # VALIDATION_ERROR
+    7   # SERVICE_ERROR
+    8   # TIMEOUT_ERROR
+    9   # DEPENDENCY_ERROR
+    10  # FILE_ERROR
+    11  # COMMAND_ERROR
+    12  # API_ERROR
+    13  # DATABASE_ERROR
+    14  # CRYPTO_ERROR
+    15  # BACKUP_ERROR
+    16  # ROLLBACK_ERROR
+    17  # CLEANUP_ERROR
+)
+
+#=================================================
 # 错误严重程度定义
-declare -A ERROR_SEVERITY
-ERROR_SEVERITY["CRITICAL"]=1    # 致命错误，必须立即退出
-ERROR_SEVERITY["ERROR"]=2       # 严重错误，需要处理
-ERROR_SEVERITY["WARNING"]=3     # 警告，可以继续执行
-ERROR_SEVERITY["INFO"]=4        # 信息，不影响执行
+#=================================================
+
+# 错误严重程度名称
+ERROR_SEVERITY_NAMES=(
+    "CRITICAL"  # 致命错误，必须立即退出
+    "ERROR"     # 严重错误，需要处理
+    "WARNING"   # 警告，可以继续执行
+    "INFO"      # 信息，不影响执行
+)
+
+# 对应的严重程度值（数值越小越严重）
+ERROR_SEVERITY_VALUES=(
+    1   # CRITICAL
+    2   # ERROR
+    3   # WARNING
+    4   # INFO
+)
+
+#=================================================
+# 错误代码查询函数
+#=================================================
+
+# 根据错误名称获取错误代码
+# 参数: $1 - 错误名称
+# 返回: 错误代码值，如果未找到则返回1（GENERAL_ERROR）
+get_error_code() {
+    local error_name="$1"
+    
+    # 遍历错误代码名称数组
+    for i in "${!ERROR_CODES_NAMES[@]}"; do
+        if [[ "${ERROR_CODES_NAMES[$i]}" == "$error_name" ]]; then
+            echo "${ERROR_CODES_VALUES[$i]}"
+            return 0
+        fi
+    done
+    
+    # 未找到时返回默认错误代码
+    echo "1"  # GENERAL_ERROR
+}
+
+# 根据严重程度名称获取数值
+# 参数: $1 - 严重程度名称
+# 返回: 严重程度值，如果未找到则返回2（ERROR）
+get_error_severity() {
+    local severity_name="$1"
+    
+    # 遍历严重程度名称数组
+    for i in "${!ERROR_SEVERITY_NAMES[@]}"; do
+        if [[ "${ERROR_SEVERITY_NAMES[$i]}" == "$severity_name" ]]; then
+            echo "${ERROR_SEVERITY_VALUES[$i]}"
+            return 0
+        fi
+    done
+    
+    # 未找到时返回默认严重程度
+    echo "2"  # ERROR
+}
 
 
 # 初始化错误处理器
@@ -108,24 +185,35 @@ cleanup_temp_files() {
     log_info "清理临时文件..."
     
     local temp_patterns=(
-        "/tmp/datakit_install_*"
-        "/tmp/datakit_*"
-        "/tmp/install_*"
-        "/var/tmp/datakit_*"
+        "datakit_install_*"
+        "datakit_*"
+        "install_*"
     )
     
     local cleaned_count=0
     local error_count=0
     
     for pattern in "${temp_patterns[@]}"; do
-        # 使用 find 命令更安全地清理文件
-        local pattern_name=$(basename "$pattern")
-        if find /tmp /var/tmp -name "$pattern_name" \( -type f -o -type d \) 2>/dev/null | head -1 | grep -q .; then
-            if find /tmp /var/tmp -name "$pattern_name" \( -type f -o -type d \) -delete 2>/dev/null; then
-                log_debug "清理成功: $pattern"
+        # 清理 /tmp 目录
+        local tmp_files=$(find /tmp -name "$pattern" \( -type f -o -type d \) 2>/dev/null)
+        if [[ -n "$tmp_files" ]]; then
+            if find /tmp -name "$pattern" \( -type f -o -type d \) -delete 2>/dev/null; then
+                log_debug "清理成功: /tmp/$pattern"
                 cleaned_count=$((cleaned_count + 1))
             else
-                log_warning "清理失败: $pattern"
+                log_warning "清理失败: /tmp/$pattern"
+                error_count=$((error_count + 1))
+            fi
+        fi
+        
+        # 清理 /var/tmp 目录
+        local var_tmp_files=$(find /var/tmp -name "$pattern" \( -type f -o -type d \) 2>/dev/null)
+        if [[ -n "$var_tmp_files" ]]; then
+            if find /var/tmp -name "$pattern" \( -type f -o -type d \) -delete 2>/dev/null; then
+                log_debug "清理成功: /var/tmp/$pattern"
+                cleaned_count=$((cleaned_count + 1))
+            else
+                log_warning "清理失败: /var/tmp/$pattern"
                 error_count=$((error_count + 1))
             fi
         fi
@@ -145,19 +233,34 @@ cleanup_log_files() {
     
     # 清理过期的日志文件
     local log_patterns=(
-        "/var/log/datakit_install.log.*"
-        "/tmp/datakit_*.log"
+        "datakit_install.log.*"
+        "datakit_*.log"
     )
     
     local cleaned_count=0
     local error_count=0
     
     for pattern in "${log_patterns[@]}"; do
-        if [[ -f "$pattern" ]] || [[ -d "$(dirname "$pattern")" ]]; then
-            # 检查文件年龄，只删除超过7天的日志
-            if find "$(dirname "$pattern")" -name "$(basename "$pattern")" -type f -mtime +7 -delete 2>/dev/null; then
+        # 清理 /var/log 目录
+        local var_log_files=$(find /var/log -name "$pattern" -type f -mtime +7 2>/dev/null)
+        if [[ -n "$var_log_files" ]]; then
+            if find /var/log -name "$pattern" -type f -mtime +7 -delete 2>/dev/null; then
+                log_debug "清理成功: /var/log/$pattern"
                 cleaned_count=$((cleaned_count + 1))
             else
+                log_warning "清理失败: /var/log/$pattern"
+                error_count=$((error_count + 1))
+            fi
+        fi
+        
+        # 清理 /tmp 目录
+        local tmp_log_files=$(find /tmp -name "$pattern" -type f -mtime +7 2>/dev/null)
+        if [[ -n "$tmp_log_files" ]]; then
+            if find /tmp -name "$pattern" -type f -mtime +7 -delete 2>/dev/null; then
+                log_debug "清理成功: /tmp/$pattern"
+                cleaned_count=$((cleaned_count + 1))
+            else
+                log_warning "清理失败: /tmp/$pattern"
                 error_count=$((error_count + 1))
             fi
         fi
@@ -195,7 +298,7 @@ record_error() {
     
     # 如果是致命错误，立即退出
     if [[ "$severity" == "CRITICAL" ]]; then
-        exit "${ERROR_CODES[$error_code]:-1}"
+        exit "$(get_error_code "$error_code")"
     fi
 }
 
@@ -209,13 +312,23 @@ handle_error() {
     # 记录错误
     record_error "$error_code" "$error_message" "$severity"
     
-    
     # 如果指定退出，则退出
     if [[ "$exit_on_error" == "true" ]]; then
-        exit "${ERROR_CODES[$error_code]:-1}"
+        exit "$(get_error_code "$error_code")"
     fi
     
-    return "${ERROR_CODES[$error_code]:-1}"
+    # 根据严重程度决定返回值
+    case "$severity" in
+        "CRITICAL"|"ERROR")
+            return "$(get_error_code "$error_code")"
+            ;;
+        "WARNING"|"INFO")
+            return 0  # 警告和信息不返回错误码
+            ;;
+        *)
+            return "$(get_error_code "$error_code")"
+            ;;
+    esac
 }
 
 
@@ -231,7 +344,7 @@ die() {
     cleanup_on_exit
     
     # 退出
-    exit "${ERROR_CODES[$error_code]:-1}"
+    exit "$(get_error_code "$error_code")"
 }
 
 # 标准化的错误检查函数

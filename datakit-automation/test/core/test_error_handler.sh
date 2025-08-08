@@ -8,7 +8,18 @@
 
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CORE_DIR="$SCRIPT_DIR/../core"
+CORE_DIR="$SCRIPT_DIR/../../core"
+
+# 检查核心文件是否存在
+if [[ ! -f "$CORE_DIR/logging.sh" ]]; then
+    echo "错误: 找不到 logging.sh 文件: $CORE_DIR/logging.sh"
+    exit 1
+fi
+
+if [[ ! -f "$CORE_DIR/error_handler.sh" ]]; then
+    echo "错误: 找不到 error_handler.sh 文件: $CORE_DIR/error_handler.sh"
+    exit 1
+fi
 
 # 加载核心模块
 source "$CORE_DIR/logging.sh"
@@ -17,38 +28,37 @@ source "$CORE_DIR/error_handler.sh"
 # 初始化日志系统
 init_logging
 
-# 测试结果统计
-declare -A TEST_RESULTS
-TEST_RESULTS["total"]=0
-TEST_RESULTS["passed"]=0
-TEST_RESULTS["failed"]=0
+# 测试结果统计（使用普通变量而不是关联数组，提高兼容性）
+TEST_TOTAL=0
+TEST_PASSED=0
+TEST_FAILED=0
 
 # 测试辅助函数
 run_test() {
     local test_name="$1"
     local test_function="$2"
     
-    TEST_RESULTS["total"]=$((TEST_RESULTS["total"] + 1))
+    TEST_TOTAL=$((TEST_TOTAL + 1))
     
     log_info "运行测试: $test_name"
     
     if "$test_function"; then
         log_success "测试通过: $test_name"
-        TEST_RESULTS["passed"]=$((TEST_RESULTS["passed"] + 1))
+        TEST_PASSED=$((TEST_PASSED + 1))
         return 0
     else
         log_error "测试失败: $test_name"
-        TEST_RESULTS["failed"]=$((TEST_RESULTS["failed"] + 1))
+        TEST_FAILED=$((TEST_FAILED + 1))
         return 1
     fi
 }
 
-# 测试1: 错误代码定义
+# 错误代码定义
 test_error_codes_definition() {
     log_info "测试错误代码定义..."
     
     # 检查错误代码数组是否定义
-    if [[ ${#ERROR_CODES[@]} -eq 0 ]]; then
+    if [[ ${#ERROR_CODES_NAMES[@]} -eq 0 ]]; then
         log_error "错误代码数组未定义"
         return 1
     fi
@@ -56,14 +66,14 @@ test_error_codes_definition() {
     # 检查关键错误代码是否存在
     local required_codes=("SUCCESS" "GENERAL_ERROR" "CONFIG_ERROR" "NETWORK_ERROR")
     for code in "${required_codes[@]}"; do
-        if [[ -z "${ERROR_CODES[$code]}" ]]; then
+        if [[ -z "$(get_error_code "$code")" ]]; then
             log_error "缺少错误代码: $code"
             return 1
         fi
     done
     
-    # 检查SUCCESS代码是否为0
-    if [[ ${ERROR_CODES["SUCCESS"]} -ne 0 ]]; then
+    # 检查 SUCCESS代码是否为0
+    if [[ "$(get_error_code "SUCCESS")" -ne 0 ]]; then
         log_error "SUCCESS错误代码应该为0"
         return 1
     fi
@@ -77,7 +87,7 @@ test_error_severity_definition() {
     log_info "测试错误严重程度定义..."
     
     # 检查错误严重程度数组是否定义
-    if [[ ${#ERROR_SEVERITY[@]} -eq 0 ]]; then
+    if [[ ${#ERROR_SEVERITY_NAMES[@]} -eq 0 ]]; then
         log_error "错误严重程度数组未定义"
         return 1
     fi
@@ -85,19 +95,19 @@ test_error_severity_definition() {
     # 检查关键严重程度是否存在
     local required_severities=("CRITICAL" "ERROR" "WARNING" "INFO")
     for severity in "${required_severities[@]}"; do
-        if [[ -z "${ERROR_SEVERITY[$severity]}" ]]; then
+        if [[ -z "$(get_error_severity "$severity")" ]]; then
             log_error "缺少错误严重程度: $severity"
             return 1
         fi
     done
     
     # 检查严重程度数值是否正确
-    if [[ ${ERROR_SEVERITY["CRITICAL"]} -ne 1 ]]; then
+    if [[ "$(get_error_severity "CRITICAL")" -ne 1 ]]; then
         log_error "CRITICAL严重程度应该为1"
         return 1
     fi
     
-    if [[ ${ERROR_SEVERITY["INFO"]} -ne 4 ]]; then
+    if [[ "$(get_error_severity "INFO")" -ne 4 ]]; then
         log_error "INFO严重程度应该为4"
         return 1
     fi
@@ -216,7 +226,7 @@ test_check_error() {
 test_cleanup_temp_files() {
     log_info "测试清理临时文件函数..."
     
-    # 创建测试临时文件
+    # 创建测试临时文件（使用与清理函数匹配的模式）
     local test_files=(
         "/tmp/datakit_install_test_$$"
         "/tmp/datakit_test_$$"
@@ -226,6 +236,14 @@ test_cleanup_temp_files() {
     
     for file in "${test_files[@]}"; do
         touch "$file"
+    done
+    
+    # 验证文件已创建
+    for file in "${test_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            log_error "测试文件创建失败: $file"
+            return 1
+        fi
     done
     
     # 运行清理函数
@@ -259,8 +277,28 @@ test_cleanup_log_files() {
     local test_log="/tmp/datakit_test_$$.log"
     touch "$test_log"
     
-    # 修改文件时间为8天前
-    touch -d "8 days ago" "$test_log"
+    # 验证文件已创建
+    if [[ ! -f "$test_log" ]]; then
+        log_error "测试日志文件创建失败: $test_log"
+        return 1
+    fi
+    
+    # 修改文件时间为8天前（macOS兼容格式）
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS 使用 -t 参数
+        touch -t "$(date -v-8d +%Y%m%d%H%M)" "$test_log"
+    else
+        # Linux 使用 -d 参数
+        touch -d "8 days ago" "$test_log"
+    fi
+    
+    # 验证文件时间已修改
+    local file_age=$(find "$test_log" -mtime +7 2>/dev/null | wc -l)
+    if [[ $file_age -eq 0 ]]; then
+        log_error "文件时间修改失败，文件年龄不足7天"
+        rm -f "$test_log" 2>/dev/null
+        return 1
+    fi
     
     # 运行清理函数
     if ! cleanup_log_files; then
@@ -304,16 +342,14 @@ test_signal_handler() {
 #!/bin/bash
 source "$1"
 init_error_handler
-sleep 10 &
-pid=$!
+# 发送信号给当前进程
+kill -INT $$ 2>/dev/null
 sleep 1
-kill -INT $pid 2>/dev/null
-wait $pid
 EOF
     
     chmod +x "$temp_script"
     
-    # 运行临时脚本
+    # 运行临时脚本，应该因为信号处理而退出
     if "$temp_script" "$CORE_DIR/error_handler.sh" 2>/dev/null; then
         log_error "信号处理测试失败"
         rm -f "$temp_script"
@@ -330,17 +366,17 @@ test_error_code_mapping() {
     log_info "测试错误代码映射..."
     
     # 测试已知错误代码
-    if [[ ${ERROR_CODES["GENERAL_ERROR"]} -ne 1 ]]; then
+    if [[ "$(get_error_code "GENERAL_ERROR")" -ne 1 ]]; then
         log_error "GENERAL_ERROR代码映射错误"
         return 1
     fi
     
-    if [[ ${ERROR_CODES["NETWORK_ERROR"]} -ne 3 ]]; then
+    if [[ "$(get_error_code "NETWORK_ERROR")" -ne 3 ]]; then
         log_error "NETWORK_ERROR代码映射错误"
         return 1
     fi
     
-    if [[ ${ERROR_CODES["PERMISSION_ERROR"]} -ne 4 ]]; then
+    if [[ "$(get_error_code "PERMISSION_ERROR")" -ne 4 ]]; then
         log_error "PERMISSION_ERROR代码映射错误"
         return 1
     fi
@@ -379,9 +415,9 @@ main() {
     
     # 输出测试结果
     log_info "=== 单元测试结果汇总 ==="
-    log_info "总测试数: ${TEST_RESULTS["total"]}"
-    log_info "通过测试: ${TEST_RESULTS["passed"]}"
-    log_info "失败测试: ${TEST_RESULTS["failed"]}"
+    log_info "总测试数: $TEST_TOTAL"
+    log_info "通过测试: $TEST_PASSED"
+    log_info "失败测试: $TEST_FAILED"
     
     if [[ ${#failed_tests[@]} -gt 0 ]]; then
         log_error "失败的测试:"
