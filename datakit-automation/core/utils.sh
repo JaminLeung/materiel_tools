@@ -46,12 +46,12 @@ EOF
     local dataway_host=$(echo $DATAWAY_URL | awk -F'?' '{print $1}')
     local dataway_token=$(echo $DATAWAY_URL | awk -F'token=' '{print $2}')
     
-    log_info "log_data: $log_data"
+    # log_info "log_data: $log_data"
 
     if [ -n "$dataway_host" ]; then
 
 
-        log_info "执行命令：curl -s -X POST $dataway_host/v1/write/logging?token=$dataway_token&precision=ns -H 'Content-Type: application/json' -d '$log_data'"
+        # log_info "执行命令：curl -s -X POST $dataway_host/v1/write/logging?token=$dataway_token&precision=ns -H 'Content-Type: application/json' -d '$log_data'"
 
         
         curl -s -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
@@ -480,29 +480,34 @@ get_ops_config() {
 # 获取主机信息
 get_host_info() {
     log_info "获取主机信息..."
-    
-    # 检查全局状态是否完整
-    if check_global_state; then
+    # 执行get_ops_config函数
+    if get_ops_config; then
         log_success "主机信息验证成功"
-        log_info "环境: $(get_global_state 'ENV')"
-        log_info "工作空间: $(get_global_state 'WORKSPACE')"
-        log_info "全局标签: $(get_global_state 'GLOBAL_TAGS')"
-        log_info "Dataway地址: $(get_global_state 'DATAWAY_FULL_URL')"
-        
-        # 上报成功日志
-        dataway_log "info" "主机信息验证成功: env=$(get_global_state 'ENV'), workspace=$(get_global_state 'WORKSPACE')"
         return 0
     else
-        # 执行get_ops_config函数
-        if get_ops_config; then
-            log_success "主机信息验证成功"
-            return 0
+        log_warning "获取运维平台配置失败，使用默认配置"
+        dataway_log "warning" "获取运维平台配置失败，使用默认配置"
+        
+
+        
+        # 使用缺省配置逻辑
+        local dataway_url="${DATAWAY_LOG_URL:-${DATAWAY_URL:-${CONFIG_UPDATE_DATAWAY_URL:-}}}"
+        local env="${ENV:-test}"
+        local workspace="${WORKSPACE:-default}"
+
+
+        if [ -n "$dataway_url" ]; then
+            set_global_state "DATAWAY_FULL_URL" "$dataway_url"
+            log_info "使用默认配置:"
+            log_info "  - 环境: $env"
+            log_info "  - 工作空间: $workspace"
+            log_info "  - Dataway地址: $dataway_url"
         else
-            log_error "主机信息不完整，请检查get_ops_config函数"
-            dataway_log "error" "主机信息不完整"
+            log_error "所有Dataway URL都未设置"
             return 1
         fi
     fi
+
 }
 
 # 设置全局状态
@@ -518,25 +523,25 @@ get_global_state() {
     echo "${GLOBAL_STATE[$key]:-}"
 }
 
-# 检查全局状态是否完整
-check_global_state() {
-    local required_keys=("HOST_IP" "ENV" "WORKSPACE" "WORKSPACE_TOKEN")
-    local missing_keys=()
+# # 检查全局状态是否完整
+# check_global_state() {
+#     local required_keys=("HOST_IP" "ENV" "WORKSPACE" "WORKSPACE_TOKEN")
+#     local missing_keys=()
     
-    for key in "${required_keys[@]}"; do
-        if [ -z "${GLOBAL_STATE[$key]:-}" ]; then
-            missing_keys+=("$key")
-        fi
-    done
+#     for key in "${required_keys[@]}"; do
+#         if [ -z "${GLOBAL_STATE[$key]:-}" ]; then
+#             missing_keys+=("$key")
+#         fi
+#     done
     
-    if [ ${#missing_keys[@]} -gt 0 ]; then
-        log_error "缺少必需的全局状态: ${missing_keys[*]}"
-        return 1
-    fi
+#     if [ ${#missing_keys[@]} -gt 0 ]; then
+#         log_error "缺少必需的全局状态: ${missing_keys[*]}"
+#         return 1
+#     fi
     
-    log_success "全局状态验证通过"
-    return 0
-} 
+#     log_success "全局状态验证通过"
+#     return 0
+# } 
 
 # =============================================================================
 # 清理旧备份目录
@@ -981,5 +986,468 @@ get_machine_specs() {
     dataway_log "info" "资源限制设置完成"
     return 0
 }
+
+# =============================================================================
+# 配置文件处理相关函数（从 config_file.sh 合并）
+# =============================================================================
+
+# 全局配置变量
+declare -A CONFIG_VALUES
+
+# 默认配置文件路径
+DEFAULT_CONFIG_FILE=""
+
+read_toml_config() {
+    local toml_file="$1"
+    [ -f "$toml_file" ] || die "配置文件不存在: $toml_file"
+    command_exists yj || die "命令 'yj' 不存在"
+    yj -t < "$toml_file" 2>/dev/null || die "TOML文件读取失败: $toml_file"
+}
+
+update_toml_config() {
+    local toml_file="$1"
+    local json_data="$2"
+    local current_config
+    if [ -f "$toml_file" ]; then
+        current_config=$(read_toml_config "$toml_file") || {
+            log_error "读取当前配置文件失败: $toml_file"
+            return 1
+        }
+    else
+        log_info "配置文件不存在，将创建新文件: $toml_file"
+        current_config="{}"
+    fi
+    if [ "$current_config" = "$json_data" ]; then
+        log_info "配置相同，跳过更新: $toml_file"
+        return 0
+    fi
+    # 使用CONFIG_UPDATE_BACKUP_DIR，如果未定义则使用默认值
+    local backup_dir="${CONFIG_UPDATE_BACKUP_DIR:-/var/backups/datakit}"
+    safe_execute "mkdir -p '$backup_dir'" "创建备份目录" || return 1
+    local filename=$(basename "$toml_file")
+    local backup_file="$backup_dir/${filename}.backup.$(date +%Y%m%d_%H%M%S)"
+    if [ -f "$toml_file" ]; then
+        safe_execute "cp '$toml_file' '$backup_file'" "备份配置文件" || return 1
+        log_info "备份文件: $backup_file"
+    else
+        log_info "原文件不存在，无需备份"
+    fi
+    safe_execute "echo '$json_data' | yj -jt > '$toml_file'" "更新配置文件" || return 1
+    log_success "配置文件更新成功: $toml_file"
+    log_info "备份文件: $backup_file"
+    return 0
+}
+
+get_json_path_value() {
+    local json_data="$1"
+    local json_path="$2"
+    local value
+    value=$(echo "$json_data" | jq "$json_path" 2>/dev/null)
+    local jq_ret=$?
+    if [ $jq_ret -eq 0 ] && [ "$value" != "null" ]; then
+        local first_char="${value:0:1}"
+        if [ "$first_char" = "[" ] || [ "$first_char" = "{" ]; then
+            echo "$value"
+        else
+            echo "$json_data" | jq -r "$json_path" 2>/dev/null
+        fi
+        return 0
+    fi
+    return 1
+}
+
+set_json_path_value() {
+    local json_data="$1"
+    local json_path="$2"
+    local new_value="$3"
+    local updated_json
+    if [[ "$new_value" =~ ^\[.*\]$ ]]; then
+        updated_json=$(echo "$json_data" | jq "$json_path = $new_value" 2>/dev/null)
+    elif [[ "$new_value" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        updated_json=$(echo "$json_data" | jq "$json_path = $new_value" 2>/dev/null)
+    elif [[ "$new_value" =~ ^(true|false)$ ]]; then
+        updated_json=$(echo "$json_data" | jq "$json_path = $new_value" 2>/dev/null)
+    else
+        updated_json=$(echo "$json_data" | jq "$json_path = \"$new_value\"" 2>/dev/null)
+    fi
+    if [ $? -eq 0 ]; then
+        echo "$updated_json"
+        return 0
+    fi
+    return 1
+}
+
+# =============================================================================
+# 配置管理函数
+# =============================================================================
+
+# 设置默认配置文件路径
+set_default_config_file() {
+    local config_file="$1"
+    DEFAULT_CONFIG_FILE="$config_file"
+}
+
+# 加载配置文件
+load_config_file() {
+    local config_file="${1:-$DEFAULT_CONFIG_FILE}"
+    
+    if [ -z "$config_file" ]; then
+        log_error "未指定配置文件路径"
+        return 1
+    fi
+    
+    if [ ! -f "$config_file" ]; then
+        log_error "配置文件不存在: $config_file"
+        return 1
+    fi
+    
+    log_info "加载配置文件: $config_file"
+    
+    # 清空现有配置
+    CONFIG_VALUES=()
+    
+    # 读取TOML配置文件并转换为JSON
+    local json_config
+    json_config=$(yj -t < "$config_file" 2>/dev/null) || {
+        log_error "配置文件格式错误: $config_file"
+        return 1
+    }
+    
+    # 解析配置项并存储到关联数组中
+    local sections
+    sections=$(echo "$json_config" | jq -r 'keys[]' 2>/dev/null)
+    
+    for section in $sections; do
+        local section_data
+        section_data=$(echo "$json_config" | jq -r ".[\"$section\"]" 2>/dev/null)
+        
+        if [ "$section_data" != "null" ]; then
+            local keys
+            keys=$(echo "$section_data" | jq -r 'keys[]' 2>/dev/null)
+            
+            for key in $keys; do
+                local value
+                value=$(echo "$section_data" | jq -r ".[\"$key\"]" 2>/dev/null)
+                CONFIG_VALUES["${section}_${key}"]="$value"
+                log_debug "加载配置: ${section}_${key} = $value"
+            done
+        fi
+    done
+    
+    log_success "配置文件加载完成: $config_file"
+    return 0
+}
+
+# 获取配置值
+get_config_value() {
+    local key="$1"
+    local default_value="${2:-}"
+    
+    if [ -z "$key" ]; then
+        log_error "配置键不能为空"
+        return 1
+    fi
+    
+    local value="${CONFIG_VALUES[$key]:-}"
+    
+    if [ -z "$value" ]; then
+        if [ -n "$default_value" ]; then
+            log_debug "配置键 '$key' 未找到，使用默认值: $default_value"
+            echo "$default_value"
+            return 0
+        else
+            log_error "配置键 '$key' 未找到且无默认值"
+            return 1
+        fi
+    fi
+    
+    echo "$value"
+    return 0
+}
+
+# 设置配置值
+set_config_value() {
+    local key="$1"
+    local value="$2"
+    
+    if [ -z "$key" ]; then
+        log_error "配置键不能为空"
+        return 1
+    fi
+    
+    CONFIG_VALUES["$key"]="$value"
+    log_debug "设置配置: $key = $value"
+    return 0
+}
+
+# 检查配置键是否存在
+has_config_key() {
+    local key="$1"
+    
+    if [ -z "$key" ]; then
+        return 1
+    fi
+    
+    [ -n "${CONFIG_VALUES[$key]:-}" ]
+}
+
+# 列出所有配置键
+list_config_keys() {
+    local pattern="${1:-*}"
+    
+    for key in "${!CONFIG_VALUES[@]}"; do
+        if [[ "$key" == $pattern ]]; then
+            echo "$key"
+        fi
+    done
+}
+
+# 导出配置为环境变量
+export_config_as_env() {
+    local prefix="${1:-CONFIG_}"
+    
+    for key in "${!CONFIG_VALUES[@]}"; do
+        local env_key="${prefix}${key^^}"
+        export "$env_key"="${CONFIG_VALUES[$key]}"
+        log_debug "导出环境变量: $env_key = ${CONFIG_VALUES[$key]}"
+    done
+    
+    log_info "配置已导出为环境变量 (前缀: $prefix)"
+}
+
+# 验证必需配置项
+validate_required_config() {
+    local required_keys=("$@")
+    local missing_keys=()
+    
+    for key in "${required_keys[@]}"; do
+        if ! has_config_key "$key"; then
+            missing_keys+=("$key")
+        fi
+    done
+    
+    if [ ${#missing_keys[@]} -gt 0 ]; then
+        log_error "缺少必需的配置项: ${missing_keys[*]}"
+        return 1
+    fi
+    
+    log_success "所有必需配置项验证通过"
+    return 0
+}
+
+# 生成配置模板
+generate_config_template() {
+    local output_file="$1"
+    local template_content="$2"
+    
+    if [ -z "$output_file" ]; then
+        log_error "输出文件路径不能为空"
+        return 1
+    fi
+    
+    if [ -z "$template_content" ]; then
+        log_error "模板内容不能为空"
+        return 1
+    fi
+    
+    # 创建目录
+    local dir=$(dirname "$output_file")
+    if [ ! -d "$dir" ]; then
+        mkdir -p "$dir" || {
+            log_error "创建目录失败: $dir"
+            return 1
+        }
+    fi
+    
+    # 写入模板文件
+    echo "$template_content" > "$output_file" || {
+        log_error "写入模板文件失败: $output_file"
+        return 1
+    }
+    
+    log_success "配置模板已生成: $output_file"
+    return 0
+} 
+
+# =============================================================================
+# 定时任务包装函数（从 cron_wrapper.sh 合并）
+# =============================================================================
+
+# 执行定时任务包装
+# 参数: $1 - 任务类型 (config_update|health_check|app_init)
+#       $2 - 脚本路径
+execute_cron_wrapper() {
+    local task_type="$1"
+    local script_path="$2"
+    
+    # 验证参数
+    if [ -z "$task_type" ]; then
+        log_error "缺少任务类型参数"
+        return 1
+    fi
+    
+    if [ -z "$script_path" ]; then
+        log_error "缺少脚本路径参数"
+        return 1
+    fi
+    
+    # 根据任务类型设置配置
+    local lock_file=""
+    local log_file=""
+    local task_name=""
+    
+    case "$task_type" in
+        "config_update")
+            lock_file="${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
+            log_file="${CONFIG_UPDATE_LOG_FILE:-/var/log/datakit/config_update.log}"
+            task_name="${CONFIG_UPDATE_TASK_NAME:-config_update.sh}"
+            ;;
+        "health_check")
+            lock_file="${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
+            log_file="${HEALTH_CHECK_LOG_FILE:-/var/log/datakit/health_check.log}"
+            task_name="${HEALTH_CHECK_TASK_NAME:-datakit_health_check.sh}"
+            ;;
+        "app_init")
+            lock_file="${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
+            log_file="${APP_INIT_LOG_FILE:-/var/log/datakit/app_init.log}"
+            task_name="${APP_INIT_TASK_NAME:-app_init.sh}"
+            ;;
+        *)
+            log_error "未知的任务类型: $task_type"
+            log_error "支持的任务类型: config_update, health_check, app_init"
+            return 1
+            ;;
+    esac
+    
+    # 确保日志目录存在
+    local log_dir=$(dirname "$log_file")
+    mkdir -p "$log_dir" 2>/dev/null || true
+    
+    # 清空日志文件，只保留最新内容
+    > "$log_file" 2>/dev/null || true
+    
+    # 记录执行开始
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - 开始执行$task_name" > "$log_file"
+    
+    # 检查锁文件
+    if [ -f "$lock_file" ]; then
+        # 读取锁文件中的PID
+        local pid=$(cat "$lock_file" 2>/dev/null)
+        
+        # 检查进程是否还在运行
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - 上一个$task_name任务(PID: $pid)还在运行，跳过本次执行" >> "$log_file"
+            return 0
+        else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - 发现僵尸锁文件，清理并继续执行" >> "$log_file"
+            rm -f "$lock_file"
+        fi
+    fi
+    
+    # 执行实际脚本（脚本内部会处理锁机制）
+    if [ -f "$script_path" ]; then
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - 执行脚本: $script_path" >> "$log_file"
+        if bash "$script_path" >> "$log_file" 2>&1; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - $task_name执行成功" >> "$log_file"
+            return 0
+        else
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - $task_name执行失败" >> "$log_file"
+            return 1
+        fi
+    else
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - 脚本文件不存在: $script_path" >> "$log_file"
+        return 1
+    fi
+}
+
+# 获取任务配置信息
+# 参数: $1 - 任务类型
+# 返回: 锁文件路径、日志文件路径、任务名称
+get_task_config() {
+    local task_type="$1"
+    
+    case "$task_type" in
+        "config_update")
+            echo "${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
+            echo "${CONFIG_UPDATE_LOG_FILE:-/var/log/datakit/config_update.log}"
+            echo "${CONFIG_UPDATE_TASK_NAME:-config_update.sh}"
+            ;;
+        "health_check")
+            echo "${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
+            echo "${HEALTH_CHECK_LOG_FILE:-/var/log/datakit/health_check.log}"
+            echo "${HEALTH_CHECK_TASK_NAME:-datakit_health_check.sh}"
+            ;;
+        "app_init")
+            echo "${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
+            echo "${APP_INIT_LOG_FILE:-/var/log/datakit/app_init.log}"
+            echo "${APP_INIT_TASK_NAME:-app_init.sh}"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# 检查任务是否正在运行
+# 参数: $1 - 任务类型
+# 返回: 0 - 正在运行, 1 - 未运行
+is_task_running() {
+    local task_type="$1"
+    local lock_file=""
+    
+    case "$task_type" in
+        "config_update")
+            lock_file="${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
+            ;;
+        "health_check")
+            lock_file="${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
+            ;;
+        "app_init")
+            lock_file="${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    
+    if [ -f "$lock_file" ]; then
+        local pid=$(cat "$lock_file" 2>/dev/null)
+        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+            return 0  # 正在运行
+        fi
+    fi
+    
+    return 1  # 未运行
+}
+
+# 清理任务锁文件
+# 参数: $1 - 任务类型
+cleanup_task_lock() {
+    local task_type="$1"
+    local lock_file=""
+    
+    case "$task_type" in
+        "config_update")
+            lock_file="${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
+            ;;
+        "health_check")
+            lock_file="${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
+            ;;
+        "app_init")
+            lock_file="${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+    
+    if [ -f "$lock_file" ]; then
+        rm -f "$lock_file"
+        log_info "已清理任务锁文件: $lock_file"
+        return 0
+    fi
+    
+    return 1
+} 
 
  

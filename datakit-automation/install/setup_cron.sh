@@ -55,17 +55,8 @@ setup_cron_jobs() {
     chmod +x "$app_init_script"
     
     
-    # 使用通用包装脚本
-    local wrapper_script="$SCENARIO_PROJECT_ROOT/install/cron_wrapper.sh"
-    
-    if [ ! -f "$wrapper_script" ]; then
-        log_error "通用包装脚本不存在: $wrapper_script"
-        dataway_log "error" "通用包装脚本不存在: cron_wrapper.sh"
-        return 1
-    fi
-    
-    # 设置包装脚本权限
-    chmod +x "$wrapper_script"
+    # 使用 utils.sh 中的定时任务包装函数
+    # 不再需要单独的 cron_wrapper.sh 脚本
     
     # 备份现有的crontab
     local current_crontab="/tmp/current_crontab_$(date +%Y%m%d%H%M%S)"
@@ -79,13 +70,13 @@ setup_cron_jobs() {
 # 生成时间: $(date '+%Y-%m-%d %H:%M:%S')
 
 # config_update.sh - 每15分钟执行一次，带锁检查
-*/15 * * * * $wrapper_script config_update "$config_update_script"
+*/15 * * * * bash -c 'source "$SCENARIO_PROJECT_ROOT/core/utils.sh" && execute_cron_wrapper "config_update" "$SCENARIO_PROJECT_ROOT/scripts/config_update.sh"'
 
 # datakit_health_check.sh - 每5分钟执行一次，带锁检查
-*/5 * * * * $wrapper_script health_check "$health_check_script"
+*/5 * * * * bash -c 'source "$SCENARIO_PROJECT_ROOT/core/utils.sh" && execute_cron_wrapper "health_check" "$SCENARIO_PROJECT_ROOT/scripts/datakit_health_check.sh"'
 
 # app_init.sh - 每10分钟执行一次，带锁检查
-*/10 * * * * $wrapper_script app_init "$app_init_script"
+*/10 * * * * bash -c 'source "$SCENARIO_PROJECT_ROOT/core/utils.sh" && execute_cron_wrapper "app_init" "$SCENARIO_PROJECT_ROOT/scripts/app_init.sh"'
 
 # 保留原有的crontab内容（如果有的话）
 EOF
@@ -104,6 +95,7 @@ EOF
         log_info "app_init.sh: 每10分钟执行一次（带锁检查，只保留最新日志）"
         log_info "日志文件: /var/log/datakit/config_update.log, /var/log/datakit/health_check.log, /var/log/datakit/app_init.log"
         log_info "锁文件: /var/run/config_update.lock, /var/run/datakit_health_check.lock, /var/run/app_init.lock"
+        log_info "使用 utils.sh 中的 execute_cron_wrapper 函数"
         dataway_log "info" "定时任务设置成功: config_update.sh(15分钟), health_check.sh(5分钟), app_init.sh(10分钟)"
     else
         log_error "定时任务设置失败"
