@@ -172,6 +172,9 @@ Datakit 安装器 v$INSTALLER_SCRIPT_VERSION
     config-update         配置更新 - 仅更新配置文件
     reinstall             重装 - 完全重新安装
     setup-cron            设置定时任务 - 配置Datakit相关定时任务
+    app-init              应用初始化 - 从运维平台同步业务配置
+    config-sync           配置同步 - Datakit服务控制和配置管理
+    health-check          健康检查 - 检查Datakit健康状态并自动重启
 
 配置方式:
     1. 环境变量 (推荐):
@@ -212,6 +215,11 @@ Datakit 安装器 v$INSTALLER_SCRIPT_VERSION
     # 使用绝对路径的配置文件
     $INSTALLER_SCRIPT_NAME --config /path/to/custom_config.sh existing-install
 
+    # 应用初始化和配置管理
+    $INSTALLER_SCRIPT_NAME app-init                    # 从运维平台同步业务配置
+    $INSTALLER_SCRIPT_NAME config-sync                 # 同步Datakit配置
+    $INSTALLER_SCRIPT_NAME health-check                # 检查Datakit健康状态
+
     配置工具:
     配置测试: $INSTALLER_CONFIG_DIR/tests/test_config.sh
     配置查看: $INSTALLER_CONFIG_DIR/loader.sh --show
@@ -249,7 +257,7 @@ main() {
                 show_help
                 exit 0
                 ;;
-            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron)
+            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|config-sync|health-check)
                 command="$1"
                 shift
                 ;;
@@ -293,6 +301,15 @@ main() {
             ;;
         setup-cron)
             execute_setup_cron
+            ;;
+        app-init)
+            execute_app_init
+            ;;
+        config-sync)
+            execute_config_sync
+            ;;
+        health-check)
+            execute_health_check
             ;;
         *)
             echo "[ERROR] 未知命令: $command" >&2
@@ -536,6 +553,147 @@ execute_setup_cron() {
     fi
 }
 
+
+# 应用初始化场景
+execute_app_init() {
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "=== 执行应用初始化场景 ==="
+        log_info "场景描述: 从运维平台同步业务配置到Datakit采集器"
+    else
+        echo "[INFO] === 执行应用初始化场景 ==="
+        echo "[INFO] 场景描述: 从运维平台同步业务配置到Datakit采集器"
+    fi
+    
+    # 调用scripts目录下的应用初始化脚本
+    local app_init_script="$INSTALLER_SCRIPT_DIR/scripts/app_init.sh"
+    
+    if [[ -f "$app_init_script" ]]; then
+        if command -v log_info >/dev/null 2>&1; then
+            log_info "调用应用初始化脚本: $app_init_script"
+        else
+            echo "[INFO] 调用应用初始化脚本: $app_init_script"
+        fi
+        
+        # 传递配置信息给脚本
+        export DATAKIT_CONFIG_FILE="$env_config_file"
+        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+        
+        # 导出所有关键配置变量
+        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
+        export OPS_ADDR="${OPS_ADDR:-}"
+        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
+        export DATAWAY_URL="${DATAWAY_URL:-}"
+        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
+        export S3_BUCKET="${S3_BUCKET:-}"
+        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
+        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
+        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
+        
+        # 执行应用初始化脚本
+        bash "$app_init_script"
+    else
+        if command -v log_error >/dev/null 2>&1; then
+            log_error "应用初始化脚本不存在: $app_init_script"
+        else
+            echo "[ERROR] 应用初始化脚本不存在: $app_init_script" >&2
+        fi
+        exit 1
+    fi
+}
+
+# 配置同步场景
+execute_config_sync() {
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "=== 执行配置同步场景 ==="
+        log_info "场景描述: Datakit服务控制、全局配置修改、采集器配置管理"
+    else
+        echo "[INFO] === 执行配置同步场景 ==="
+        echo "[INFO] 场景描述: Datakit服务控制、全局配置修改、采集器配置管理"
+    fi
+    
+    # 调用scripts目录下的配置更新脚本
+    local config_sync_script="$INSTALLER_SCRIPT_DIR/scripts/config_update.sh"
+    
+    if [[ -f "$config_sync_script" ]]; then
+        if command -v log_info >/dev/null 2>&1; then
+            log_info "调用配置同步脚本: $config_sync_script"
+        else
+            echo "[INFO] 调用配置同步脚本: $config_sync_script"
+        fi
+        
+        # 传递配置信息给脚本
+        export DATAKIT_CONFIG_FILE="$env_config_file"
+        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+        
+        # 导出所有关键配置变量
+        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
+        export OPS_ADDR="${OPS_ADDR:-}"
+        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
+        export DATAWAY_URL="${DATAWAY_URL:-}"
+        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
+        export S3_BUCKET="${S3_BUCKET:-}"
+        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
+        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
+        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
+        
+        # 执行配置同步脚本
+        bash "$config_sync_script"
+    else
+        if command -v log_error >/dev/null 2>&1; then
+            log_error "配置同步脚本不存在: $config_sync_script"
+        else
+            echo "[ERROR] 配置同步脚本不存在: $config_sync_script" >&2
+        fi
+        exit 1
+    fi
+}
+
+# 健康检查场景
+execute_health_check() {
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "=== 执行健康检查场景 ==="
+        log_info "场景描述: 检查Datakit健康状态，异常时自动重启"
+    else
+        echo "[INFO] === 执行健康检查场景 ==="
+        echo "[INFO] 场景描述: 检查Datakit健康状态，异常时自动重启"
+    fi
+    
+    # 调用scripts目录下的健康检查脚本
+    local health_check_script="$INSTALLER_SCRIPT_DIR/scripts/datakit_health_check.sh"
+    
+    if [[ -f "$health_check_script" ]]; then
+        if command -v log_info >/dev/null 2>&1; then
+            log_info "调用健康检查脚本: $health_check_script"
+        else
+            echo "[INFO] 调用健康检查脚本: $health_check_script"
+        fi
+        
+        # 传递配置信息给脚本
+        export DATAKIT_CONFIG_FILE="$env_config_file"
+        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+        
+        # 导出所有关键配置变量
+        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
+        export OPS_ADDR="${OPS_ADDR:-}"
+        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
+        export DATAWAY_URL="${DATAWAY_URL:-}"
+        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
+        export S3_BUCKET="${S3_BUCKET:-}"
+        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
+        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
+        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
+        
+        # 执行健康检查脚本
+        bash "$health_check_script"
+    else
+        if command -v log_error >/dev/null 2>&1; then
+            log_error "健康检查脚本不存在: $health_check_script"
+        else
+            echo "[ERROR] 健康检查脚本不存在: $health_check_script" >&2
+        fi
+        exit 1
+    fi
+}
 
 # 如果直接运行此脚本
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
