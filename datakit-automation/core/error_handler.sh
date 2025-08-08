@@ -283,7 +283,7 @@ record_error() {
     # 记录错误到日志
     local log_message="错误 [$error_code]: $error_message"
     
-    # 根据严重程度记录日志
+    # 根据严重程度记录日志，兼容处理
     case "$severity" in
         "CRITICAL"|"ERROR")
             log_error "$log_message"
@@ -296,10 +296,7 @@ record_error() {
             ;;
     esac
     
-    # 如果是致命错误，立即退出
-    if [[ "$severity" == "CRITICAL" ]]; then
-        exit "$(get_error_code "$error_code")"
-    fi
+
 }
 
 # 标准错误处理函数
@@ -317,6 +314,11 @@ handle_error() {
         exit "$(get_error_code "$error_code")"
     fi
     
+    # 如果是致命错误，立即退出
+    if [[ "$severity" == "CRITICAL" ]]; then
+        exit "$(get_error_code "$error_code")"
+    fi
+
     # 根据严重程度决定返回值
     case "$severity" in
         "CRITICAL"|"ERROR")
@@ -333,6 +335,7 @@ handle_error() {
 
 
 # 标准化的die函数
+# 临时兼容，不建议使用
 die() {
     local message="$1"
     local error_code="${2:-GENERAL_ERROR}"
