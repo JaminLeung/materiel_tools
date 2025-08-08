@@ -63,18 +63,18 @@ source "$SCENARIO_PROJECT_ROOT/core/utils.sh"
 source "$SCENARIO_PROJECT_ROOT/core/validation.sh"
 source "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
 # config_api.sh的功能已合并到utils.sh中
-source "$SCENARIO_PROJECT_ROOT/core/config_file.sh"
+source "$SCENARIO_PROJECT_ROOT/core/utils.sh"
 
 # 安装工具模块功能已整合到core/utils.sh中
 
 # 加载安装步骤模块
-source "$SCENARIO_PROJECT_ROOT/install/host_info.sh"
-source "$SCENARIO_PROJECT_ROOT/install/status_check.sh"
+# source "$SCENARIO_PROJECT_ROOT/install/host_info.sh"
+# source "$SCENARIO_PROJECT_ROOT/install/status_check.sh"
 source "$SCENARIO_PROJECT_ROOT/install/download.sh"
 source "$SCENARIO_PROJECT_ROOT/install/install.sh"
 source "$SCENARIO_PROJECT_ROOT/install/configure.sh"
 source "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
-source "$SCENARIO_PROJECT_ROOT/install/verify.sh"
+# source "$SCENARIO_PROJECT_ROOT/install/verify.sh"
 
 # 全局变量
 declare -A INSTALLATION_STATE
@@ -101,7 +101,7 @@ execute_existing_installation() {
     # 初始化日志文件
 
     
-    # 步骤1: 检查安装状态
+
     # 步骤1: 检查安装状态
     INSTALLATION_STATE["current_step"]="status_check"
     # 检查安装状态，如果返回 1 则跳过脚本

@@ -20,6 +20,7 @@ source "$SCRIPT_DIR/../config/env/benjamin.sh" 2>/dev/null || echo "警告: benj
 
 # =============================================================================
 # 全局变量
+
 # =============================================================================
 CONFIG_CHANGED=false
 
@@ -49,24 +50,10 @@ die() {
 
 # 使用core模块中的get_host_ip函数
 
-verify_datakit_health() {
-    log_info "验证Datakit健康状态"
-    sleep 3
-    
-    check_datakit_status || die "Datakit进程未运行"
-    
-    # 使用core模块中的timeout_execute函数
-    if timeout_execute 10 "curl -s http://localhost:9529/v1/ping" "Datakit健康检查"; then
-        log_success "Datakit健康检查通过"
-        return 0
-    else
-        die "Datakit健康检查失败"
-    fi
-}
-
 # =============================================================================
 # 全局配置处理
 # =============================================================================
+# TODO  按照配置场景拆分
 handle_global_config() {
     log_info "处理全局配置"
     

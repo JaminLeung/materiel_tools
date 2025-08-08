@@ -36,7 +36,7 @@ source "$CONFIG_UPDATE_CORE_DIR/validation.sh"
 # config_api.sh的功能已合并到utils.sh中
 source "$CONFIG_UPDATE_CORE_DIR/health_check.sh"
 source "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
-source "$CONFIG_UPDATE_CORE_DIR/config_file.sh"
+source "$CONFIG_UPDATE_CORE_DIR/utils.sh"
 
 # 初始化日志系统
 init_logging

@@ -195,7 +195,7 @@ test_core_modules() {
     
     # 加载config_file模块
     if [[ -f "$core_dir/config_file.sh" ]]; then
-        source "$core_dir/config_file.sh"
+        source "$core_dir/utils.sh"
         assert_function_exists "update_config_file" "config_file_update_config_file_function" "update_config_file函数应该存在"
     fi
     
