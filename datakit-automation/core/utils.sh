@@ -100,6 +100,20 @@ port_listening() {
     ss -tlnp 2>/dev/null | grep -q ":$port "
 }
 
+# 错误上下文管理函数
+set_error_context() {
+    local context="$1"
+    # 设置错误上下文（如果需要的话）
+    # 这里可以添加错误上下文的设置逻辑
+    return 0
+}
+
+clear_error_context() {
+    # 清除错误上下文（如果需要的话）
+    # 这里可以添加错误上下文的清除逻辑
+    return 0
+}
+
 # 安全执行命令并记录日志
 safe_execute() {
     local cmd="$1"
@@ -137,7 +151,7 @@ retry_execute() {
             clear_error_context
             return 0
         else
-            log_warning "$description 失败 (尝试 $attempt/$max_attempts)"
+            record_error "COMMAND_ERROR" "$description 失败 (尝试 $attempt/$max_attempts)" "WARNING"
             if [ $attempt -lt $max_attempts ]; then
                 log_info "等待 ${delay} 秒后重试..."
                 sleep "$delay"
@@ -201,7 +215,7 @@ retry_safe_execute() {
         attempt=$((attempt + 1))
     done
     
-    log_error "$description 失败，已重试 $max_attempts 次"
+    handle_error "COMMAND_ERROR" "$description 失败，已重试 $max_attempts 次" "ERROR" "false"
     return 1
 }
 
@@ -211,7 +225,7 @@ create_backup() {
     local backup_name="$2"
     
     if [[ ! -e "$source_path" ]]; then
-        log_warning "备份源不存在: $source_path"
+        record_error "FILE_ERROR" "备份源不存在: $source_path" "WARNING"
         return 0
     fi
     
@@ -228,7 +242,7 @@ create_backup() {
         cleanup_old_backups "$backup_name"
         return 0
     else
-        log_error "备份创建失败: $source_path"
+        handle_error "BACKUP_ERROR" "备份创建失败: $source_path" "ERROR" "false"
         return 1
     fi
 }
@@ -249,7 +263,11 @@ cleanup_old_backups() {
 
 # 清理临时文件
 cleanup_temp_files() {
-    local temp_dir="${CONFIG[DATAKIT_INSTALL_DIR]}"
+    # 确保CONFIG数组已初始化
+    if [ -z "${CONFIG+x}" ]; then
+        declare -A CONFIG
+    fi
+    local temp_dir="${CONFIG[DATAKIT_INSTALL_DIR]:-/opt/datakit_install/tmp}"
     if [ -n "$temp_dir" ] && dir_exists "$temp_dir"; then
         log_info "清理临时文件: $temp_dir"
         rm -rf "$temp_dir"
@@ -278,12 +296,12 @@ set_current_step() {
     log_info "当前步骤: $step"
 }
 
-# 记录错误
-record_error() {
-    local error_message="$1"
-    SCRIPT_STATE["ERROR_MESSAGE"]="$error_message"
-    log_error "$error_message"
-}
+# # 记录错误
+# record_error() {
+#     local error_message="$1"
+#     SCRIPT_STATE["ERROR_MESSAGE"]="$error_message"
+#     log_error "$error_message"
+# }
 
 
 # 获取本机IP地址
@@ -299,7 +317,7 @@ get_host_ip() {
     fi
     
     if [ -z "$host_ip" ]; then
-        log_error "无法获取本机IP地址"
+        handle_error "NETWORK_ERROR" "无法获取本机IP地址" "ERROR" "false"
         return 1
     fi
     
@@ -330,7 +348,7 @@ get_ops_config() {
         ops_token=$(grep -v '^\s*#' "$config_py_file" | grep -oP "ops_token = '\K[^']+" 2>/dev/null || echo "")
         log_info "从配置文件获取OPS_TOKEN: ${ops_token:0:10}..."
     else
-        log_warning "配置文件不存在: $config_py_file"
+        record_error "FILE_ERROR" "配置文件不存在: $config_py_file" "WARNING"
     fi
     
     # 如果从配置文件获取失败，尝试使用环境变量
@@ -343,15 +361,12 @@ get_ops_config() {
     local ops_addr="${CONFIG_UPDATE_OPS_API_URL:-${OPS_ADDR:-}}"
     
     if [ -z "$ops_addr" ]; then
-        log_error "未配置运维平台API地址"
-        log_error "CONFIG_UPDATE_OPS_API_URL: ${CONFIG_UPDATE_OPS_API_URL:-未设置}"
-        log_error "OPS_ADDR: ${OPS_ADDR:-未设置}"
+        handle_error "CONFIG_ERROR" "未配置运维平台API地址" "ERROR" "false"
         return 1
     fi
     
     if [ -z "$ops_token" ]; then
-        log_error "未配置OPS_TOKEN"
-        log_error "请检查配置文件: $config_py_file 或环境变量OPS_TOKEN"
+        handle_error "CONFIG_ERROR" "未配置OPS_TOKEN" "ERROR" "false"
         return 1
     fi
     
@@ -390,30 +405,30 @@ get_ops_config() {
         local response_body=$(echo "$response" | head -n -1)
         
         if [ "$http_code" -eq 28 ]; then
-            log_error "请求超时，当前连接超时设置为10s，最大请求时间为30s"
+            handle_error "TIMEOUT_ERROR" "请求超时，当前连接超时设置为10s，最大请求时间为30s" "ERROR" "false"
             return 1
         elif [ "$http_code" -ne 200 ]; then
             case "$http_code" in
-                400) log_error "错误请求，可能是请求参数有误" ;;
-                401) log_error "未授权，检查Token是否有效" ;;
-                403) log_error "禁止访问，您没有权限访问该资源" ;;
-                404) log_error "未找到，检查URL是否正确" ;;
-                500) log_error "服务器内部错误，请稍后重试" ;;
-                502) log_error "错误网关，可能是上游服务器问题" ;;
-                503) log_error "服务不可用，服务器当前无法处理请求" ;;
-                504) log_error "网关超时，服务器未能及时响应" ;;
-                *) log_error "其他错误，HTTP状态码: $http_code" ;;
+                400) handle_error "API_ERROR" "错误请求，可能是请求参数有误" "ERROR" "false" ;;
+                401) handle_error "API_ERROR" "未授权，检查Token是否有效" "ERROR" "false" ;;
+                403) handle_error "API_ERROR" "禁止访问，您没有权限访问该资源" "ERROR" "false" ;;
+                404) handle_error "API_ERROR" "未找到，检查URL是否正确" "ERROR" "false" ;;
+                500) handle_error "API_ERROR" "服务器内部错误，请稍后重试" "ERROR" "false" ;;
+                502) handle_error "API_ERROR" "错误网关，可能是上游服务器问题" "ERROR" "false" ;;
+                503) handle_error "API_ERROR" "服务不可用，服务器当前无法处理请求" "ERROR" "false" ;;
+                504) handle_error "API_ERROR" "网关超时，服务器未能及时响应" "ERROR" "false" ;;
+                *) handle_error "API_ERROR" "其他错误，HTTP状态码: $http_code" "ERROR" "false" ;;
             esac
             return 1
         fi
         
         if [ -n "$response_body" ]; then
             # 输出响应内容用于调试
-            echo "$response_body" | jq . 2>/dev/null || log_warning "无法解析JSON响应"
+            echo "$response_body" | jq . 2>/dev/null || record_error "API_ERROR" "无法解析JSON响应" "WARNING"
             
             # 验证JSON格式
             if ! echo "$response_body" | jq empty 2>/dev/null; then
-                log_error "响应结果不是有效的JSON格式"
+                handle_error "API_ERROR" "响应结果不是有效的JSON格式" "ERROR" "false"
                 return 1
             fi
             
@@ -448,7 +463,7 @@ get_ops_config() {
                     set_global_state "DATAKIT_CONFIG" "$datakit_config"
                     log_success "获取Datakit配置成功"
                 else
-                    log_warning "响应中未包含Datakit配置，使用默认配置"
+                    record_error "CONFIG_ERROR" "响应中未包含Datakit配置，使用默认配置" "WARNING"
                     # 设置默认Datakit配置
                     local default_datakit_config='{"enable": true, "global_config": [], "input_config": []}'
                     set_global_state "DATAKIT_CONFIG" "$default_datakit_config"
@@ -461,18 +476,15 @@ get_ops_config() {
                 log_info "Dataway地址: $dataway_full_url"
                 return 0
             else
-                log_error "从运维平台接口获取的配置信息不完整"
-                log_error "ENV: $env"
-                log_error "WORKSPACE: $workspace"
-                log_error "WORKSPACE_TOKEN: $workspace_token"
+                handle_error "API_ERROR" "从运维平台接口获取的配置信息不完整" "ERROR" "false"
                 return 1
             fi
         else
-            log_error "运维平台接口返回空响应"
+            handle_error "API_ERROR" "运维平台接口返回空响应" "ERROR" "false"
             return 1
         fi
     else
-        log_error "调用运维平台接口失败"
+        handle_error "API_ERROR" "调用运维平台接口失败" "ERROR" "false"
         return 1
     fi
 }
@@ -485,7 +497,7 @@ get_host_info() {
         log_success "主机信息验证成功"
         return 0
     else
-        log_warning "获取运维平台配置失败，使用默认配置"
+        record_error "API_ERROR" "获取运维平台配置失败，使用默认配置" "WARNING"
         dataway_log "warning" "获取运维平台配置失败，使用默认配置"
         
 
@@ -503,7 +515,7 @@ get_host_info() {
             log_info "  - 工作空间: $workspace"
             log_info "  - Dataway地址: $dataway_url"
         else
-            log_error "所有Dataway URL都未设置"
+            handle_error "CONFIG_ERROR" "所有Dataway URL都未设置" "ERROR" "false"
             return 1
         fi
     fi
@@ -601,7 +613,7 @@ download_from_s3_with_curl() {
     
     # 检查AWS凭证
     if [ -z "$S3_ACCESS_KEY" ] || [ -z "$S3_SECRET_KEY" ]; then
-        log_error "缺少AWS凭证，无法访问私有S3 bucket"
+        handle_error "CONFIG_ERROR" "缺少AWS凭证，无法访问私有S3 bucket" "ERROR" "false"
         return 1
     fi
     
@@ -638,7 +650,7 @@ download_from_s3_with_curl() {
     # 注意：trap 在函数内部可能导致过早清理，改为手动清理
     # 确保临时目录存在
     if [ ! -d "$temp_dir" ]; then
-        log_error "无法创建临时目录"
+        handle_error "FILE_ERROR" "无法创建临时目录" "ERROR" "false"
         return 1
     fi
     
@@ -684,11 +696,11 @@ download_from_s3_with_curl() {
             log_success "文件下载成功: $local_path (${file_size} bytes)"
             return 0
         else
-            log_error "下载的文件为空: $key"
+            handle_error "NETWORK_ERROR" "下载的文件为空: $key" "ERROR" "false"
             return 1
         fi
     else
-        log_error "下载失败: $key"
+        handle_error "NETWORK_ERROR" "下载失败: $key" "ERROR" "false"
         # 清理临时目录
         rm -rf "$temp_dir" 2>/dev/null || true
         return 1
@@ -716,14 +728,14 @@ download_from_s3_with_retry() {
         fi
         
         if [ $attempt -lt $max_attempts ]; then
-            log_warning "下载失败，${delay}秒后重试..."
+            record_error "NETWORK_ERROR" "下载失败，${delay}秒后重试..." "WARNING"
             sleep "$delay"
         fi
         
         attempt=$((attempt + 1))
     done
     
-    log_error "下载失败，已尝试 $max_attempts 次: $key"
+    handle_error "NETWORK_ERROR" "下载失败，已尝试 $max_attempts 次: $key" "ERROR" "false"
     return 1
 }
 
@@ -733,7 +745,7 @@ verify_file_md5() {
     local expected_md5="$2"
     
     if [ ! -f "$file_path" ]; then
-        log_error "文件不存在: $file_path"
+        handle_error "FILE_ERROR" "文件不存在: $file_path" "ERROR" "false"
         return 1
     fi
     
@@ -743,9 +755,7 @@ verify_file_md5() {
         log_success "MD5验证成功: $file_path"
         return 0
     else
-        log_error "MD5验证失败: $file_path"
-        log_error "期望: $expected_md5"
-        log_error "实际: $actual_md5"
+        handle_error "VALIDATION_ERROR" "MD5验证失败: $file_path" "ERROR" "false"
         return 1
     fi
 }
@@ -762,7 +772,7 @@ extract_package() {
     log_info "解压文件: $package_path"
     
     if [ ! -f "$package_path" ]; then
-        log_error "文件不存在: $package_path"
+        handle_error "FILE_ERROR" "文件不存在: $package_path" "ERROR" "false"
         return 1
     fi
     
@@ -777,7 +787,7 @@ extract_package() {
                 log_success "解压成功: $package_path"
                 return 0
             else
-                log_error "解压失败: $package_path"
+                handle_error "FILE_ERROR" "解压失败: $package_path" "ERROR" "false"
                 return 1
             fi
             ;;
@@ -786,7 +796,7 @@ extract_package() {
                 log_success "解压成功: $package_path"
                 return 0
             else
-                log_error "解压失败: $package_path"
+                handle_error "FILE_ERROR" "解压失败: $package_path" "ERROR" "false"
                 return 1
             fi
             ;;
@@ -795,12 +805,12 @@ extract_package() {
                 log_success "解压成功: $package_path"
                 return 0
             else
-                log_error "解压失败: $package_path"
+                handle_error "FILE_ERROR" "解压失败: $package_path" "ERROR" "false"
                 return 1
             fi
             ;;
         *)
-            log_error "不支持的文件格式: $package_path"
+            handle_error "FILE_ERROR" "不支持的文件格式: $package_path" "ERROR" "false"
             return 1
             ;;
     esac
@@ -813,7 +823,7 @@ install_tools() {
     log_info "安装工具到系统目录..."
     
     if [ ! -d "$tools_dir" ]; then
-        log_error "工具目录不存在: $tools_dir"
+        handle_error "FILE_ERROR" "工具目录不存在: $tools_dir" "ERROR" "false"
         return 1
     fi
     
@@ -848,7 +858,7 @@ check_required_tools() {
     done
     
     if [ ${#missing_tools[@]} -gt 0 ]; then
-        log_error "缺少必需的工具: ${missing_tools[*]}"
+        handle_error "DEPENDENCY_ERROR" "缺少必需的工具: ${missing_tools[*]}" "ERROR" "false"
         return 1
     fi
     
@@ -879,7 +889,7 @@ create_package_backup() {
         log_success "备份创建成功: $backup_path"
         return 0
     else
-        log_error "备份创建失败: $source_path"
+        handle_error "BACKUP_ERROR" "备份创建失败: $source_path" "ERROR" "false"
         return 1
     fi
 }
@@ -960,8 +970,7 @@ get_machine_specs() {
     
     # 使用 bc 进行浮点数比较
     if (( $(echo "$cpu_limit < 0.5" | bc -l) )) || (( $(echo "$memory_limit < 512" | bc -l) )); then
-        log_error "资源限制不满足最低要求: CPU=${cpu_limit}C, 内存=${memory_limit}MB"
-        log_error "最低要求: CPU=0.5C, 内存=512MB"
+        handle_error "RESOURCE_ERROR" "资源限制不满足最低要求: CPU=${cpu_limit}C, 内存=${memory_limit}MB" "ERROR" "false"
         return 1
     fi
     
@@ -976,7 +985,7 @@ get_machine_specs() {
     
     # 获取机器规格并设置资源限制
     if ! get_machine_specs; then
-        log_error "获取机器规格失败"
+        handle_error "RESOURCE_ERROR" "获取机器规格失败" "ERROR" "false"
         dataway_log "error" "获取机器规格失败"
         return 1
     fi
@@ -999,9 +1008,9 @@ DEFAULT_CONFIG_FILE=""
 
 read_toml_config() {
     local toml_file="$1"
-    [ -f "$toml_file" ] || die "配置文件不存在: $toml_file"
-    command_exists yj || die "命令 'yj' 不存在"
-    yj -t < "$toml_file" 2>/dev/null || die "TOML文件读取失败: $toml_file"
+    [ -f "$toml_file" ] || handle_error "FILE_ERROR" "配置文件不存在: $toml_file" "ERROR" "false"
+    command_exists yj || handle_error "DEPENDENCY_ERROR" "命令 'yj' 不存在" "ERROR" "false"
+    yj -t < "$toml_file" 2>/dev/null || handle_error "FILE_ERROR" "TOML文件读取失败: $toml_file" "ERROR" "false"
 }
 
 update_toml_config() {
@@ -1010,7 +1019,7 @@ update_toml_config() {
     local current_config
     if [ -f "$toml_file" ]; then
         current_config=$(read_toml_config "$toml_file") || {
-            log_error "读取当前配置文件失败: $toml_file"
+            handle_error "FILE_ERROR" "读取当前配置文件失败: $toml_file" "ERROR" "false"
             return 1
         }
     else
@@ -1092,12 +1101,12 @@ load_config_file() {
     local config_file="${1:-$DEFAULT_CONFIG_FILE}"
     
     if [ -z "$config_file" ]; then
-        log_error "未指定配置文件路径"
+        handle_error "CONFIG_ERROR" "未指定配置文件路径" "ERROR" "false"
         return 1
     fi
     
     if [ ! -f "$config_file" ]; then
-        log_error "配置文件不存在: $config_file"
+        handle_error "CONFIG_ERROR" "配置文件不存在: $config_file" "ERROR" "false"
         return 1
     fi
     
@@ -1109,7 +1118,7 @@ load_config_file() {
     # 读取TOML配置文件并转换为JSON
     local json_config
     json_config=$(yj -t < "$config_file" 2>/dev/null) || {
-        log_error "配置文件格式错误: $config_file"
+        handle_error "CONFIG_ERROR" "配置文件格式错误: $config_file" "ERROR" "false"
         return 1
     }
     
@@ -1144,7 +1153,7 @@ get_config_value() {
     local default_value="${2:-}"
     
     if [ -z "$key" ]; then
-        log_error "配置键不能为空"
+        handle_error "CONFIG_ERROR" "配置键不能为空" "ERROR" "false"
         return 1
     fi
     
@@ -1156,7 +1165,7 @@ get_config_value() {
             echo "$default_value"
             return 0
         else
-            log_error "配置键 '$key' 未找到且无默认值"
+            handle_error "CONFIG_ERROR" "配置键 '$key' 未找到且无默认值" "ERROR" "false"
             return 1
         fi
     fi
@@ -1171,7 +1180,7 @@ set_config_value() {
     local value="$2"
     
     if [ -z "$key" ]; then
-        log_error "配置键不能为空"
+        handle_error "CONFIG_ERROR" "配置键不能为空" "ERROR" "false"
         return 1
     fi
     
@@ -1227,7 +1236,7 @@ validate_required_config() {
     done
     
     if [ ${#missing_keys[@]} -gt 0 ]; then
-        log_error "缺少必需的配置项: ${missing_keys[*]}"
+        handle_error "CONFIG_ERROR" "缺少必需的配置项: ${missing_keys[*]}" "ERROR" "false"
         return 1
     fi
     
@@ -1241,12 +1250,12 @@ generate_config_template() {
     local template_content="$2"
     
     if [ -z "$output_file" ]; then
-        log_error "输出文件路径不能为空"
+        handle_error "CONFIG_ERROR" "输出文件路径不能为空" "ERROR" "false"
         return 1
     fi
     
     if [ -z "$template_content" ]; then
-        log_error "模板内容不能为空"
+        handle_error "CONFIG_ERROR" "模板内容不能为空" "ERROR" "false"
         return 1
     fi
     
@@ -1254,14 +1263,14 @@ generate_config_template() {
     local dir=$(dirname "$output_file")
     if [ ! -d "$dir" ]; then
         mkdir -p "$dir" || {
-            log_error "创建目录失败: $dir"
+            handle_error "FILE_ERROR" "创建目录失败: $dir" "ERROR" "false"
             return 1
         }
     fi
     
     # 写入模板文件
     echo "$template_content" > "$output_file" || {
-        log_error "写入模板文件失败: $output_file"
+        handle_error "FILE_ERROR" "写入模板文件失败: $output_file" "ERROR" "false"
         return 1
     }
     
@@ -1282,12 +1291,12 @@ execute_cron_wrapper() {
     
     # 验证参数
     if [ -z "$task_type" ]; then
-        log_error "缺少任务类型参数"
+        handle_error "CONFIG_ERROR" "缺少任务类型参数" "ERROR" "false"
         return 1
     fi
     
     if [ -z "$script_path" ]; then
-        log_error "缺少脚本路径参数"
+        handle_error "CONFIG_ERROR" "缺少脚本路径参数" "ERROR" "false"
         return 1
     fi
     
@@ -1299,22 +1308,21 @@ execute_cron_wrapper() {
     case "$task_type" in
         "config_update")
             lock_file="${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
-            log_file="${CONFIG_UPDATE_LOG_FILE:-/var/log/datakit/config_update.log}"
+            log_file="${CONFIG_UPDATE_LOG_FILE:-/opt/datakit/config_update.log}"
             task_name="${CONFIG_UPDATE_TASK_NAME:-config_update.sh}"
             ;;
         "health_check")
             lock_file="${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
-            log_file="${HEALTH_CHECK_LOG_FILE:-/var/log/datakit/health_check.log}"
+            log_file="${HEALTH_CHECK_LOG_FILE:-/opt/datakit/health_check.log}"
             task_name="${HEALTH_CHECK_TASK_NAME:-datakit_health_check.sh}"
             ;;
         "app_init")
             lock_file="${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
-            log_file="${APP_INIT_LOG_FILE:-/var/log/datakit/app_init.log}"
+            log_file="${APP_INIT_LOG_FILE:-/opt/datakit/app_init.log}"
             task_name="${APP_INIT_TASK_NAME:-app_init.sh}"
             ;;
         *)
-            log_error "未知的任务类型: $task_type"
-            log_error "支持的任务类型: config_update, health_check, app_init"
+            handle_error "CONFIG_ERROR" "未知的任务类型: $task_type" "ERROR" "false"
             return 1
             ;;
     esac
@@ -1369,17 +1377,17 @@ get_task_config() {
     case "$task_type" in
         "config_update")
             echo "${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
-            echo "${CONFIG_UPDATE_LOG_FILE:-/var/log/datakit/config_update.log}"
+            echo "${CONFIG_UPDATE_LOG_FILE:-/opt/datakit/config_update.log}"
             echo "${CONFIG_UPDATE_TASK_NAME:-config_update.sh}"
             ;;
         "health_check")
             echo "${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
-            echo "${HEALTH_CHECK_LOG_FILE:-/var/log/datakit/health_check.log}"
+            echo "${HEALTH_CHECK_LOG_FILE:-/opt/datakit/health_check.log}"
             echo "${HEALTH_CHECK_TASK_NAME:-datakit_health_check.sh}"
             ;;
         "app_init")
             echo "${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
-            echo "${APP_INIT_LOG_FILE:-/var/log/datakit/app_init.log}"
+            echo "${APP_INIT_LOG_FILE:-/opt/datakit/app_init.log}"
             echo "${APP_INIT_TASK_NAME:-app_init.sh}"
             ;;
         *)

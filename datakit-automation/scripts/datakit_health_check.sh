@@ -40,10 +40,7 @@ init_logging
 # =============================================================================
 # 工具函数
 # =============================================================================
-die() {
-    log_error "$1"
-    exit 1
-}
+# 注意：die函数已废弃，使用handle_error替代
 
 # =============================================================================
 # 锁机制函数
@@ -52,10 +49,10 @@ check_lock() {
     if [ -f "$HEALTH_CHECK_LOCK_FILE" ]; then
         local pid=$(cat "$HEALTH_CHECK_LOCK_FILE" 2>/dev/null)
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            log_warning "上一个健康检查任务(PID: $pid)还在运行，跳过本次执行"
+            record_error "SERVICE_ERROR" "上一个健康检查任务(PID: $pid)还在运行，跳过本次执行" "WARNING"
             return 1
         else
-            log_warning "发现僵尸锁文件，清理并继续执行"
+            record_error "SERVICE_ERROR" "发现僵尸锁文件，清理并继续执行" "WARNING"
             rm -f "$HEALTH_CHECK_LOCK_FILE"
         fi
     fi
@@ -100,7 +97,7 @@ check_datakit_health() {
     
     # 检查Datakit进程和端口
     if ! check_datakit_status; then
-        log_warning "Datakit进程或端口检查失败"
+        record_error "SERVICE_ERROR" "Datakit进程或端口检查失败" "WARNING"
         return 1
     fi
     
@@ -109,7 +106,7 @@ check_datakit_health() {
         log_success "Datakit健康检查通过"
         return 0
     else
-        log_warning "Datakit ping接口检查失败"
+        record_error "SERVICE_ERROR" "Datakit ping接口检查失败" "WARNING"
         return 1
     fi
 }
@@ -142,17 +139,17 @@ perform_health_check() {
         local new_count=$((current_count + 1))
         set_failure_count "$new_count"
         
-        log_warning "Datakit健康检查失败 (第 $new_count 次)"
+        record_error "SERVICE_ERROR" "Datakit健康检查失败 (第 $new_count 次)" "WARNING"
         
         # 达到最大失败次数时重启
         if [ "$new_count" -ge "$HEALTH_CHECK_MAX_FAILURE_COUNT" ]; then
-            log_error "Datakit连续失败 $HEALTH_CHECK_MAX_FAILURE_COUNT 次，执行重启"
+            handle_error "SERVICE_ERROR" "Datakit连续失败 $HEALTH_CHECK_MAX_FAILURE_COUNT 次，执行重启" "ERROR" "false"
             
             if restart_datakit; then
                 log_success "Datakit重启成功"
                 reset_failure_count
             else
-                log_error "Datakit重启失败"
+                handle_error "SERVICE_ERROR" "Datakit重启失败" "ERROR" "false"
             fi
         fi
     fi
@@ -174,7 +171,7 @@ show_status() {
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
             log_info "健康检查任务正在运行 (PID: $pid)"
         else
-            log_warning "发现僵尸锁文件"
+            record_error "SERVICE_ERROR" "发现僵尸锁文件" "WARNING"
         fi
     else
         log_info "无运行中的健康检查任务"
@@ -188,7 +185,7 @@ show_status() {
     if check_datakit_health; then
         log_success "Datakit状态正常"
     else
-        log_error "Datakit状态异常"
+        handle_error "SERVICE_ERROR" "Datakit状态异常" "ERROR" "false"
     fi
 }
 
@@ -210,7 +207,10 @@ main() {
     log_info "开始执行 $HEALTH_CHECK_SCRIPT_NAME v$HEALTH_CHECK_SCRIPT_VERSION"
     
     # 检查依赖
-    validate_required_commands || die "依赖检查失败"
+    validate_required_commands || {
+        handle_error "DEPENDENCY_ERROR" "依赖检查失败" "ERROR" "false"
+        return 1
+    }
     
     # 创建日志文件
     touch "$HEALTH_CHECK_LOG_FILE"

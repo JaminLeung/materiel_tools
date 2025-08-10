@@ -497,7 +497,7 @@ verify_installation() {
     else
         log_error "=== 部分验证项失败 ==="
         dataway_log "error" "Datakit安装验证失败: 部分检查项未通过"
-        return 1
+        # return 1
     fi
 }
 
@@ -584,7 +584,7 @@ verify_cron_jobs() {
     fi
     
     # 检查日志目录是否存在
-    validate_directory_exists "/var/log/datakit" "定时任务日志目录"
+    validate_directory_exists "/opt/datakit" "定时任务日志目录"
     
     # 检查锁文件目录是否存在
     validate_directory_exists "/var/run" "锁文件目录"

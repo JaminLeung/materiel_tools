@@ -42,7 +42,7 @@ DATAKIT_LOG_DIR="/var/log/datakit"
 # =============================================================================
 CONFIG_UPDATE_SCRIPT_NAME="datakit_config_update"
 CONFIG_UPDATE_SCRIPT_VERSION="2.0.0"
-CONFIG_UPDATE_LOG_FILE="/var/log/datakit_config_update.log"
+CONFIG_UPDATE_LOG_FILE="/opt/datakit/datakit_config_update.log"
 
 # =============================================================================
 # 路径配置
@@ -114,7 +114,7 @@ APP_INIT_METRICS_DIR="/usr/local/datakit/conf.d/prom"
 APP_INIT_HEALTH_DIR="/usr/local/datakit/conf.d/host"
 
 # 备份配置
-APP_INIT_BACKUP_BASE_DIR="/opt/datakit/backup"
+APP_INIT_BACKUP_BASE_DIR="$(dirname "$CONFIG_UPDATE_SCRIPT_DIR")/backup"
 APP_INIT_BACKUP_DATE_DIR="${APP_INIT_BACKUP_BASE_DIR}/$(date +%Y%m%d)"
 APP_INIT_BACKUP_APP_INIT_DIR="${APP_INIT_BACKUP_DATE_DIR}/app_init"
 
@@ -147,7 +147,7 @@ APP_INIT_BACKUP_KEEP_DAYS="7"
 # 脚本基本信息
 HEALTH_CHECK_SCRIPT_NAME="datakit_health_check"
 HEALTH_CHECK_SCRIPT_VERSION="2.0.0"
-HEALTH_CHECK_LOG_FILE="/var/log/datakit/health_check.log"
+HEALTH_CHECK_LOG_FILE="/opt/datakit/health_check.log"
 HEALTH_CHECK_LOCK_FILE="/var/run/datakit_health_check.lock"
 HEALTH_CHECK_FAILURE_COUNT_FILE="/var/run/datakit_health_check_failure_count"
 
@@ -161,15 +161,12 @@ HEALTH_CHECK_PING_URL="http://localhost:9529/v1/ping"
 # =============================================================================
 # Config Update 任务配置
 CONFIG_UPDATE_LOCK_FILE="/var/run/config_update.lock"
-CONFIG_UPDATE_LOG_FILE="/var/log/datakit/config_update.log"
 CONFIG_UPDATE_TASK_NAME="config_update.sh"
 
 # Health Check 任务配置
 HEALTH_CHECK_LOCK_FILE="/var/run/datakit_health_check.lock"
-HEALTH_CHECK_LOG_FILE="/var/log/datakit/health_check.log"
 HEALTH_CHECK_TASK_NAME="datakit_health_check.sh"
 
 # App Init 任务配置
 APP_INIT_LOCK_FILE="/var/run/app_init.lock"
-APP_INIT_LOG_FILE="/var/log/datakit/app_init.log"
 APP_INIT_TASK_NAME="app_init.sh"

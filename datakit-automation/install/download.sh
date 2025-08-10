@@ -11,28 +11,28 @@ download_packages() {
     
     # 检查必需的工具
     if ! check_required_tools; then
-        log_error "必需工具检查失败"
+        handle_error "DEPENDENCY_ERROR" "必需工具检查失败" "ERROR" "false"
         dataway_log "error" "必需工具检查失败"
         return 1
     fi
     
     # 准备安装目录
     if ! prepare_install_directory; then
-        log_error "准备安装目录失败"
+        handle_error "FILE_ERROR" "准备安装目录失败" "ERROR" "false"
         dataway_log "error" "准备安装目录失败"
         return 1
     fi
     
     # 下载bundle文件
     if ! download_bundle_file; then
-        log_error "下载bundle文件失败"
+        handle_error "NETWORK_ERROR" "下载bundle文件失败" "ERROR" "false"
         dataway_log "error" "下载bundle文件失败"
         return 1
     fi
     
     # 安装工具
     if ! install_tools "$DATAKIT_INSTALL_DIR"; then
-        log_error "安装工具失败"
+        handle_error "DEPENDENCY_ERROR" "安装工具失败" "ERROR" "false"
         dataway_log "error" "安装工具失败"
         return 1
     fi
@@ -48,7 +48,7 @@ prepare_install_directory() {
     
     # 创建安装目录（如果不存在）
     if ! mkdir -p "$DATAKIT_INSTALL_DIR"; then
-        log_error "创建安装目录失败: $DATAKIT_INSTALL_DIR"
+        handle_error "FILE_ERROR" "创建安装目录失败: $DATAKIT_INSTALL_DIR" "ERROR" "false"
         return 1
     fi
     
@@ -72,7 +72,7 @@ download_bundle_file() {
     # 先下载MD5文件
     log_info "下载MD5文件: $bundle_name.md5"
     if ! download_from_s3_with_retry "$S3_BUCKET" "$md5_key" "./$bundle_name.md5"; then
-        log_error "下载bundle MD5文件失败"
+        handle_error "NETWORK_ERROR" "下载bundle MD5文件失败" "ERROR" "false"
         return 1
     fi
     
@@ -87,7 +87,7 @@ download_bundle_file() {
             log_success "本地包MD5校验通过，跳过下载"
             return 0
         else
-            log_warning "本地包MD5校验失败，将重新下载"
+            record_error "VALIDATION_ERROR" "本地包MD5校验失败，将重新下载" "WARNING"
             rm -f "./$bundle_name"
         fi
     fi
@@ -95,14 +95,14 @@ download_bundle_file() {
     # 下载bundle文件
     log_info "开始下载bundle文件..."
     if ! download_from_s3_with_retry "$S3_BUCKET" "$bundle_key" "./$bundle_name"; then
-        log_error "下载bundle文件失败"
+        handle_error "NETWORK_ERROR" "下载bundle文件失败" "ERROR" "false"
         return 1
     fi
     
     # 验证下载文件的MD5
     log_info "验证下载文件的MD5..."
     if ! verify_file_md5 "$bundle_name" "$expected_md5"; then
-        log_error "Bundle文件MD5验证失败"
+        handle_error "VALIDATION_ERROR" "Bundle文件MD5验证失败" "ERROR" "false"
         return 1
     fi
     

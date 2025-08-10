@@ -25,7 +25,7 @@ CURRENT_LOG_LEVEL=${LOG_LEVEL:-1}  # 默认INFO级别
 
 # 日志文件路径（可通过环境变量设置）
 if [ -z "${LOG_FILE:-}" ]; then
-    LOG_FILE="/var/log/datakit_install.log"
+    LOG_FILE="/opt/datakit/datakit_install.log"
 fi
 
 # 日志系统初始化

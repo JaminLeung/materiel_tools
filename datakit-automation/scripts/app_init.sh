@@ -17,6 +17,9 @@ readonly CORE_DIR="$SCRIPT_DIR/../core"
 # 加载基础配置
 source "$SCRIPT_DIR/../config/base/base_config.sh" 2>/dev/null || echo "警告: 无法加载base_config.sh" >&2
 
+# 设置日志文件路径
+export LOG_FILE="$APP_INIT_LOG_FILE"
+
 # 加载核心模块
 source "$CORE_DIR/logging.sh" 2>/dev/null || echo "警告: 无法加载logging.sh" >&2
 source "$CORE_DIR/utils.sh" 2>/dev/null || echo "警告: 无法加载utils.sh" >&2
@@ -50,10 +53,7 @@ health_diff_file_list=()
 # =============================================================================
 # 工具函数
 # =============================================================================
-die() {
-    log_error "$1"
-    exit 1
-}
+# 注意：die函数已废弃，使用handle_error替代
 
 # 创建必要的目录
 create_directories() {
@@ -85,10 +85,16 @@ create_directories() {
 # =============================================================================
 read_toml_config() {
     local toml_file="$1"
-    [ -f "$toml_file" ] || die "配置文件不存在: $toml_file"
+    [ -f "$toml_file" ] || {
+        handle_error "FILE_ERROR" "配置文件不存在: $toml_file" "ERROR" "false"
+        return 1
+    }
     
     check_command yj
-    yj -t < "$toml_file" 2>/dev/null || die "TOML文件读取失败: $toml_file"
+    yj -t < "$toml_file" 2>/dev/null || {
+        handle_error "FILE_ERROR" "TOML文件读取失败: $toml_file" "ERROR" "false"
+        return 1
+    }
 }
 
 update_toml_config() {
@@ -103,7 +109,7 @@ update_toml_config() {
     
     # 更新配置文件
     echo "$json_data" | yj -jt > "$toml_file" 2>/dev/null || {
-        log_error "配置文件更新失败: $toml_file"
+        handle_error "FILE_ERROR" "配置文件更新失败: $toml_file" "ERROR" "false"
         return 1
     }
     
@@ -142,7 +148,7 @@ process_logging() {
         logging_content=$(echo "{\"inputs\": {\"logging\": [$logging]}}" | jq -r ".")
         
         if ! echo "$logging_content" | jq empty 2>/dev/null; then
-            log_error "日志配置内容不是有效的JSON格式"
+            record_error "VALIDATION_ERROR" "日志配置内容不是有效的JSON格式" "ERROR"
             continue
         fi
         
@@ -151,7 +157,7 @@ process_logging() {
         logging_content_toml=$(echo "$logging_content" | yj -jt 2>/dev/null)
         
         if [ $? -ne 0 ]; then
-            log_error "日志配置TOML转换失败"
+            record_error "VALIDATION_ERROR" "日志配置TOML转换失败" "ERROR"
             continue
         fi
         
@@ -195,7 +201,7 @@ process_metrics() {
         metrics_content_toml=$(echo "$metrics_content" | yj -jt 2>/dev/null)
         
         if [ $? -ne 0 ]; then
-            log_error "指标配置TOML转换失败"
+            record_error "VALIDATION_ERROR" "指标配置TOML转换失败" "ERROR"
             continue
         fi
         
@@ -241,7 +247,7 @@ process_health() {
         health_content_toml=$(echo "$health_content" | yj -jt 2>/dev/null)
         
         if [ $? -ne 0 ]; then
-            log_error "健康检查配置TOML转换失败"
+            record_error "VALIDATION_ERROR" "健康检查配置TOML转换失败" "ERROR"
             continue
         fi
         
@@ -378,10 +384,10 @@ merge_logging_config() {
                     echo "{\"inputs\":{\"logging\":[$merged_json]}}" | yj -jt > "$datakit_file"
                     log_success "日志配置合并成功"
                 else
-                    log_error "日志配置合并失败"
+                    record_error "CONFIG_ERROR" "日志配置合并失败" "ERROR"
                 fi
             else
-                log_error "JSON解析失败"
+                record_error "VALIDATION_ERROR" "JSON解析失败" "ERROR"
             fi
         fi
     else
@@ -418,10 +424,10 @@ merge_metrics_config() {
                     echo "{\"inputs\":{\"prom\":[$merged_json]}}" | yj -jt > "$datakit_file"
                     log_success "指标配置合并成功"
                 else
-                    log_error "指标配置合并失败"
+                    record_error "CONFIG_ERROR" "指标配置合并失败" "ERROR"
                 fi
             else
-                log_error "JSON解析失败"
+                record_error "VALIDATION_ERROR" "JSON解析失败" "ERROR"
             fi
         fi
     else
@@ -458,10 +464,10 @@ merge_health_config() {
                     echo "{\"inputs\":{\"host_healthcheck\":[$merged_json]}}" | yj -jt > "$datakit_file"
                     log_success "健康检查配置合并成功"
                 else
-                    log_error "健康检查配置合并失败"
+                    record_error "CONFIG_ERROR" "健康检查配置合并失败" "ERROR"
                 fi
             else
-                log_error "JSON解析失败"
+                record_error "VALIDATION_ERROR" "JSON解析失败" "ERROR"
             fi
         fi
     else
@@ -583,7 +589,7 @@ cleanup_config_directory() {
                 if mv "$config_file" "$backup_file"; then
                     log_info "备份旧配置文件: $filename -> $(basename "$backup_file")"
                 else
-                    log_error "备份配置文件失败: $filename"
+                    record_error "BACKUP_ERROR" "备份配置文件失败: $filename" "ERROR"
                 fi
             else
                 log_info "保留当前服务配置文件: $filename"
@@ -603,10 +609,16 @@ process_services() {
     local tmp_json_file="${APP_INIT_BACKUP_APP_INIT_DIR}/tmp.json"
     # 检查是否有data字段，如果没有则直接使用根对象
     if jq -e '.data' "$tmp_json_file" >/dev/null 2>&1; then
-        services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || die "JSON数据解析失败"
+        services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || {
+        handle_error "VALIDATION_ERROR" "JSON数据解析失败" "ERROR" "false"
+        return 1
+    }
     else
         # 如果没有data字段，将整个JSON对象作为一个服务处理
-        services=$(cat "$tmp_json_file" 2>/dev/null) || die "JSON数据解析失败"
+        services=$(cat "$tmp_json_file" 2>/dev/null) || {
+            handle_error "VALIDATION_ERROR" "JSON数据解析失败" "ERROR" "false"
+            return 1
+        }
     fi
     
     local service_count=0
@@ -616,7 +628,7 @@ process_services() {
         service_name=$(echo "$service" | jq -r 'keys[0]' 2>/dev/null)
         
         if [ -z "$service_name" ] || [ "$service_name" = "null" ]; then
-            log_warning "跳过无效的服务配置"
+            record_error "VALIDATION_ERROR" "跳过无效的服务配置" "WARNING"
             continue
         fi
         
@@ -638,9 +650,18 @@ main() {
     log_info "开始执行 $APP_INIT_SCRIPT_NAME v$APP_INIT_SCRIPT_VERSION"
     
     # 检查依赖
-    command_exists jq || die "命令 'jq' 不存在"
-    command_exists yj || die "命令 'yj' 不存在"
-    command_exists curl || die "命令 'curl' 不存在"
+    command_exists jq || {
+        handle_error "DEPENDENCY_ERROR" "命令 'jq' 不存在" "ERROR" "false"
+        return 1
+    }
+    command_exists yj || {
+        handle_error "DEPENDENCY_ERROR" "命令 'yj' 不存在" "ERROR" "false"
+        return 1
+    }
+    command_exists curl || {
+        handle_error "DEPENDENCY_ERROR" "命令 'curl' 不存在" "ERROR" "false"
+        return 1
+    }
     
     # 创建必要的目录
     create_directories
@@ -651,7 +672,8 @@ main() {
     
     # 调用utils.sh中的get_ops_config函数获取基础配置
     if ! get_ops_config; then
-        die "获取运维平台基础配置失败"
+        handle_error "API_ERROR" "获取运维平台基础配置失败" "ERROR" "false"
+        return 1
     fi
     
     # 获取业务配置数据（需要调用不同的API）
@@ -670,7 +692,8 @@ main() {
     fi
     
     if [ -z "$ops_token" ]; then
-        die "无法获取OPS_TOKEN"
+        handle_error "CONFIG_ERROR" "无法获取OPS_TOKEN" "ERROR" "false"
+        return 1
     fi
     
     # 调用业务配置API
@@ -685,24 +708,27 @@ main() {
     
     # 检查HTTP状态码
     if [ "$http_code" -eq 28 ]; then
-        die "请求超时，当前连接超时设置为10s，最大请求时间为30s"
+        handle_error "TIMEOUT_ERROR" "请求超时，当前连接超时设置为10s，最大请求时间为30s" "ERROR" "false"
+        return 1
     elif [ "$http_code" -ne 200 ]; then
         case "$http_code" in
-            400) die "错误请求，可能是请求参数有误" ;;
-            401) die "未授权，检查Token是否有效" ;;
-            403) die "禁止访问，您没有权限访问该资源" ;;
-            404) die "未找到，检查URL是否正确" ;;
-            500) die "服务器内部错误，请稍后重试" ;;
-            502) die "错误网关，可能是上游服务器问题" ;;
-            503) die "服务不可用，服务器当前无法处理请求" ;;
-            504) die "网关超时，服务器未能及时响应" ;;
-            *) die "其他错误，HTTP状态码: $http_code" ;;
+            400) handle_error "API_ERROR" "错误请求，可能是请求参数有误" "ERROR" "false" ;;
+            401) handle_error "API_ERROR" "未授权，检查Token是否有效" "ERROR" "false" ;;
+            403) handle_error "API_ERROR" "禁止访问，您没有权限访问该资源" "ERROR" "false" ;;
+            404) handle_error "API_ERROR" "未找到，检查URL是否正确" "ERROR" "false" ;;
+            500) handle_error "API_ERROR" "服务器内部错误，请稍后重试" "ERROR" "false" ;;
+            502) handle_error "API_ERROR" "错误网关，可能是上游服务器问题" "ERROR" "false" ;;
+            503) handle_error "API_ERROR" "服务不可用，服务器当前无法处理请求" "ERROR" "false" ;;
+            504) handle_error "API_ERROR" "网关超时，服务器未能及时响应" "ERROR" "false" ;;
+            *) handle_error "API_ERROR" "其他错误，HTTP状态码: $http_code" "ERROR" "false" ;;
         esac
+        return 1
     fi
     
     # 验证JSON格式
     if ! jq empty "$tmp_json_file" 2>/dev/null; then
-        die "响应结果不是有效的JSON格式"
+        handle_error "VALIDATION_ERROR" "响应结果不是有效的JSON格式" "ERROR" "false"
+        return 1
     fi
     
     log_success "业务配置获取成功"
