@@ -13,48 +13,7 @@ readonly SCENARIO_PROJECT_ROOT="$(cd "$SCENARIO_SCRIPT_DIR/.." && pwd)"
 
 # TODO 所有环境变量导入使用 loader.sh
 # 配置加载函数
-load_scenario_config() {
-    # 检查是否通过installer.sh调用，如果是则配置已加载
-    # 否则尝试加载默认配置或从环境变量获取
-    if [[ -z "${DATAKIT_VERSION:-}" ]]; then
-        echo "[INFO] 配置未加载，尝试加载默认配置..."
-        
-        # 尝试从环境变量获取配置文件路径
-        local config_file="${DATAKIT_CONFIG_FILE:-}"
-        
-        if [[ -n "$config_file" ]]; then
-            # 加载指定的配置文件
-            if [[ -f "$config_file" ]]; then
-                source "$config_file"
-            elif [[ -f "$SCENARIO_PROJECT_ROOT/config/env/$config_file" ]]; then
-                source "$SCENARIO_PROJECT_ROOT/config/env/$config_file"
-            else
-                echo "[ERROR] 指定的配置文件不存在: $config_file" >&2
-                exit 1
-            fi
-        else
-            # 尝试加载默认配置
-            local default_configs=("benjamin.sh" "production.sh" "development.sh")
-            local config_loaded=false
-            
-            for config in "${default_configs[@]}"; do
-                if [[ -f "$SCENARIO_PROJECT_ROOT/config/env/$config" ]]; then
-                    echo "[INFO] 加载默认配置文件: $config"
-                    source "$SCENARIO_PROJECT_ROOT/config/env/$config"
-                    config_loaded=true
-                    break
-                fi
-            done
-            
-            if [[ "$config_loaded" == "false" ]]; then
-                echo "[ERROR] 未找到可用的配置文件，请设置 DATAKIT_CONFIG_FILE 环境变量" >&2
-                exit 1
-            fi
-        fi
-    else
-        echo "[INFO] 配置已加载，跳过重新加载"
-    fi
-}
+
 
 # 加载配置（仅在需要时）
 load_scenario_config
