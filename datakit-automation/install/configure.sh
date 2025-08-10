@@ -12,21 +12,21 @@ configure_and_verify() {
     
     # 配置Datakit主配置文件
     if ! configure_datakit_main_config; then
-        log_error "配置Datakit主配置文件失败"
+        handle_error "CONFIG_ERROR" "配置Datakit主配置文件失败" "ERROR" "false"
         dataway_log "error" "配置Datakit主配置文件失败"
         return 1
     fi
     
     # 配置采集器
     if ! configure_datakit_inputs; then
-        log_error "配置采集器失败"
+        handle_error "CONFIG_ERROR" "配置采集器失败" "ERROR" "false"
         dataway_log "error" "配置采集器失败"
         return 1
     fi
     
     # 重启Datakit
     if ! restart_datakit; then
-        log_error "重启Datakit失败，回退配置"
+        handle_error "SERVICE_ERROR" "重启Datakit失败，回退配置" "ERROR" "false"
         dataway_log "error" "重启Datakit失败，回退配置"
 
         # 备份失败的配置文件
@@ -37,7 +37,7 @@ configure_and_verify() {
 
         # 重启Datakit
         if ! restart_datakit; then
-            log_error "重启Datakit失败"
+            handle_error "SERVICE_ERROR" "重启Datakit失败" "ERROR" "false"
             dataway_log "error" "重启Datakit失败"
             return 1
         else
@@ -63,7 +63,7 @@ configure_datakit_main_config() {
     local datakit_conf="/usr/local/datakit/conf.d/datakit.conf"
     
     if [ ! -f "$datakit_conf" ]; then
-        log_error "Datakit配置文件不存在"
+        handle_error "FILE_ERROR" "Datakit配置文件不存在" "ERROR" "false"
         return 1
     fi
     
@@ -71,7 +71,7 @@ configure_datakit_main_config() {
     local current_config
     log_info "读取Datakit配置文件: $datakit_conf"
     if ! current_config=$(read_toml_config "$datakit_conf"); then
-        log_error "读取Datakit配置文件失败"
+        handle_error "FILE_ERROR" "读取Datakit配置文件失败" "ERROR" "false"
         return 1
     fi
     
@@ -147,7 +147,7 @@ configure_datakit_main_config() {
     
     # 使用yj将更新后的JSON转换回TOML格式
     if ! echo "$current_config" | yj -jt > "$temp_conf"; then
-        log_error "转换配置文件格式失败"
+        handle_error "CONFIG_ERROR" "转换配置文件格式失败" "ERROR" "false"
         return 1
     fi
     
@@ -156,7 +156,7 @@ configure_datakit_main_config() {
     
     # 验证配置是否正确
     if ! read_toml_config "$datakit_conf" >/dev/null; then
-        log_error "配置文件验证失败，恢复备份"
+        handle_error "CONFIG_ERROR" "配置文件验证失败，恢复备份" "ERROR" "false"
         mv "$datakit_conf.backup.$Date" "$datakit_conf"
         return 1
     fi

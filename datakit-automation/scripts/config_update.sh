@@ -33,7 +33,7 @@ source "$CONFIG_UPDATE_CORE_DIR/validation.sh"
 # config_api.sh的功能已合并到utils.sh中
 source "$CONFIG_UPDATE_CORE_DIR/health_check.sh"
 source "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
-source "$CONFIG_UPDATE_CORE_DIR/config_file.sh"
+# source "$CONFIG_UPDATE_CORE_DIR/config_file.sh"
 
 # 初始化日志系统
 init_logging
@@ -41,10 +41,7 @@ init_logging
 # =============================================================================
 # 工具函数
 # =============================================================================
-die() {
-    log_error "$1"
-    exit 1
-}
+# 注意：die函数已废弃，使用handle_error替代
 
 
 
@@ -71,10 +68,16 @@ handle_global_config() {
     
     log_info "发现 $enabled_count 个启用的全局配置项"
     
-    [ -f "$CONFIG_UPDATE_DATAKIT_CONF" ] || die "Datakit配置文件不存在"
+    [ -f "$CONFIG_UPDATE_DATAKIT_CONF" ] || {
+        handle_error "FILE_ERROR" "Datakit配置文件不存在" "ERROR" "false"
+        return 1
+    }
     
     local current_config
-    current_config=$(read_toml_config "$CONFIG_UPDATE_DATAKIT_CONF") || die "读取配置文件失败"
+    current_config=$(read_toml_config "$CONFIG_UPDATE_DATAKIT_CONF") || {
+        handle_error "FILE_ERROR" "读取配置文件失败" "ERROR" "false"
+        return 1
+    }
     
     local updated_config="$current_config"
     local config_count
@@ -108,7 +111,7 @@ handle_global_config() {
             log_info "当前值: $current_value_raw"
             log_info "期望值: $expected_value_raw"
             updated_config=$(set_json_path_value "$updated_config" "$json_path" "$value") || {
-                log_error "配置更新失败: $key"
+                record_error "CONFIG_ERROR" "配置更新失败: $key" "ERROR"
                 continue
             }
             CONFIG_CHANGED=true
@@ -120,7 +123,7 @@ handle_global_config() {
             log_info "配置路径不存在，添加新配置: $key"
             log_info "新增值: $value"
             updated_config=$(set_json_path_value "$updated_config" "$json_path" "$value") || {
-                log_error "配置添加失败: $key"
+                record_error "CONFIG_ERROR" "配置添加失败: $key" "ERROR"
                 continue
             }
             CONFIG_CHANGED=true
@@ -129,7 +132,10 @@ handle_global_config() {
     
     # 应用配置变更（不重启，等待所有配置完成后统一重启）
     if [ "$CONFIG_CHANGED" = "true" ]; then
-        update_toml_config "$CONFIG_UPDATE_DATAKIT_CONF" "$updated_config" || die "配置文件更新失败"
+        update_toml_config "$CONFIG_UPDATE_DATAKIT_CONF" "$updated_config" || {
+        handle_error "CONFIG_ERROR" "配置文件更新失败" "ERROR" "false"
+        return 1
+    }
     fi
 }
 
@@ -146,7 +152,7 @@ handle_dataway_config() {
     ops_workspace_token=$(get_global_state 'WORKSPACE_TOKEN')
     
     if [ -z "$ops_dataway_url" ] || [ -z "$ops_workspace_token" ]; then
-        log_warning "未获取到Dataway配置信息，跳过Dataway配置更新"
+        record_error "CONFIG_ERROR" "未获取到Dataway配置信息，跳过Dataway配置更新" "WARNING"
         return 0
     fi
     
@@ -155,13 +161,13 @@ handle_dataway_config() {
     log_info "  Token: $ops_workspace_token"
     
     [ -f "$CONFIG_UPDATE_DATAKIT_CONF" ] || {
-        log_warning "Datakit配置文件不存在，跳过Dataway配置更新"
+        record_error "FILE_ERROR" "Datakit配置文件不存在，跳过Dataway配置更新" "WARNING"
         return 0
     }
     
     local current_config
     current_config=$(read_toml_config "$CONFIG_UPDATE_DATAKIT_CONF") || {
-        log_error "读取Datakit配置文件失败"
+        handle_error "FILE_ERROR" "读取Datakit配置文件失败" "ERROR" "false"
         return 1
     }
     
@@ -191,7 +197,7 @@ handle_dataway_config() {
         
         # 更新.dataway.urls[0]
         updated_config=$(set_json_path_value "$updated_config" ".dataway.urls[0]" "$expected_dataway_url") || {
-            log_error "更新Dataway URL失败"
+            handle_error "CONFIG_ERROR" "更新Dataway URL失败" "ERROR" "false"
             return 1
         }
         config_changed=true
@@ -202,7 +208,7 @@ handle_dataway_config() {
     # 应用配置变更
     if [ "$config_changed" = "true" ]; then
         update_toml_config "$CONFIG_UPDATE_DATAKIT_CONF" "$updated_config" || {
-            log_error "更新Datakit配置文件失败"
+            handle_error "CONFIG_ERROR" "更新Datakit配置文件失败" "ERROR" "false"
             return 1
         }
         CONFIG_CHANGED=true
@@ -358,7 +364,7 @@ handle_input_config() {
                 if [ -f "$input_path" ]; then
                     handle_input_modify "$input_path" "$key" "$value"
                 else
-                    log_error "配置文件创建失败，无法执行修改操作"
+                    record_error "FILE_ERROR" "配置文件创建失败，无法执行修改操作" "ERROR"
                 fi
             done
         fi
@@ -403,13 +409,17 @@ handle_input_create() {
     
     # 使用sample文件
     local sample_path="${input_path}.sample"
-    [ -f "$sample_path" ] || die "Sample文件不存在: $sample_path"
+    [ -f "$sample_path" ] || {
+        handle_error "FILE_ERROR" "Sample文件不存在: $sample_path" "ERROR" "false"
+        return 1
+    }
     
     if safe_execute "cp '$sample_path' '$input_path'" "从sample创建配置文件"; then
         log_success "从sample创建: $input_path"
         return 0
     else
-        die "配置文件创建失败: $input_path"
+        handle_error "FILE_ERROR" "配置文件创建失败: $input_path" "ERROR" "false"
+        return 1
     fi
 }
 
@@ -421,7 +431,10 @@ handle_input_modify() {
     log_info "修改采集器配置: $key"
     
     local current_config
-    current_config=$(read_toml_config "$input_path") || die "读取配置文件失败: $input_path"
+    current_config=$(read_toml_config "$input_path") || {
+        handle_error "FILE_ERROR" "读取配置文件失败: $input_path" "ERROR" "false"
+        return 1
+    }
     
     # 确保key以点号开头
     local json_path="$key"
@@ -450,8 +463,14 @@ handle_input_modify() {
         if [ "$current_value_raw" != "$expected_value_raw" ]; then
             log_info "配置不一致，需要更新: $key"
             local updated_config
-            updated_config=$(set_json_path_value "$current_config" "$json_path" "$value") || die "配置更新失败: $key"
-            update_toml_config "$input_path" "$updated_config" || die "配置文件更新失败: $input_path"
+            updated_config=$(set_json_path_value "$current_config" "$json_path" "$value") || {
+                handle_error "CONFIG_ERROR" "配置更新失败: $key" "ERROR" "false"
+                return 1
+            }
+            update_toml_config "$input_path" "$updated_config" || {
+                handle_error "CONFIG_ERROR" "配置文件更新失败: $input_path" "ERROR" "false"
+                return 1
+            }
             log_success "配置更新成功: $key"
             CONFIG_CHANGED=true
         else
@@ -462,8 +481,14 @@ handle_input_modify() {
         log_info "配置路径不存在，新增配置: $key"
         log_info "新增值: $value"
         local updated_config
-        updated_config=$(set_json_path_value "$current_config" "$json_path" "$value") || die "配置新增失败: $key"
-        update_toml_config "$input_path" "$updated_config" || die "配置文件更新失败: $input_path"
+        updated_config=$(set_json_path_value "$current_config" "$json_path" "$value") || {
+            handle_error "CONFIG_ERROR" "配置新增失败: $key" "ERROR" "false"
+            return 1
+        }
+        update_toml_config "$input_path" "$updated_config" || {
+            handle_error "CONFIG_ERROR" "配置文件更新失败: $input_path" "ERROR" "false"
+            return 1
+        }
         log_success "配置新增成功: $key"
         CONFIG_CHANGED=true
     fi
@@ -507,7 +532,10 @@ handle_input_delete_key() {
     }
 
     local current_config
-    current_config=$(read_toml_config "$input_path") || die "读取配置文件失败: $input_path"
+    current_config=$(read_toml_config "$input_path") || {
+        handle_error "FILE_ERROR" "读取配置文件失败: $input_path" "ERROR" "false"
+        return 1
+    }
     
     # 确保key以点号开头
     local json_path="$key"
@@ -534,8 +562,14 @@ handle_input_delete_key() {
         local jq_path="${json_path#.}"
         # 确保路径格式正确，例如：inputs.ddtrace[0].customer_tags
         local updated_config
-        updated_config=$(echo "$current_config" | jq "del(.$jq_path)" 2>/dev/null) || die "配置删除失败: $key"
-        update_toml_config "$input_path" "$updated_config" || die "配置文件更新失败: $input_path"
+        updated_config=$(echo "$current_config" | jq "del(.$jq_path)" 2>/dev/null) || {
+            handle_error "CONFIG_ERROR" "配置删除失败: $key" "ERROR" "false"
+            return 1
+        }
+        update_toml_config "$input_path" "$updated_config" || {
+            handle_error "CONFIG_ERROR" "配置文件更新失败: $input_path" "ERROR" "false"
+            return 1
+        }
         log_success "配置删除成功: $key"
     else
         log_info "配置路径不存在，无需删除: $key"
@@ -559,7 +593,7 @@ handle_datakit_service_control() {
         
         if [ "$config_enable" = "false" ]; then
             # enable=false: 停止Datakit并停止健康检查定时任务
-            log_info "配置enable=false，执行停止Datakit操作"
+            log_info "配置enable=false，执行停止Datakit操作" >&2
             
             # 检查当前状态
             local current_status
@@ -567,60 +601,62 @@ handle_datakit_service_control() {
             
             if [ "$current_status" = "running" ]; then
                 stop_datakit
-                log_info "Datakit已停止，检查健康检查定时任务状态"
+                log_info "Datakit已停止，检查健康检查定时任务状态" >&2
                 
                 # 检查健康检查定时任务是否存在
                 local health_check_script_path="$CONFIG_UPDATE_HEALTH_CHECK_SCRIPT"
                 if crontab -l 2>/dev/null | grep -q "$health_check_script_path"; then
-                    log_info "发现健康检查定时任务，执行停止操作"
+                    log_info "发现健康检查定时任务，执行停止操作" >&2
                     control_health_check_service stop
                 else
-                    log_info "健康检查定时任务不存在，无需停止"
+                    log_info "健康检查定时任务不存在，无需停止" >&2
                 fi
             else
-                log_info "Datakit已经处于停止状态"
+                log_info "Datakit已经处于停止状态" >&2
             fi
             
-            log_success "Datakit停止操作完成，跳过配置更新"
+            log_success "Datakit停止操作完成，跳过配置更新" >&2
+            # enable=false的情况，返回false
+            echo "false"
             return 0
             
         elif [ "$config_enable" = "true" ]; then
             # enable=true: 检查Datakit状态并执行配置更新
-            log_info "配置enable=true，检查Datakit状态"
+            log_info "配置enable=true，检查Datakit状态" >&2
             
             local current_status
             check_datakit_status && current_status="running" || current_status="stopped"
             
             if [ "$current_status" = "stopped" ]; then
-                log_info "Datakit未运行，启动Datakit和健康检查定时任务"
+                log_info "Datakit未运行，启动Datakit和健康检查定时任务" >&2
                 
                 start_datakit
                 
                 # 检查健康检查定时任务是否存在
                 local health_check_script_path="$CONFIG_UPDATE_HEALTH_CHECK_SCRIPT"
                 if crontab -l 2>/dev/null | grep -q "$health_check_script_path"; then
-                    log_info "健康检查定时任务已存在，跳过安装"
+                    log_info "健康检查定时任务已存在，跳过安装" >&2
                 else
-                    log_info "健康检查定时任务不存在，执行安装"
+                    log_info "健康检查定时任务不存在，执行安装" >&2
                     control_health_check_service start
                 fi
                 
-                log_info "Datakit启动完成，执行配置更新"
+                log_info "Datakit启动完成，执行配置更新" >&2
             else
-                log_info "Datakit正在运行，检查健康检查定时任务状态"
+                log_info "Datakit正在运行，检查健康检查定时任务状态" >&2
                 
                 # 检查健康检查定时任务是否存在
                 local health_check_script_path="$CONFIG_UPDATE_HEALTH_CHECK_SCRIPT"
                 if crontab -l 2>/dev/null | grep -q "$health_check_script_path"; then
-                    log_info "健康检查定时任务已存在，无需操作"
+                    log_info "健康检查定时任务已存在，无需操作" >&2
                 else
-                    log_info "健康检查定时任务不存在，执行安装"
+                    log_info "健康检查定时任务不存在，执行安装" >&2
                     control_health_check_service start
                 fi
             fi
         fi
     else
-        log_info "未指定enable状态，使用默认逻辑"
+        log_info "未指定enable状态，使用默认逻辑" >&2
     fi
     
     # 返回config_enable值供主函数使用
@@ -641,15 +677,20 @@ main() {
     
     # 检查依赖
     if ! validate_required_commands; then
-        log_error "依赖检查失败"
-        dataway_log "error" "依赖检查失败"
+        handle_error "DEPENDENCY_ERROR" "依赖检查失败" "ERROR" "false"
         return 1
     fi
 
 
     # 获取配置
-    get_host_ip || die "获取主机IP失败"
-    get_ops_config || die "获取运维平台配置失败"
+    get_host_ip || {
+        handle_error "NETWORK_ERROR" "获取主机IP失败" "ERROR" "false"
+        return 1
+    }
+    get_ops_config || {
+        handle_error "API_ERROR" "获取运维平台配置失败" "ERROR" "false"
+        return 1
+    }
     
     # 从全局状态获取DATAKIT_CONFIG
     local datakit_config
@@ -657,10 +698,17 @@ main() {
     
     # 处理Datakit服务控制
     local config_enable
+    
+    # 调用服务控制函数并获取返回值
     config_enable=$(handle_datakit_service_control "$datakit_config")
     
-    # 如果返回0，说明执行了停止操作，直接退出
-    if [ "$?" -eq 0 ]; then
+    log_info "config_enable: '$config_enable'"
+    
+    # 如果enable=false，直接退出脚本
+    if [ "$config_enable" = "false" ]; then
+        log_info "Datakit已停止，跳过配置更新，脚本执行完成"
+        SCRIPT_EXIT_CODE=0
+        record_script_end
         return 0
     fi
     

@@ -145,6 +145,8 @@ handle_error_signal() {
     
     # 执行清理
     cleanup_on_exit
+
+    
     
     exit 1
 }
@@ -241,14 +243,14 @@ cleanup_log_files() {
     local error_count=0
     
     for pattern in "${log_patterns[@]}"; do
-        # 清理 /var/log 目录
-        local var_log_files=$(find /var/log -name "$pattern" -type f -mtime +7 2>/dev/null)
+        # 清理 /opt/datakit 目录
+        local var_log_files=$(find /opt/datakit -name "$pattern" -type f -mtime +7 2>/dev/null)
         if [[ -n "$var_log_files" ]]; then
-            if find /var/log -name "$pattern" -type f -mtime +7 -delete 2>/dev/null; then
-                log_debug "清理成功: /var/log/$pattern"
+            if find /opt/datakit -name "$pattern" -type f -mtime +7 -delete 2>/dev/null; then
+                log_debug "清理成功: /opt/datakit/$pattern"
                 cleaned_count=$((cleaned_count + 1))
             else
-                log_warning "清理失败: /var/log/$pattern"
+                log_warning "清理失败: /opt/datakit/$pattern"
                 error_count=$((error_count + 1))
             fi
         fi

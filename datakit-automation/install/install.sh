@@ -11,20 +11,20 @@ install_components() {
     
     # 解压bundle文件
     if ! extract_bundle_file; then
-        log_error "解压bundle文件任务失败"
+        handle_error "FILE_ERROR" "解压bundle文件任务失败" "ERROR" "false"
         dataway_log "error" "解压bundle文件任务失败"
         return 1
     fi
     
     # 安装Node Exporter
     if ! install_node_exporter; then
-        log_error "Node Exporter安装任务失败"
+        handle_error "DEPENDENCY_ERROR" "Node Exporter安装任务失败" "ERROR" "false"
         dataway_log "error" "Node Exporter安装任务失败"
     fi
     
     # 安装Datakit
     if ! install_datakit; then
-        log_error "Datakit安装任务失败"
+        handle_error "DEPENDENCY_ERROR" "Datakit安装任务失败" "ERROR" "false"
         dataway_log "error" "Datakit安装任务失败"
         return 1
     fi
@@ -44,7 +44,7 @@ extract_bundle_file() {
     
     # 解压bundle文件
     if ! extract_package "$bundle_name" "."; then
-        log_error "解压bundle文件失败"
+        handle_error "FILE_ERROR" "解压bundle文件失败" "ERROR" "false"
         return 1
     fi
     
@@ -58,7 +58,7 @@ extract_bundle_file() {
     
     for file in "${required_files[@]}"; do
         if [ ! -f "$file" ]; then
-            log_error "Bundle文件解压后缺少必要文件: $file"
+            handle_error "FILE_ERROR" "Bundle文件解压后缺少必要文件: $file" "ERROR" "false"
             return 1
         fi
     done
@@ -80,7 +80,7 @@ install_node_exporter() {
     # 检查端口9100是否被占用
     if netstat -tlnp 2>/dev/null | grep -q ":9100 " || \
        ss -tlnp 2>/dev/null | grep -q ":9100 "; then
-        log_warning "端口9100已被占用，跳过Node Exporter安装"
+        record_error "SERVICE_ERROR" "端口9100已被占用，跳过Node Exporter安装" "WARNING"
         dataway_log "info" "端口9100已被占用，跳过Node Exporter安装"
         return 0
     fi
@@ -90,19 +90,19 @@ install_node_exporter() {
     
     # 检查Node Exporter安装包
     if [ ! -f "node_exporter-1.8.2.linux-amd64.tar.gz" ]; then
-        log_warning "Node Exporter安装包不存在，跳过安装"
+        record_error "FILE_ERROR" "Node Exporter安装包不存在，跳过安装" "WARNING"
         dataway_log "info" "Node Exporter安装包不存在，跳过安装"
         return 0
     fi
     
     # 解压并安装
     if ! tar -xzf node_exporter-1.8.2.linux-amd64.tar.gz; then
-        log_error "解压Node Exporter失败"
+        handle_error "FILE_ERROR" "解压Node Exporter失败" "ERROR" "false"
         return 1
     fi
     
     if ! cp node_exporter-1.8.2.linux-amd64/node_exporter /usr/local/bin/; then
-        log_error "复制Node Exporter失败"
+        handle_error "FILE_ERROR" "复制Node Exporter失败" "ERROR" "false"
         return 1
     fi
     
@@ -129,7 +129,7 @@ EOF
     systemctl enable node_exporter
     
     if ! systemctl start node_exporter; then
-        log_error "启动Node Exporter服务失败"
+        handle_error "SERVICE_ERROR" "启动Node Exporter服务失败" "ERROR" "false"
         return 1
     fi
     
@@ -149,7 +149,7 @@ EOF
         fi
     done
     
-    log_error "Node Exporter启动失败"
+    handle_error "SERVICE_ERROR" "Node Exporter启动失败" "ERROR" "false"
     dataway_log "error" "Node Exporter启动失败"
     return 1
 }
@@ -160,7 +160,7 @@ install_datakit() {
     
     # 判断DATAKIT_INSTALL_DIR是否存在
     if [ ! -d "$DATAKIT_INSTALL_DIR" ]; then
-        log_error "DATAKIT_INSTALL_DIR不存在"
+        handle_error "FILE_ERROR" "DATAKIT_INSTALL_DIR不存在" "ERROR" "false"
         dataway_log "error" "DATAKIT_INSTALL_DIR不存在"
         return 1
     fi
@@ -173,7 +173,7 @@ install_datakit() {
     # 获取Dataway地址
     local dataway_url=$(get_global_state 'DATAWAY_FULL_URL')
     if [ -z "$dataway_url" ]; then
-        log_error "Dataway地址未设置"
+        handle_error "CONFIG_ERROR" "Dataway地址未设置" "ERROR" "false"
         return 1
     fi
     
@@ -182,7 +182,7 @@ install_datakit() {
     dataway_log "info" "执行Datakit离线安装..."
     
     if ! ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$dataway_url" --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64.tar.gz,data.tar.gz"; then
-        log_error "Datakit安装失败"
+        handle_error "DEPENDENCY_ERROR" "Datakit安装失败" "ERROR" "false"
         dataway_log "error" "Datakit安装失败"
         return 1
     fi
@@ -192,7 +192,7 @@ install_datakit() {
     systemctl enable datakit
     
     if ! systemctl start datakit; then
-        log_error "启动Datakit服务失败"
+        handle_error "SERVICE_ERROR" "启动Datakit服务失败" "ERROR" "false"
         return 1
     fi
     
@@ -212,7 +212,7 @@ install_datakit() {
         sleep 5
     done
     
-    log_error "Datakit启动超时"
+    handle_error "SERVICE_ERROR" "Datakit启动超时" "ERROR" "false"
     dataway_log "error" "Datakit启动超时"
     return 1
 } 
