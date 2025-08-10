@@ -80,7 +80,7 @@ test_log_functions() {
     assert_contains "$(cat "$TEST_LOG_FILE")" "ERROR" "日志文件应该包含ERROR级别"
     
     # 测试SUCCESS日志
-    log_success "测试SUCCESS日志"
+    log_info "测试SUCCESS日志"
     assert_contains "$(cat "$TEST_LOG_FILE")" "SUCCESS" "日志文件应该包含SUCCESS级别"
 }
 
@@ -127,7 +127,7 @@ test_log_level_filtering() {
     log_info "这条INFO日志不应该出现"
     log_warning "这条WARNING日志应该出现"
     log_error "这条ERROR日志应该出现"
-    log_success "这条SUCCESS日志应该出现"
+    log_info "这条SUCCESS日志应该出现"
     
     # 检查日志内容
     local log_content=$(cat "$TEST_LOG_FILE")

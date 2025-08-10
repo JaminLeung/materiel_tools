@@ -131,7 +131,7 @@ validate_configs() {
     fi
     
     if [ "$validation_passed" = true ]; then
-        log_success "配置验证通过"
+        log_info "配置验证通过"
         return 0
     else
         log_error "配置验证失败"

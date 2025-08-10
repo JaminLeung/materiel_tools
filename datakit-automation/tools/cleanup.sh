@@ -89,7 +89,7 @@ cleanup_temp_files() {
         fi
     done
     
-    log_success "临时文件清理完成"
+    log_info "临时文件清理完成"
 }
 
 # 清理日志文件
@@ -117,7 +117,7 @@ cleanup_log_files() {
     log_info "清理系统日志中的Datakit条目..."
     journalctl --vacuum-time=7d 2>/dev/null || true
     
-    log_success "日志文件清理完成"
+    log_info "日志文件清理完成"
 }
 
 # 清理备份文件
@@ -140,7 +140,7 @@ cleanup_backup_files() {
         find "$BACKUP_DIR" -name "datakit_backup_*.tar.gz" -mtime +30 -delete 2>/dev/null || true
     fi
     
-    log_success "备份文件清理完成"
+    log_info "备份文件清理完成"
 }
 
 # 清理缓存文件
@@ -158,7 +158,7 @@ cleanup_cache_files() {
     sync
     echo 3 > /proc/sys/vm/drop_caches 2>/dev/null || true
     
-    log_success "缓存文件清理完成"
+    log_info "缓存文件清理完成"
 }
 
 # 完整清理
@@ -177,7 +177,7 @@ full_cleanup() {
     # 清理缓存文件
     cleanup_cache_files
     
-    log_success "完整清理完成"
+    log_info "完整清理完成"
 }
 
 # 显示清理统计
@@ -309,7 +309,7 @@ main() {
         fi
     fi
     
-    log_success "清理操作完成"
+    log_info "清理操作完成"
     exit 0
 }
 

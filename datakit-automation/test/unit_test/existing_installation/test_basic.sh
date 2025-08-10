@@ -24,7 +24,7 @@ log_info() {
     echo -e "${BLUE}[INFO]${NC} $*"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[SUCCESS]${NC} $*"
 }
 

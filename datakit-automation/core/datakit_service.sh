@@ -27,13 +27,14 @@ check_installation_status() {
     fi
     
     # 检查Datakit配置文件
+    # TODO 配置文件路径需要确认
     if check_datakit_config; then
         log_info "Datakit配置文件已存在，跳过安装"
         record_error "SERVICE_ERROR" "Datakit配置文件已存在，跳过安装" "WARNING"
         exit 0
     fi
         
-    log_success "Datakit未安装，可以继续安装"
+    log_info "Datakit未安装，可以继续安装"
     log_info "Datakit未安装，可以继续安装"
     return 0
 }
@@ -110,7 +111,7 @@ start_datakit() {
             if pgrep -x "datakit" >/dev/null && \
                (netstat -tlnp 2>/dev/null | grep -q ":9529 " || \
                 ss -tlnp 2>/dev/null | grep -q ":9529 "); then
-                log_success "Datakit启动成功 (检查 $check_count/$max_checks)"
+                log_info "Datakit启动成功 (检查 $check_count/$max_checks)"
                 return 0
             else
                 if [ $check_count -lt $max_checks ]; then
@@ -134,14 +135,14 @@ start_datakit() {
 stop_datakit() {
     log_info "停止Datakit"
     if command_exists systemctl && systemctl stop datakit 2>/dev/null; then
-        log_success "Datakit停止成功"
+        log_info "Datakit停止成功"
         return 0
     fi
     if command_exists datakit && datakit service -T >/dev/null 2>&1; then
-        log_success "Datakit停止成功"
+        log_info "Datakit停止成功"
         return 0
     fi
-    pkill -f datakit 2>/dev/null && log_success "Datakit强制停止成功" || {
+    pkill -f datakit 2>/dev/null && log_info "Datakit强制停止成功" || {
         handle_error "SERVICE_ERROR" "Datakit停止失败" "ERROR" "false"
         return 1
     }
@@ -179,7 +180,7 @@ restart_datakit() {
             if pgrep -x "datakit" >/dev/null && \
                (netstat -tlnp 2>/dev/null | grep -q ":9529 " || \
                 ss -tlnp 2>/dev/null | grep -q ":9529 "); then
-                log_success "Datakit重启成功 (检查 $check_count/$max_checks)"
+                log_info "Datakit重启成功 (检查 $check_count/$max_checks)"
                 return 0
             else
                 if [ $check_count -lt $max_checks ]; then

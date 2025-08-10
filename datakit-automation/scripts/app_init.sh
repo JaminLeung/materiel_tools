@@ -72,7 +72,7 @@ create_directories() {
         fi
     done
     
-    log_success "目录创建完成"
+    log_info "目录创建完成"
 }
 
 # =============================================================================
@@ -113,7 +113,7 @@ update_toml_config() {
         return 1
     }
     
-    log_success "配置文件更新成功: $toml_file"
+    log_info "配置文件更新成功: $toml_file"
     return 0
 }
 
@@ -354,7 +354,7 @@ merge_config_files() {
         done
     fi
     
-    log_success "配置文件合并完成"
+    log_info "配置文件合并完成"
 }
 
 merge_logging_config() {
@@ -382,7 +382,7 @@ merge_logging_config() {
                 
                 if [ $? -eq 0 ]; then
                     echo "{\"inputs\":{\"logging\":[$merged_json]}}" | yj -jt > "$datakit_file"
-                    log_success "日志配置合并成功"
+                    log_info "日志配置合并成功"
                 else
                     record_error "CONFIG_ERROR" "日志配置合并失败" "ERROR"
                 fi
@@ -393,7 +393,7 @@ merge_logging_config() {
     else
         # 直接复制
         cp "$source" "$datakit_file"
-        log_success "日志配置复制成功"
+        log_info "日志配置复制成功"
     fi
 }
 
@@ -422,7 +422,7 @@ merge_metrics_config() {
                 
                 if [ $? -eq 0 ]; then
                     echo "{\"inputs\":{\"prom\":[$merged_json]}}" | yj -jt > "$datakit_file"
-                    log_success "指标配置合并成功"
+                    log_info "指标配置合并成功"
                 else
                     record_error "CONFIG_ERROR" "指标配置合并失败" "ERROR"
                 fi
@@ -433,7 +433,7 @@ merge_metrics_config() {
     else
         # 直接复制
         cp "$source" "$datakit_file"
-        log_success "指标配置复制成功"
+        log_info "指标配置复制成功"
     fi
 }
 
@@ -462,7 +462,7 @@ merge_health_config() {
                 
                 if [ $? -eq 0 ]; then
                     echo "{\"inputs\":{\"host_healthcheck\":[$merged_json]}}" | yj -jt > "$datakit_file"
-                    log_success "健康检查配置合并成功"
+                    log_info "健康检查配置合并成功"
                 else
                     record_error "CONFIG_ERROR" "健康检查配置合并失败" "ERROR"
                 fi
@@ -473,7 +473,7 @@ merge_health_config() {
     else
         # 直接复制
         cp "$source" "$datakit_file"
-        log_success "健康检查配置复制成功"
+        log_info "健康检查配置复制成功"
     fi
 }
 
@@ -515,7 +515,7 @@ cleanup_old_configs() {
     # 清理健康检查配置
     cleanup_config_directory "$APP_INIT_HEALTH_DIR" "health" "${current_services[@]}"
     
-    log_success "配置文件清理和备份完成"
+    log_info "配置文件清理和备份完成"
 }
 
 cleanup_config_directory() {
@@ -640,7 +640,7 @@ process_services() {
         process_health "$service_name" "$service"
     done
     
-    log_success "服务配置处理完成，共处理 $service_count 个服务"
+    log_info "服务配置处理完成，共处理 $service_count 个服务"
 }
 
 # =============================================================================
@@ -731,7 +731,7 @@ main() {
         return 1
     fi
     
-    log_success "业务配置获取成功"
+    log_info "业务配置获取成功"
     
     # 处理服务配置
     process_services
@@ -756,12 +756,12 @@ main() {
     if [ "$CONFIG_CHANGED" = true ]; then
         log_info "检测到配置变更，重启Datakit"
         restart_datakit
-        log_success "Datakit重启完成"
+        log_info "Datakit重启完成"
     else
         log_info "无配置变更，无需重启Datakit"
     fi
     
-    log_success "业务配置同步完成"
+    log_info "业务配置同步完成"
 }
 
 

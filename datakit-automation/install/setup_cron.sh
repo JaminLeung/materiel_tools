@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #=================================================
-# 步骤7: 设置定时任务
+# 设置定时任务
 #=================================================
 # 功能: 设置config_update.sh和健康检测的定时任务
 #=================================================
@@ -15,7 +15,6 @@ setup_cron_jobs() {
     local config_update_script="$SCENARIO_PROJECT_ROOT/scripts/config_update.sh"
     if [ ! -f "$config_update_script" ]; then
         handle_error "FILE_ERROR" "定时任务脚本不存在: $config_update_script" "ERROR" "false"
-        dataway_log "error" "定时任务脚本不存在: config_update.sh"
         return 1
     fi
     
@@ -50,6 +49,7 @@ setup_cron_jobs() {
     
     # 创建新的crontab内容
     # TODO 定时任务新增逻辑
+    #  TODO 定时任务执行命令调整 installeer.sh
     local new_crontab="/tmp/new_crontab_$(date +%Y%m%d%H%M%S)"
     cat > "$new_crontab" << EOF
 
@@ -65,6 +65,7 @@ setup_cron_jobs() {
 EOF
     
     # 如果有原有的crontab，添加到新文件中（排除重复的任务）
+    # TODO 不能影响现有的crontab配置
     if [ -s "$current_crontab" ]; then
         log_info "保留原有crontab配置"
         grep -v "config_update\|datakit_health_check\|app_init" "$current_crontab" >> "$new_crontab" || true
@@ -72,7 +73,7 @@ EOF
     
     # 安装新的crontab
     if crontab "$new_crontab"; then
-        log_success "定时任务设置成功"
+        log_info "定时任务设置成功"
         log_info "config_update.sh: 每15分钟执行一次（带锁检查，只保留最新日志）"
         log_info "datakit_health_check.sh: 每5分钟执行一次（带锁检查）"
         log_info "app_init.sh: 每10分钟执行一次（带锁检查，只保留最新日志）"
@@ -87,12 +88,12 @@ EOF
     fi
     
     # 清理临时文件
+    # TODO 所有脚本禁用 rm -f
     rm -f "$current_crontab" "$new_crontab"
     
     # 重新加载cron配置
     systemctl reload crond 2>/dev/null || systemctl reload cron 2>/dev/null || true
     
-    log_success "定时任务设置完成"
     log_info "定时任务设置完成"
     return 0
 } 

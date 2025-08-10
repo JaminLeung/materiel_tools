@@ -171,7 +171,7 @@ cleanup_on_exit() {
         if command -v "$step_func" >/dev/null 2>&1; then
             log_info "执行清理步骤: $step_desc"
             if "$step_func"; then
-                log_success "清理步骤成功: $step_desc"
+                log_info "清理步骤成功: $step_desc"
                 success_count=$((success_count + 1))
             else
                 log_warning "清理步骤失败: $step_desc"
@@ -222,7 +222,7 @@ cleanup_temp_files() {
     done
     
     if [[ $cleaned_count -gt 0 ]]; then
-        log_success "临时文件清理完成，成功: $cleaned_count，失败: $error_count"
+        log_info "临时文件清理完成，成功: $cleaned_count，失败: $error_count"
     fi
     
     return $((error_count == 0 ? 0 : 1))
@@ -269,7 +269,7 @@ cleanup_log_files() {
     done
     
     if [[ $cleaned_count -gt 0 ]]; then
-        log_success "日志文件清理完成，清理: $cleaned_count 个文件"
+        log_info "日志文件清理完成，清理: $cleaned_count 个文件"
     fi
     
     return $((error_count == 0 ? 0 : 1))

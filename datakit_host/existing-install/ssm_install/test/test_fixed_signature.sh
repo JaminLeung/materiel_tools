@@ -15,7 +15,7 @@ log_info() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $1${NC}"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1${NC}"
 }
 
@@ -102,7 +102,7 @@ echo "AWS期望的签名: $AWS_EXPECTED_SIGNATURE"
 echo "我们计算的签名: $OUR_SIGNATURE"
 
 if [ "$AWS_EXPECTED_SIGNATURE" = "$OUR_SIGNATURE" ]; then
-    log_success "✅ 签名匹配！修复成功！"
+    log_info "✅ 签名匹配！修复成功！"
 else
     log_error "❌ 签名仍然不匹配！"
 fi

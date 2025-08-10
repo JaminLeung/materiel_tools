@@ -16,7 +16,7 @@ log_info() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $1${NC}"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1${NC}"
 }
 
@@ -121,7 +121,7 @@ test_download() {
                 rm -f "$local_path"
                 return 1
             else
-                log_success "文件下载成功: $local_path (${file_size} bytes)"
+                log_info "文件下载成功: $local_path (${file_size} bytes)"
                 rm -f "$local_path"
                 return 0
             fi
@@ -144,7 +144,7 @@ main() {
     local test_file="datakit/jq"
     
     if test_download "$test_file"; then
-        log_success "签名测试通过！"
+        log_info "签名测试通过！"
     else
         log_error "签名测试失败！"
     fi

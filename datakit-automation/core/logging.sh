@@ -225,7 +225,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             log_warning "这是一条警告日志"
             log_error "这是一条错误日志"
             log_critical "这是一条严重错误日志"
-            log_success "这是一条成功日志"
+            log_info "这是一条成功日志"
             ;;
         *)
             echo "用法: $0 {init|cleanup|test}"

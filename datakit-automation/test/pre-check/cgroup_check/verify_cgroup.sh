@@ -24,7 +24,7 @@ log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
@@ -97,9 +97,9 @@ detect_cgroup_version() {
         # 检查v2控制器
         if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
             local controllers=$(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null | tr '\n' ' ')
-            log_success "检测到cgroup v2，可用控制器: $controllers"
+            log_info "检测到cgroup v2，可用控制器: $controllers"
         else
-            log_success "检测到cgroup v2"
+            log_info "检测到cgroup v2"
         fi
         
         # 检查具体控制器支持
@@ -120,7 +120,7 @@ detect_cgroup_version() {
         CGROUP_VERSION="v1"
         CGROUP_ROOT="/sys/fs/cgroup"
         
-        log_success "检测到cgroup v1"
+        log_info "检测到cgroup v1"
         
         # 检查v1控制器
         local cpu_controller=""
@@ -164,7 +164,7 @@ detect_cgroup_version() {
     elif [ -d "/sys/fs/cgroup/unified" ] && ([ -d "/sys/fs/cgroup/cpu" ] || [ -d "/sys/fs/cgroup/memory" ]); then
         CGROUP_VERSION="hybrid"
         CGROUP_ROOT="/sys/fs/cgroup"
-        log_success "检测到cgroup混合模式（v1和v2共存）"
+        log_info "检测到cgroup混合模式（v1和v2共存）"
         
         # 检查v2控制器
         if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
@@ -185,7 +185,7 @@ detect_cgroup_version() {
     elif [ -d "/sys/fs/cgroup/systemd" ]; then
         CGROUP_VERSION="systemd"
         CGROUP_ROOT="/sys/fs/cgroup"
-        log_success "检测到systemd cgroup"
+        log_info "检测到systemd cgroup"
         
         # 检查systemd cgroup配置
         if systemctl --version >/dev/null 2>&1; then
@@ -197,7 +197,7 @@ detect_cgroup_version() {
     elif [ -d "/cgroup" ]; then
         CGROUP_VERSION="legacy"
         CGROUP_ROOT="/cgroup"
-        log_success "检测到legacy cgroup路径: /cgroup"
+        log_info "检测到legacy cgroup路径: /cgroup"
         
         # 检查legacy控制器
         if [ -d "/cgroup/cpu" ]; then
@@ -268,7 +268,7 @@ check_tools() {
         exit 1
     fi
     
-    log_success "所有必要工具已安装"
+    log_info "所有必要工具已安装"
 }
 
 # 创建测试cgroup
@@ -380,7 +380,7 @@ create_test_cgroup() {
             ;;
     esac
     
-    log_success "测试cgroup创建成功"
+    log_info "测试cgroup创建成功"
 }
 
 # 启动CPU密集型测试进程
@@ -417,7 +417,7 @@ EOF
     fi
     
     TEST_PID=$!
-    log_success "测试进程已启动 (PID: $TEST_PID)"
+    log_info "测试进程已启动 (PID: $TEST_PID)"
 }
 
 # 启动内存密集型测试进程
@@ -459,7 +459,7 @@ EOF
     fi
     
     MEMORY_TEST_PID=$!
-    log_success "内存测试进程已启动 (PID: $MEMORY_TEST_PID)"
+    log_info "内存测试进程已启动 (PID: $MEMORY_TEST_PID)"
 }
 
 # 监控CPU使用率
@@ -540,7 +540,7 @@ verify_results() {
     
     # 验证CPU限制
     if (( $(echo "$cpu_usage <= 200" | bc -l) )); then
-        log_success "CPU限制测试通过: ${cpu_usage}% <= 200%"
+        log_info "CPU限制测试通过: ${cpu_usage}% <= 200%"
         cpu_test_passed=true
     else
         log_error "CPU限制测试失败: ${cpu_usage}% > 200%"
@@ -549,9 +549,9 @@ verify_results() {
     # 验证内存限制
     if (( $(echo "$memory_usage <= 512" | bc -l) )) || [ "$oom_count" -gt 0 ]; then
         if [ "$oom_count" -gt 0 ]; then
-            log_success "内存限制测试通过: 触发OOM事件 ($oom_count 次)"
+            log_info "内存限制测试通过: 触发OOM事件 ($oom_count 次)"
         else
-            log_success "内存限制测试通过: ${memory_usage}MB <= 512MB"
+            log_info "内存限制测试通过: ${memory_usage}MB <= 512MB"
         fi
         memory_test_passed=true
     else
@@ -568,7 +568,7 @@ verify_results() {
     echo
     
     if [ "$cpu_test_passed" = "true" ] && [ "$memory_test_passed" = "true" ]; then
-        log_success "所有测试通过！系统支持cgroup资源限制"
+        log_info "所有测试通过！系统支持cgroup资源限制"
         exit 0
     else
         log_error "部分测试失败！系统可能不完全支持cgroup资源限制"
