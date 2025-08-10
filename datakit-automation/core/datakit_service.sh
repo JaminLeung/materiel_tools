@@ -12,22 +12,22 @@ check_installation_status() {
     
     # 检查Datakit进程
     if check_datakit_process; then
-        log_warning "Datakit进程已存在，跳过安装"
         dataway_log "info" "Datakit进程已存在，跳过安装"
+        record_error "SERVICE_ERROR" "Datakit进程已存在，跳过安装" "WARNING"
         exit 0
     fi
     
     # 检查Datakit端口
     if check_datakit_port; then
-        log_warning "Datakit端口9529已被占用，跳过安装"
         dataway_log "info" "Datakit端口9529已被占用，跳过安装"
+        record_error "SERVICE_ERROR" "Datakit端口9529已被占用，跳过安装" "WARNING"
         exit 0
     fi
     
     # 检查Datakit配置文件
     if check_datakit_config; then
-        log_warning "Datakit配置文件已存在，跳过安装"
         dataway_log "info" "Datakit配置文件已存在，跳过安装"
+        record_error "SERVICE_ERROR" "Datakit配置文件已存在，跳过安装" "WARNING"
         exit 0
     fi
         
@@ -39,7 +39,7 @@ check_installation_status() {
 # 检查Datakit进程
 check_datakit_process() {
     if pgrep -x "datakit" >/dev/null; then
-        log_warning "Datakit进程已存在"
+        record_error "SERVICE_ERROR" "Datakit进程已存在" "WARNING"
         return 0
     fi
     return 1
@@ -49,7 +49,7 @@ check_datakit_process() {
 check_datakit_port() {
     if netstat -tlnp 2>/dev/null | grep -q ":9529 " || \
        ss -tlnp 2>/dev/null | grep -q ":9529 "; then
-        log_warning "Datakit端口9529已被占用"
+        record_error "SERVICE_ERROR" "Datakit端口9529已被占用" "WARNING"
         return 0
     fi
     return 1
@@ -58,7 +58,7 @@ check_datakit_port() {
 # 检查Datakit配置文件
 check_datakit_config() {
     if [ -d "/usr/local/datakit" ] && [ -f "/usr/local/datakit/conf.d/datakit.conf" ]; then
-        log_warning "Datakit配置文件已存在"
+        record_error "SERVICE_ERROR" "Datakit配置文件已存在" "WARNING"
         return 0
     fi
     return 1
@@ -73,7 +73,7 @@ check_node_exporter_status() {
     
     if netstat -tlnp 2>/dev/null | grep -q ":9100 " || \
        ss -tlnp 2>/dev/null | grep -q ":9100 "; then
-        log_warning "端口9100已被占用，可能需要重新配置Node Exporter"
+        record_error "SERVICE_ERROR" "端口9100已被占用，可能需要重新配置Node Exporter" "WARNING"
         return 0
     fi
     
@@ -90,7 +90,8 @@ start_datakit() {
     elif command_exists datakit && datakit service -S >/dev/null 2>&1; then
         start_success=true
     else
-        die "Datakit启动失败"
+        handle_error "SERVICE_ERROR" "Datakit启动失败" "ERROR" "false"
+        return 1
     fi
     
     if [ "$start_success" = true ]; then
@@ -119,9 +120,10 @@ start_datakit() {
         
         # 超过最大检查次数，认为启动失败
         if [ $check_count -ge 10 ]; then
-            die "Datakit启动失败: 超过10次检查仍未正常运行"
+            handle_error "SERVICE_ERROR" "Datakit启动失败: 超过10次检查仍未正常运行" "ERROR" "false"
+            return 1
         else
-            log_warning "Datakit启动可能不完整，但继续执行"
+            record_error "SERVICE_ERROR" "Datakit启动可能不完整，但继续执行" "WARNING"
             return 0
         fi
     fi
@@ -137,7 +139,10 @@ stop_datakit() {
         log_success "Datakit停止成功"
         return 0
     fi
-    pkill -f datakit 2>/dev/null && log_success "Datakit强制停止成功" || die "Datakit停止失败"
+    pkill -f datakit 2>/dev/null && log_success "Datakit强制停止成功" || {
+        handle_error "SERVICE_ERROR" "Datakit停止失败" "ERROR" "false"
+        return 1
+    }
 }
 
 restart_datakit() {
@@ -153,7 +158,8 @@ restart_datakit() {
         if stop_datakit && start_datakit; then
             restart_success=true
         else
-            die "Datakit重启失败"
+            handle_error "SERVICE_ERROR" "Datakit重启失败" "ERROR" "false"
+            return 1
         fi
     fi
     
@@ -183,9 +189,10 @@ restart_datakit() {
         
         # 超过最大检查次数，认为重启失败
         if [ $check_count -ge 10 ]; then
-            die "Datakit重启失败: 超过10次检查仍未正常运行"
+            handle_error "SERVICE_ERROR" "Datakit重启失败: 超过10次检查仍未正常运行" "ERROR" "true"
+            return 1
         else
-            log_warning "Datakit重启可能不完整，但继续执行"
+            record_error "SERVICE_ERROR" "Datakit重启可能不完整，但继续执行" "WARNING"
             return 0
         fi
     fi

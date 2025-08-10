@@ -43,13 +43,12 @@ load_config() {
         # 再加载其他配置文件（除了base_config.sh）
         for config_file in "$base_config_dir"/*.sh; do
             if [[ -f "$config_file" && "$(basename "$config_file")" != "base_config.sh" ]]; then
-                echo "[INFO] 加载基础配置文件: $(basename "$config_file")"
+                log_info "加载基础配置文件: $(basename "$config_file")"
                 source "$config_file"
             fi
         done
     else
-        echo "[ERROR] 基础配置目录不存在: $base_config_dir" >&2
-        exit 1
+        handle_error "CONFIG_ERROR" "基础配置目录不存在: $base_config_dir" "CRITICAL" "true"
     fi
     
     # 2. 如果指定了环境配置文件，则加载它（会覆盖基础配置）
@@ -77,20 +76,19 @@ load_config() {
         fi
         
         if [[ -f "$full_config_path" ]]; then
-            echo "[INFO] 加载环境配置文件: $full_config_path"
+            log_info "加载环境配置文件: $full_config_path"
             source "$full_config_path"
         else
-            echo "[ERROR] 指定的配置文件不存在: $full_config_path" >&2
-            exit 1
+            handle_error "CONFIG_ERROR" "指定的配置文件不存在: $full_config_path" "CRITICAL" "true"
         fi
     else
-        echo "[INFO] 未指定环境配置文件，使用默认配置"
+        log_info "未指定环境配置文件，使用默认配置"
     fi
     
     # 设置默认的DATAKIT_VERSION（如果未设置）
     export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
     
-    echo "[INFO] 配置加载完成"
+    log_info "配置加载完成"
 }
 
 # 加载模块
@@ -100,24 +98,22 @@ load_module() {
     
     if [[ -f "$module_file" ]]; then
         source "$module_file"
-        echo "[DEBUG] 加载模块: $module_name"
+        log_debug "加载模块: $module_name"
     else
-        echo "[ERROR] 模块文件不存在: $module_file" >&2
-        exit 1
+        handle_error "DEPENDENCY_ERROR" "模块文件不存在: $module_file" "CRITICAL" "true"
     fi
 }
 
 # 初始化安装器
 initialize_installer() {
 
-    echo "[INFO] === Datakit 安装器初始化 ==="
+    log_info "=== Datakit 安装器初始化 ==="
     
     # 检查必需目录
     local required_dirs=("$INSTALLER_CORE_DIR" "$INSTALLER_CONFIG_DIR" "$INSTALLER_INSTALL_DIR" "$INSTALLER_SCENARIOS_DIR")
     for dir in "${required_dirs[@]}"; do
         if [[ ! -d "$dir" ]]; then
-            echo "[ERROR] 必需目录不存在: $dir" >&2
-            exit 1
+            handle_error "CONFIG_ERROR" "必需目录不存在: $dir" "CRITICAL" "true"
         fi
     done
     
@@ -131,10 +127,8 @@ initialize_installer() {
     if [[ -f "$INSTALLER_CORE_DIR/error_handler.sh" ]]; then
         load_module "error_handler" "$INSTALLER_CORE_DIR/error_handler.sh"
         # 初始化错误处理器
-        # TODO 有重复bug
         if command -v init_error_handler >/dev/null 2>&1; then
-            # init_error_handler
-            echo "错误处理器初始化完成"
+            init_error_handler
         fi
     fi
     
@@ -236,9 +230,7 @@ main() {
         case $1 in
             -c|--config)
                 if [[ -z "$2" || "$2" =~ ^- ]]; then
-                    echo "[ERROR] --config 参数需要一个值" >&2
-                    show_help
-                    exit 1
+                    handle_error "CONFIG_ERROR" "--config 参数需要一个值" "ERROR" "true"
                 fi
                 env_config_file="$2"
                 shift 2
@@ -261,9 +253,7 @@ main() {
                 shift
                 ;;
             *)
-                echo "[ERROR] 未知参数: $1" >&2
-                show_help
-                exit 1
+                handle_error "CONFIG_ERROR" "未知参数: $1" "ERROR" "true"
                 ;;
         esac
     done
@@ -311,8 +301,7 @@ main() {
             execute_health_check
             ;;
         *)
-            echo "[ERROR] 未知命令: $command" >&2
-            exit 1
+            handle_error "CONFIG_ERROR" "未知命令: $command" "ERROR" "true"
             ;;
     esac
 }
@@ -353,14 +342,23 @@ execute_existing_installation() {
 
 # 增量安装场景
 execute_incremental_installation() {
-    log_info "=== 执行增量安装场景 ==="
-    log_info "场景描述: 初始化创建镜像的主机"
+    if command -v log_info >/dev/null 2>if command -v log_info >/dev/null 2>&1; then1; then
+        log_info "=== 执行增量安装场景 ==="
+        log_info "场景描述: 初始化创建镜像的主机"
+    else
+        echo "[INFO] === 执行增量安装场景 ==="
+        echo "[INFO] 场景描述: 初始化创建镜像的主机"
+    fi
     
     # 调用scenarios目录下的增量安装脚本
     local scenario_script="$INSTALLER_SCENARIOS_DIR/incremental_installation.sh"
     
     if [[ -f "$scenario_script" ]]; then
-        log_info "调用增量安装场景脚本: $scenario_script"
+        if command -v log_info >/dev/null 2>if command -v log_info >/dev/null 2>&1; then1; then
+            log_info "调用增量安装场景脚本: $scenario_script"
+        else
+            echo "[INFO] 调用增量安装场景脚本: $scenario_script"
+        fi
         
         # 传递配置信息给场景脚本
         export DATAKIT_CONFIG_FILE="$env_config_file"
@@ -368,20 +366,34 @@ execute_incremental_installation() {
         # 执行场景脚本
         bash "$scenario_script"
     else
-        handle_error "FILE_ERROR" "增量安装场景脚本不存在: $scenario_script" "CRITICAL" "true"
+        if command -v log_error >/dev/null 2>&1; then
+            log_error "增量安装场景脚本不存在: $scenario_script"
+        else
+            echo "[ERROR] 增量安装场景脚本不存在: $scenario_script" >&2
+        fi
+        exit 1
     fi
 }
 
 # 版本更新场景
 execute_version_upgrade() {
-    log_info "=== 执行版本更新场景 ==="
-    log_info "场景描述: 升级Datakit版本"
+    if command -v log_info >/dev/null 2>if command -v log_info >/dev/null 2>&1; then1; then
+        log_info "=== 执行版本更新场景 ==="
+        log_info "场景描述: 升级Datakit版本"
+    else
+        echo "[INFO] === 执行版本更新场景 ==="
+        echo "[INFO] 场景描述: 升级Datakit版本"
+    fi
     
     # 调用scenarios目录下的版本更新脚本
     local scenario_script="$INSTALLER_SCENARIOS_DIR/version_upgrade.sh"
     
     if [[ -f "$scenario_script" ]]; then
-        log_info "调用版本更新场景脚本: $scenario_script"
+        if command -v log_info >/dev/null 2>if command -v log_info >/dev/null 2>&1; then1; then
+            log_info "调用版本更新场景脚本: $scenario_script"
+        else
+            echo "[INFO] 调用版本更新场景脚本: $scenario_script"
+        fi
         
         # 传递配置信息给场景脚本
         export DATAKIT_CONFIG_FILE="$env_config_file"
@@ -389,20 +401,34 @@ execute_version_upgrade() {
         # 执行场景脚本
         bash "$scenario_script"
     else
-        handle_error "FILE_ERROR" "版本更新场景脚本不存在: $scenario_script" "CRITICAL" "true"
+        if command -v log_error >/dev/null 2>&1; then
+            log_error "版本更新场景脚本不存在: $scenario_script"
+        else
+            echo "[ERROR] 版本更新场景脚本不存在: $scenario_script" >&2
+        fi
+        exit 1
     fi
 }
 
 # 配置更新场景
 execute_config_update() {
-    log_info "=== 执行配置更新场景 ==="
-    log_info "场景描述: 仅更新配置文件"
+    if command -v log_info >/dev/null 2>if command -v log_info >/dev/null 2>&1; then1; then
+        log_info "=== 执行配置更新场景 ==="
+        log_info "场景描述: 仅更新配置文件"
+    else
+        echo "[INFO] === 执行配置更新场景 ==="
+        echo "[INFO] 场景描述: 仅更新配置文件"
+    fi
     
     # 调用scenarios目录下的配置更新脚本
     local scenario_script="$INSTALLER_SCENARIOS_DIR/config_update.sh"
     
     if [[ -f "$scenario_script" ]]; then
-        log_info "调用配置更新场景脚本: $scenario_script"
+        if command -v log_info >/dev/null 2>if command -v log_info >/dev/null 2>&1; then1; then
+            log_info "调用配置更新场景脚本: $scenario_script"
+        else
+            echo "[INFO] 调用配置更新场景脚本: $scenario_script"
+        fi
         
         # 传递配置信息给场景脚本
         export DATAKIT_CONFIG_FILE="$env_config_file"
@@ -410,7 +436,12 @@ execute_config_update() {
         # 执行场景脚本
         bash "$scenario_script"
     else
-        handle_error "FILE_ERROR" "配置更新场景脚本不存在: $scenario_script" "CRITICAL" "true"
+        if command -v log_error >/dev/null 2>&1; then
+            log_error "配置更新场景脚本不存在: $scenario_script"
+        else
+            echo "[ERROR] 配置更新场景脚本不存在: $scenario_script" >&2
+        fi
+        exit 1
     fi
 }
 
