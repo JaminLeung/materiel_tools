@@ -47,7 +47,7 @@ get_log_color() {
     local level="$1"
     for i in "${!LOG_COLORS_NAMES[@]}"; do
         if [[ "${LOG_COLORS_NAMES[$i]}" == "$level" ]]; then
-            echo "${LOG_COLORS_VALUES[$i]}"
+            # echo "${LOG_COLORS_VALUES[$i]}"
             return 0
         fi
     done
