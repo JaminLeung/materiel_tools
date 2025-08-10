@@ -15,23 +15,21 @@ check_installation_status() {
     # 检查Datakit进程
     if check_datakit_process; then
         log_info "Datakit进程已存在，跳过安装"
-        record_error "SERVICE_ERROR" "Datakit进程已存在，跳过安装" "WARNING"
-        exit 0
+        handle_error "SERVICE_ERROR" "Datakit进程已存在，跳过安装" "ERROR" "true"
+
     fi
     
     # 检查Datakit端口
     if check_datakit_port; then
         log_info "Datakit端口9529已被占用，跳过安装"
-        record_error "SERVICE_ERROR" "Datakit端口9529已被占用，跳过安装" "WARNING"
-        exit 0
+        handle_error "SERVICE_ERROR" "Datakit端口9529已被占用，跳过安装" "ERROR" "true"
     fi
     
     # 检查Datakit配置文件
     # TODO 配置文件路径需要确认
     if check_datakit_config; then
         log_info "Datakit配置文件已存在，跳过安装"
-        record_error "SERVICE_ERROR" "Datakit配置文件已存在，跳过安装" "WARNING"
-        exit 0
+        handle_error "SERVICE_ERROR" "Datakit配置文件已存在，跳过安装" "ERROR" "true"
     fi
         
     log_info "Datakit未安装，可以继续安装"
