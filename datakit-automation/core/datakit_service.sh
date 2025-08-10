@@ -7,32 +7,34 @@ check_datakit_status() {
         command_exists systemctl && systemctl is-active --quiet datakit 2>/dev/null
     }
 }
+
+# TODO exit 相关逻辑需要统一
 check_installation_status() {
     log_info "=== 检查安装状态 ==="
     
     # 检查Datakit进程
     if check_datakit_process; then
-        dataway_log "info" "Datakit进程已存在，跳过安装"
+        log_info "Datakit进程已存在，跳过安装"
         record_error "SERVICE_ERROR" "Datakit进程已存在，跳过安装" "WARNING"
         exit 0
     fi
     
     # 检查Datakit端口
     if check_datakit_port; then
-        dataway_log "info" "Datakit端口9529已被占用，跳过安装"
+        log_info "Datakit端口9529已被占用，跳过安装"
         record_error "SERVICE_ERROR" "Datakit端口9529已被占用，跳过安装" "WARNING"
         exit 0
     fi
     
     # 检查Datakit配置文件
     if check_datakit_config; then
-        dataway_log "info" "Datakit配置文件已存在，跳过安装"
+        log_info "Datakit配置文件已存在，跳过安装"
         record_error "SERVICE_ERROR" "Datakit配置文件已存在，跳过安装" "WARNING"
         exit 0
     fi
         
     log_success "Datakit未安装，可以继续安装"
-    dataway_log "info" "Datakit未安装，可以继续安装"
+    log_info "Datakit未安装，可以继续安装"
     return 0
 }
 

@@ -498,7 +498,7 @@ get_host_info() {
         return 0
     else
         record_error "API_ERROR" "获取运维平台配置失败，使用默认配置" "WARNING"
-        dataway_log "warning" "获取运维平台配置失败，使用默认配置"
+        log_warning "获取运维平台配置失败，使用默认配置"
         
 
         
@@ -962,7 +962,7 @@ get_machine_specs() {
         log_info "≥4C8G规格，设置默认资源限制: 1C2G"
     fi
     
-    dataway_log "info" "设置资源限制: $(get_global_state 'CGROUP_CPU_LIMIT')C$(get_global_state 'CGROUP_MEMORY_LIMIT')MB"
+    log_info "设置资源限制: $(get_global_state 'CGROUP_CPU_LIMIT')C$(get_global_state 'CGROUP_MEMORY_LIMIT')MB"
     
     # 验证资源限制是否满足最低要求
     local cpu_limit=$(get_global_state 'CGROUP_CPU_LIMIT')
@@ -992,7 +992,7 @@ get_machine_specs() {
     
     
     log_success "资源限制设置完成"
-    dataway_log "info" "资源限制设置完成"
+    log_info "资源限制设置完成"
     return 0
 }
 

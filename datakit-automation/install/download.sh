@@ -38,7 +38,7 @@ download_packages() {
     fi
     
     log_success "安装包下载完成"
-    dataway_log "info" "安装包下载完成"
+    log_info "安装包下载完成"
     return 0
 }
 

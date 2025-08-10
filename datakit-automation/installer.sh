@@ -2,7 +2,6 @@
 
 #=================================================
 # Datakit 安装器主入口脚本
-# 版本: 0.1.1
 #=================================================
 
 set -euo pipefail
@@ -141,8 +140,6 @@ initialize_installer() {
     # 安装模块已由scenarios脚本处理，此处不再加载旧模块
     # 执行初始化脚本
     initialize_script
-
-
     
     if command -v log_success >/dev/null 2>&1; then
         log_success "安装器初始化完成"
@@ -329,11 +326,13 @@ execute_existing_installation() {
     if [[ -f "$scenario_script" ]]; then
         log_info "调用存量安装场景脚本: $scenario_script"
         
+        # TODO 统一从配置文件里获取
         # 传递配置信息给场景脚本
         export DATAKIT_CONFIG_FILE="$env_config_file"
         export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
         
         # 导出所有关键配置变量
+        # 不设置环境变量方式跑起来
         export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
         export OPS_ADDR="${OPS_ADDR:-}"
         export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"

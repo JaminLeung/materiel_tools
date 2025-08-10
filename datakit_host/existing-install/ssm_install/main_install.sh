@@ -174,7 +174,7 @@ get_ops_config() {
             log_info "Dataway地址: $DATAWAY_FULL_URL"
             
             # 上报成功日志
-            dataway_log "info" "成功获取运维平台配置: env=$ENV, workspace=$WORKSPACE"
+            log_info "成功获取运维平台配置: env=$ENV, workspace=$WORKSPACE"
             return 0
         else
             log_error "从运维平台接口获取的配置信息不完整"
@@ -202,7 +202,7 @@ get_host_info() {
         log_info "Dataway地址: $DATAWAY_FULL_URL"
         
         # 上报成功日志
-        dataway_log "info" "主机信息验证成功: env=$ENV, workspace=$WORKSPACE"
+        log_info "主机信息验证成功: env=$ENV, workspace=$WORKSPACE"
         return 0
     else
         # 执行get_ops_config函数
@@ -225,21 +225,21 @@ check_datakit_status() {
     # 检查Datakit进程是否存在
     if pgrep -x "datakit" >/dev/null; then
         log_warning "Datakit进程已存在"
-        dataway_log "info" "Datakit进程已存在，跳过安装"
+        log_info "Datakit进程已存在，跳过安装"
         exit 0
     fi
     
     # 检查Datakit端口是否被监听
     if netstat -tlnp 2>/dev/null | grep -q ":9529 "; then
         log_warning "Datakit端口9529已被占用"
-        dataway_log "info" "Datakit端口9529已被占用，跳过安装"
+        log_info "Datakit端口9529已被占用，跳过安装"
         exit 0
     fi
     
     # 检查Datakit配置文件是否存在
     if [ -d "/usr/local/datakit" ]; then
         log_warning "Datakit配置文件已存在"
-        dataway_log "info" "Datakit配置文件已存在，跳过安装"
+        log_info "Datakit配置文件已存在，跳过安装"
         exit 0
     fi
     
@@ -352,7 +352,7 @@ get_machine_specs() {
         log_info "≥4C8G规格，设置默认资源限制: 1C2G"
     fi
     
-    dataway_log "info" "设置资源限制: ${CGROUP_CPU_LIMIT}C${CGROUP_MEMORY_LIMIT}MB"
+    log_info "设置资源限制: ${CGROUP_CPU_LIMIT}C${CGROUP_MEMORY_LIMIT}MB"
 }
 
 # 下载Datakit安装包
@@ -443,11 +443,11 @@ download_datakit_packages() {
     fi
     
     log_success "Bundle文件解压完成，所有文件准备就绪"
-    dataway_log "info" "Bundle文件下载和解压完成"
+    log_info "Bundle文件下载和解压完成"
     
     # 返回临时目录路径
     log_info "Datakit安装包下载完成，路径: $DATAKIT_INSTALL_DIR"
-    dataway_log "info" "Datakit安装包下载完成，路径: $DATAKIT_INSTALL_DIR"
+    log_info "Datakit安装包下载完成，路径: $DATAKIT_INSTALL_DIR"
     return 0
 }
 
@@ -467,7 +467,7 @@ install_node_exporter() {
     # 检查端口9100是否被占用
     if netstat -tlnp 2>/dev/null | grep -q ":9100 "; then
         log_warning "端口9100已被占用，跳过Node Exporter安装"
-        dataway_log "info" "端口9100已被占用，跳过Node Exporter安装"
+        log_info "端口9100已被占用，跳过Node Exporter安装"
         return 0
     fi
     
@@ -506,7 +506,7 @@ EOF
     for i in {1..5}; do
         if systemctl is-active --quiet node_exporter; then
             log_success "Node Exporter安装成功"
-            dataway_log "info" "Node Exporter安装成功"
+            log_info "Node Exporter安装成功"
             return 0
         else
             log_info "Node Exporter启动中... ($i/5)"
@@ -559,7 +559,7 @@ install_datakit() {
     while [ $check_count -lt $max_checks ]; do
         if systemctl is-active --quiet datakit; then
             log_success "Datakit启动成功"
-            dataway_log "info" "Datakit启动成功"
+            log_info "Datakit启动成功"
             return 0
         fi
         
@@ -610,7 +610,7 @@ configure_datakit() {
     yq eval ".dataway.dataway_url = [\"$DATAWAY_FULL_URL\"]" "$datakit_conf" -i
     
     log_success "Datakit配置完成"
-    dataway_log "info" "Datakit配置完成"
+    log_info "Datakit配置完成"
 }
 
 # 配置采集器
@@ -745,7 +745,7 @@ EOF
 EOF
 
     log_success "采集器配置完成"
-    dataway_log "info" "采集器配置完成"
+    log_info "采集器配置完成"
 }
 
 # 重启Datakit并检查状态
@@ -762,7 +762,7 @@ restart_datakit() {
     while [ $check_count -lt $max_checks ]; do
         if pgrep -x "datakit" >/dev/null && netstat -tlnp 2>/dev/null | grep -q ":9529 "; then
             log_success "Datakit重启成功"
-            dataway_log "info" "Datakit重启成功"
+            log_info "Datakit重启成功"
             return 0
         fi
         
@@ -796,7 +796,7 @@ EOF
     systemctl reload crond 2>/dev/null || systemctl reload cron 2>/dev/null || true
     
     log_success "定时任务设置完成"
-    dataway_log "info" "定时任务设置完成"
+    log_info "定时任务设置完成"
 }
 
 # 验证安装结果
@@ -832,7 +832,7 @@ verify_installation() {
     
     if [ "$verification_passed" = true ]; then
         log_success "安装验证通过"
-        dataway_log "info" "Datakit安装验证通过"
+        log_info "Datakit安装验证通过"
         return 0
     else
         log_error "安装验证失败"
@@ -1019,7 +1019,7 @@ main() {
     log_info "=== 验证安装结果 ==="
     if verify_installation; then
         log_success "Datakit安装完成"
-        dataway_log "info" "Datakit安装完成"
+        log_info "Datakit安装完成"
     else
         log_error "Datakit安装失败"
         dataway_log "error" "Datakit安装失败"
@@ -1031,7 +1031,7 @@ main() {
     cleanup_temp_files "$temp_dir"
     
     log_success "所有安装步骤完成"
-    dataway_log "info" "Datakit安装流程完成"
+    log_info "Datakit安装流程完成"
 }
 
 
