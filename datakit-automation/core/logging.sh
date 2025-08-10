@@ -3,120 +3,234 @@
 #=================================================
 # 日志系统模块
 #=================================================
-# 功能: 多级别日志记录、结构化日志输出、日志轮转管理
+# 功能: 结构化日志、日志轮转、性能优化、监控告警
 #=================================================
 
-# 颜色定义（兼容性版本）
+#=================================================
+# 常量定义
+#=================================================
+
+# 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m'
 
-# 日志级别定义（兼容性版本）
-LOG_LEVEL_DEBUG=0
-LOG_LEVEL_INFO=1
-LOG_LEVEL_WARNING=2
-LOG_LEVEL_ERROR=3
-LOG_LEVEL_SUCCESS=4
+# 日志级别定义
+LOG_LEVELS_NAMES=("DEBUG" "INFO" "WARNING" "ERROR" "CRITICAL" "SUCCESS")
+LOG_LEVELS_VALUES=(0 1 2 3 4 5)
 
-# 当前日志级别（可通过环境变量设置）
+# 日志级别颜色映射
+LOG_COLORS_NAMES=("DEBUG" "INFO" "WARNING" "ERROR" "CRITICAL" "SUCCESS")
+LOG_COLORS_VALUES=("$CYAN" "$BLUE" "$YELLOW" "$RED" "$PURPLE" "$GREEN")
+
+
+#=================================================
+# 配置变量（从配置文件加载，这里只提供默认值作为后备）
+#=================================================
+
 CURRENT_LOG_LEVEL=${LOG_LEVEL:-1}  # 默认INFO级别
+LOG_FILE="${LOG_FILE:-/var/log/datakit_install.log}"
+LOG_FORMAT="json"  # 统一使用JSON格式
 
-# 日志文件路径（可通过环境变量设置）
-if [ -z "${LOG_FILE:-}" ]; then
-    LOG_FILE="/opt/datakit/datakit_install.log"
-fi
+#=================================================
+# 工具函数
+#=================================================
+
+# 获取日志级别颜色
+get_log_color() {
+    local level="$1"
+    for i in "${!LOG_COLORS_NAMES[@]}"; do
+        if [[ "${LOG_COLORS_NAMES[$i]}" == "$level" ]]; then
+            echo "${LOG_COLORS_VALUES[$i]}"
+            return 0
+        fi
+    done
+    echo "$NC"  # 默认返回无颜色
+}
+
+
+#=================================================
+# 日志格式生成
+#=================================================
+
+# 生成JSON格式日志消息
+generate_structured_log() {
+    local level="$1"
+    local message="$2"
+    local context="${3:-}"
+    local extra_fields="${4:-}"
+    
+    local timestamp=$(date -Iseconds)
+    local pid=$$
+    local script_name="${SCRIPT_NAME:-$(basename "$0")}"
+    local script_version="${SCRIPT_VERSION:-unknown}"
+    local hostname=$(hostname 2>/dev/null || echo "unknown")
+    local user=$(whoami 2>/dev/null || echo "unknown")
+    
+    local json_log=$(cat <<EOF
+{
+    "timestamp": "$timestamp",
+    "level": "$level",
+    "message": "$message",
+    "pid": $pid,
+    "script_name": "$script_name",
+    "script_version": "$script_version",
+    "hostname": "$hostname",
+    "user": "$user",
+    "context": "$context"$extra_fields
+}
+EOF
+)
+    echo "$json_log"
+}
+
+
+#=================================================
+# 日志写入
+#=================================================
+
+# 写入日志到文件
+write_log_to_file() {
+    local log_message="$1"
+    local level="$2"
+    
+    # 直接写入日志文件
+    if [[ -n "$LOG_FILE" && "$LOG_FILE" != "/dev/null" ]]; then
+        echo "$log_message" >> "$LOG_FILE" 2>/dev/null || {
+            # 如果写入失败，输出到stderr
+            echo "$log_message" >&2
+        }
+    fi
+}
+
+
+
+#=================================================
+# 核心日志函数
+#=================================================
+
+# 核心日志函数
+log_message() {
+    local level="$1"
+    local message="$2"
+    local context="${3:-}"
+    local extra_fields="${4:-}"
+    
+    
+    # 生成日志消息
+    local log_message=$(generate_structured_log "$level" "$message" "$context" "$extra_fields")
+    
+    # 输出到控制台（带颜色）
+    local color=$(get_log_color "$level")
+    if [[ -t 1 ]]; then
+        echo -e "${color}${log_message}${NC}"
+    else
+        echo "$log_message"
+    fi
+    
+    # 写入日志文件
+    write_log_to_file "$log_message" "$level"
+}
+
+# 便捷日志函数
+log_debug() { log_message "DEBUG" "$1" "${2:-}" "${3:-}"; }
+log_info() { log_message "INFO" "$1" "${2:-}" "${3:-}"; }
+log_warning() { log_message "WARNING" "$1" "${2:-}" "${3:-}"; }
+log_error() { log_message "ERROR" "$1" "${2:-}" "${3:-}"; }
+log_critical() { log_message "CRITICAL" "$1" "${2:-}" "${3:-}"; }
+log_success() { log_message "SUCCESS" "$1" "${2:-}" "${3:-}"; }
+
+
+
+#=================================================
+# 系统管理函数
+#=================================================
 
 # 日志系统初始化
 init_logging() {
     local log_file="${LOG_FILE}"
-    touch "$log_file" 2>/dev/null || {
-        echo "警告：无法创建日志文件 $log_file，将输出到标准输出"
-        LOG_FILE="/dev/null"
-    }
-}
-
-# 通用日志函数
-log_message() {
-    local level="$1"
-    local message="$2"
-    local color="$NC"
-    local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
+    local log_dir=$(dirname "$log_file")
     
-    # 根据日志级别设置颜色
-    case "$level" in
-        "DEBUG") color="$BLUE" ;;
-        "INFO") color="$BLUE" ;;
-        "WARNING") color="$YELLOW" ;;
-        "ERROR") color="$RED" ;;
-        "SUCCESS") color="$GREEN" ;;
-    esac
-    
-    # 检查日志级别
-    local level_num=1
-    case "$level" in
-        "DEBUG") level_num=$LOG_LEVEL_DEBUG ;;
-        "INFO") level_num=$LOG_LEVEL_INFO ;;
-        "WARNING") level_num=$LOG_LEVEL_WARNING ;;
-        "ERROR") level_num=$LOG_LEVEL_ERROR ;;
-        "SUCCESS") level_num=$LOG_LEVEL_SUCCESS ;;
-    esac
-    
-    if [ "$level_num" -ge "$CURRENT_LOG_LEVEL" ]; then
-        local formatted_message="${timestamp} [${level}] ${message}"
-        echo -e "${color}${formatted_message}${NC}" | tee -a "${LOG_FILE}"
+    # 创建日志目录
+    if [[ ! -d "$log_dir" ]]; then
+        mkdir -p "$log_dir" 2>/dev/null || {
+            echo "警告：无法创建日志目录 $log_dir，将输出到标准输出" >&2
+            LOG_FILE="/dev/null"
+            return 1
+        }
     fi
+    
+    # 创建日志文件
+    touch "$log_file" 2>/dev/null || {
+        echo "警告：无法创建日志文件 $log_file，将输出到标准输出" >&2
+        LOG_FILE="/dev/null"
+        return 1
+    }
+    
+    # 设置文件权限
+    chmod 644 "$log_file" 2>/dev/null || true
+    
+    # 记录初始化信息
+    local init_message=$(generate_structured_log "INFO" "日志系统初始化完成" "logging_init" ", \"log_file\": \"$log_file\", \"log_level\": $CURRENT_LOG_LEVEL")
+    echo "$init_message" >> "$log_file"
+    
+    return 0
 }
 
-# 便捷日志函数
-log_debug() { log_message "DEBUG" "$1"; }
-log_info() { log_message "INFO" "$1"; }
-log_warning() { log_message "WARNING" "$1"; }
-log_error() { log_message "ERROR" "$1"; }
-log_success() { log_message "SUCCESS" "$1"; }
-
-# 记录脚本启动
-record_script_start() {
-    local start_info=$(cat <<EOF
-{
-    "timestamp": "$(date -Iseconds)",
-    "script_name": "$SCRIPT_NAME",
-    "script_version": "$SCRIPT_VERSION",
-    "pid": "$$",
-    "action": "start",
-    "hostname": "$(hostname)",
-    "user": "$(whoami)"
-}
-EOF
-)
-    echo "$start_info" >> "${LOG_FILE}.json"
+# 清理历史日志文件
+cleanup_old_logs() {
+    local log_dir=$(dirname "$LOG_FILE")
+    local base_name=$(basename "$LOG_FILE" | cut -d. -f1)
+    local retention_days="${LOG_RETENTION_DAYS:-30}"
+    
+    log_info "开始清理 $retention_days 天前的日志文件" "log_cleanup"
+    
+    # 查找并删除过期的日志文件
+    local deleted_count=0
+    while IFS= read -r -d '' file; do
+        if [[ -f "$file" ]]; then
+            rm -f "$file"
+            deleted_count=$((deleted_count + 1))
+        fi
+    done < <(find "$log_dir" -name "${base_name}.*" -type f -mtime +$retention_days -print0 2>/dev/null)
+    
+    log_info "清理完成，删除了 $deleted_count 个过期日志文件" "log_cleanup"
 }
 
-# 记录脚本结束
-record_script_end() {
-    local end_info=$(cat <<EOF
-{
-    "timestamp": "$(date -Iseconds)",
-    "script_name": "$SCRIPT_NAME",
-    "script_version": "$SCRIPT_VERSION",
-    "pid": "$$",
-    "action": "end",
-    "exit_code": "${SCRIPT_EXIT_CODE:-0}",
-    "total_time": "${PERFORMANCE_TOTAL_TIME:-0}",
-    "current_step": "${SCRIPT_CURRENT_STEP:-unknown}",
-    "error_message": "${SCRIPT_ERROR_MESSAGE:-}"
-}
-EOF
-)
-    echo "$end_info" >> "${LOG_FILE}.json"
-}
 
-# 输出性能指标
-output_performance_metrics() {
-    log_info "=== 性能指标 ==="
-    log_info "总运行时间: ${PERFORMANCE_METRICS[TOTAL_TIME]}秒"
-    log_info "下载时间: ${PERFORMANCE_METRICS[DOWNLOAD_TIME]}秒"
-    log_info "安装时间: ${PERFORMANCE_METRICS[INSTALL_TIME]}秒"
-    log_info "配置时间: ${PERFORMANCE_METRICS[CONFIG_TIME]}秒"
-} 
+#=================================================
+# 命令行接口
+#=================================================
+
+# 如果直接运行此脚本
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    case "${1:-}" in
+        "init")
+            init_logging
+            ;;
+        "cleanup")
+            cleanup_old_logs
+            ;;
+        "test")
+            init_logging
+            log_debug "这是一条调试日志"
+            log_info "这是一条信息日志"
+            log_warning "这是一条警告日志"
+            log_error "这是一条错误日志"
+            log_critical "这是一条严重错误日志"
+            log_success "这是一条成功日志"
+            ;;
+        *)
+            echo "用法: $0 {init|cleanup|test}"
+            echo ""
+            echo "命令说明:"
+            echo "  init    - 初始化日志系统"
+            echo "  cleanup - 清理过期日志文件"
+            echo "  test    - 测试日志功能"
+            ;;
+    esac
+fi 

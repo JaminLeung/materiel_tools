@@ -17,7 +17,6 @@ source "$PROJECT_ROOT/core/logging.sh"
 # 测试临时文件
 TEMP_DIR=$(mktemp -d)
 TEST_LOG_FILE="$TEMP_DIR/test.log"
-TEST_JSON_LOG_FILE="$TEMP_DIR/test.json"
 
 # 测试前准备
 setup() {
@@ -25,14 +24,12 @@ setup() {
     export LOG_FILE="$TEST_LOG_FILE"
     export SCRIPT_NAME="test_script"
     export SCRIPT_VERSION="1.0.0"
-    export SCRIPT_EXIT_CODE="0"
     
     # 初始化日志系统
     init_logging
     
     # 清理测试文件
     rm -f "$TEST_LOG_FILE"
-    rm -f "$TEST_JSON_LOG_FILE"
 }
 
 # 测试后清理
@@ -87,22 +84,33 @@ test_log_functions() {
     assert_contains "$(cat "$TEST_LOG_FILE")" "SUCCESS" "日志文件应该包含SUCCESS级别"
 }
 
-# 测试日志格式
-test_log_format() {
+# 测试JSON日志格式
+test_json_log_format() {
     # 记录一条测试日志
-    log_info "测试日志格式"
+    log_info "测试JSON日志格式"
     
     # 检查日志格式
     local log_content=$(cat "$TEST_LOG_FILE")
+    
+    # 检查JSON格式
+    assert_contains "$log_content" '"timestamp"' "JSON日志应该包含timestamp字段"
+    assert_contains "$log_content" '"level"' "JSON日志应该包含level字段"
+    assert_contains "$log_content" '"message"' "JSON日志应该包含message字段"
+    assert_contains "$log_content" '"pid"' "JSON日志应该包含pid字段"
+    assert_contains "$log_content" '"script_name"' "JSON日志应该包含script_name字段"
+    assert_contains "$log_content" '"script_version"' "JSON日志应该包含script_version字段"
+    assert_contains "$log_content" '"hostname"' "JSON日志应该包含hostname字段"
+    assert_contains "$log_content" '"user"' "JSON日志应该包含user字段"
+    assert_contains "$log_content" '"context"' "JSON日志应该包含context字段"
     
     # 检查时间戳格式
     assert_contains "$log_content" "$(date '+%Y-%m-%d')" "日志应该包含当前日期"
     
     # 检查日志级别
-    assert_contains "$log_content" "[INFO]" "日志应该包含INFO级别标记"
+    assert_contains "$log_content" '"level": "INFO"' "日志应该包含INFO级别"
     
     # 检查消息内容
-    assert_contains "$log_content" "测试日志格式" "日志应该包含消息内容"
+    assert_contains "$log_content" '"message": "测试JSON日志格式"' "日志应该包含消息内容"
 }
 
 # 测试日志级别过滤
@@ -155,60 +163,21 @@ test_log_file_creation() {
     chmod 755 "$readonly_dir"
 }
 
-# 测试脚本启动记录
-test_script_start_record() {
-    # 设置JSON日志文件
-    export LOG_FILE="$TEST_JSON_LOG_FILE"
-    source ../../core/logging.sh
+# 测试日志系统初始化
+test_log_system_init() {
+    # 清理日志文件
+    rm -f "$TEST_LOG_FILE"
     
-    # 记录脚本启动
-    record_script_start
+    # 重新初始化日志系统
+    init_logging
     
-    # 检查JSON日志文件
-    assert_file_exists "$TEST_JSON_LOG_FILE.json" "JSON日志文件应该被创建"
+    # 检查日志文件是否被创建
+    assert_file_exists "$TEST_LOG_FILE" "初始化后日志文件应该被创建"
     
-    # 检查JSON格式
-    local json_content=$(cat "$TEST_JSON_LOG_FILE.json")
-    assert_contains "$json_content" "timestamp" "JSON应该包含timestamp字段"
-    assert_contains "$json_content" "script_name" "JSON应该包含script_name字段"
-    assert_contains "$json_content" "script_version" "JSON应该包含script_version字段"
-    assert_contains "$json_content" "action" "JSON应该包含action字段"
-    assert_contains "$json_content" "start" "action字段应该是start"
-}
-
-# 测试脚本结束记录
-test_script_end_record() {
-    # 设置JSON日志文件
-    export LOG_FILE="$TEST_JSON_LOG_FILE"
-    export SCRIPT_EXIT_CODE="0"
-    source ../../core/logging.sh
-    
-    # 记录脚本结束
-    record_script_end
-    
-    # 检查JSON日志文件
-    assert_file_exists "$TEST_JSON_LOG_FILE.json" "JSON日志文件应该被创建"
-    
-    # 检查JSON格式
-    local json_content=$(cat "$TEST_JSON_LOG_FILE.json")
-    assert_contains "$json_content" "timestamp" "JSON应该包含timestamp字段"
-    assert_contains "$json_content" "script_name" "JSON应该包含script_name字段"
-    assert_contains "$json_content" "script_version" "JSON应该包含script_version字段"
-    assert_contains "$json_content" "action" "JSON应该包含action字段"
-    assert_contains "$json_content" "end" "action字段应该是end"
-    assert_contains "$json_content" "exit_code" "JSON应该包含exit_code字段"
-}
-
-# 测试日志轮转
-test_log_rotation() {
-    # 创建大量日志内容
-    for i in {1..100}; do
-        log_info "测试日志条目 $i"
-    done
-    
-    # 检查日志文件大小
-    local file_size=$(stat -f%z "$TEST_LOG_FILE" 2>/dev/null || stat -c%s "$TEST_LOG_FILE" 2>/dev/null || echo "0")
-    assert_true "[ $file_size -gt 0 ]" "日志文件应该有内容"
+    # 检查初始化日志记录
+    local log_content=$(cat "$TEST_LOG_FILE")
+    assert_contains "$log_content" "日志系统初始化完成" "应该记录初始化完成信息"
+    assert_contains "$log_content" '"action": "logging_init"' "应该包含初始化动作标识"
 }
 
 # 测试并发日志写入
@@ -246,37 +215,59 @@ test_special_characters() {
     assert_contains "$log_content" "中文日志" "日志应该包含中文"
 }
 
-# 测试日志性能
-# test_log_performance() {
-#     local start_time=$(date +%s)
-    
-#     # 记录大量日志
-#     for i in {1..1000}; do
-#         log_info "性能测试日志 $i"
-#     done
-    
-#     local end_time=$(date +%s)
-#     local duration=$((end_time - start_time))
-    
-#     # 检查性能（应该在合理时间内完成）
-#     assert_true "[ $duration -lt 10 ]" "1000条日志应该在10秒内完成"
-# }
-
 # 测试环境变量依赖
 test_environment_variables() {
     # 测试缺少环境变量的情况
     unset SCRIPT_NAME
     unset SCRIPT_VERSION
     
-    # 记录脚本启动（应该不会失败）
-    record_script_start
+    # 记录一条日志（应该不会失败）
+    log_info "测试缺少环境变量的情况"
     
-    # 检查JSON日志文件
-    assert_file_exists "$TEST_JSON_LOG_FILE.json" "缺少环境变量时JSON日志文件仍应该被创建"
+    # 检查日志文件
+    assert_file_exists "$TEST_LOG_FILE" "缺少环境变量时日志文件仍应该被创建"
     
     # 恢复环境变量
     export SCRIPT_NAME="test_script"
     export SCRIPT_VERSION="1.0.0"
+}
+
+# 测试日志级别控制函数
+test_log_level_control() {
+    # 测试设置日志级别函数
+    set_log_level "DEBUG"
+    assert_equal "$CURRENT_LOG_LEVEL" "0" "set_log_level应该能设置DEBUG级别"
+    
+    set_log_level "ERROR"
+    assert_equal "$CURRENT_LOG_LEVEL" "3" "set_log_level应该能设置ERROR级别"
+    
+    # 测试无效级别
+    local result
+    result=$(set_log_level "INVALID" 2>&1)
+    assert_not_equal "$?" "0" "无效日志级别应该返回错误"
+    
+    # 恢复默认级别
+    set_log_level "INFO"
+}
+
+# 测试工具函数
+test_utility_functions() {
+    # 测试获取日志级别数值
+    local debug_num=$(get_log_level_num "DEBUG")
+    assert_equal "$debug_num" "0" "DEBUG级别应该对应数值0"
+    
+    local info_num=$(get_log_level_num "INFO")
+    assert_equal "$info_num" "1" "INFO级别应该对应数值1"
+    
+    local warning_num=$(get_log_level_num "WARNING")
+    assert_equal "$warning_num" "2" "WARNING级别应该对应数值2"
+    
+    # 测试获取日志颜色
+    local debug_color=$(get_log_color "DEBUG")
+    assert_not_equal "$debug_color" "" "DEBUG级别应该有颜色"
+    
+    local info_color=$(get_log_color "INFO")
+    assert_not_equal "$info_color" "" "INFO级别应该有颜色"
 }
 
 # 运行测试
