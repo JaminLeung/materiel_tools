@@ -42,7 +42,7 @@ configure_and_verify() {
             return 1
         else
             log_success "配置回退成功"
-            dataway_log "info" "配置回退成功"
+            log_info "配置回退成功"
             return 0
         fi
 
@@ -52,7 +52,7 @@ configure_and_verify() {
     fi
     
     log_success "配置完成"
-    dataway_log "info" "配置完成"
+    log_info "配置完成"
     return 0
 }
 
@@ -162,7 +162,7 @@ configure_datakit_main_config() {
     fi
     
     log_success "Datakit主配置文件配置完成"
-    dataway_log "info" "Datakit主配置文件配置完成"
+    log_info "Datakit主配置文件配置完成"
     return 0
 }
 
@@ -314,7 +314,7 @@ EOF
 EOF
 
     log_success "采集器配置完成"
-    dataway_log "info" "采集器配置完成"
+    log_info "采集器配置完成"
     return 0
 }
 

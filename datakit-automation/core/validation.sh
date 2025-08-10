@@ -492,7 +492,7 @@ verify_installation() {
     
     if [ "$verification_passed" = true ]; then
         log_success "=== 所有验证项通过 ==="
-        dataway_log "info" "Datakit安装验证通过: 所有6项检查均通过"
+        log_info "Datakit安装验证通过: 所有6项检查均通过"
         return 0
     else
         log_error "=== 部分验证项失败 ==="

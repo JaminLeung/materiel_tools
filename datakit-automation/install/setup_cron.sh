@@ -79,7 +79,7 @@ EOF
         log_info "日志文件: /opt/datakit/config_update.log, /opt/datakit/health_check.log, /opt/datakit/app_init.log"
         log_info "锁文件: /var/run/config_update.lock, /var/run/datakit_health_check.lock, /var/run/app_init.lock"
         log_info "使用 utils.sh 中的 execute_cron_wrapper 函数"
-        dataway_log "info" "定时任务设置成功: config_update.sh(15分钟), health_check.sh(5分钟), app_init.sh(10分钟)"
+        log_info "定时任务设置成功: config_update.sh(15分钟), health_check.sh(5分钟), app_init.sh(10分钟)"
     else
         handle_error "COMMAND_ERROR" "定时任务设置失败" "ERROR" "false"
         dataway_log "error" "定时任务设置失败"
@@ -93,6 +93,6 @@ EOF
     systemctl reload crond 2>/dev/null || systemctl reload cron 2>/dev/null || true
     
     log_success "定时任务设置完成"
-    dataway_log "info" "定时任务设置完成"
+    log_info "定时任务设置完成"
     return 0
 } 

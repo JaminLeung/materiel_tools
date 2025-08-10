@@ -10,6 +10,8 @@
 # 常量定义
 #=================================================
 
+
+# TODO 去掉颜色
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -71,6 +73,7 @@ generate_structured_log() {
     local hostname=$(hostname 2>/dev/null || echo "unknown")
     local user=$(whoami 2>/dev/null || echo "unknown")
     
+    # TODO 日志格式改为一行
     local json_log=$(cat <<EOF
 {
     "timestamp": "$timestamp",

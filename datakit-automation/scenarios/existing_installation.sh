@@ -2,7 +2,6 @@
 
 #=================================================
 # Datakit 存量安装场景脚本
-# 版本: 2.0.0
 # 描述: 已运行但未安装Datakit的主机安装场景
 #=================================================
 
@@ -12,6 +11,7 @@ set -e
 readonly SCENARIO_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCENARIO_PROJECT_ROOT="$(cd "$SCENARIO_SCRIPT_DIR/.." && pwd)"
 
+# TODO 所有环境变量导入使用 loader.sh
 # 配置加载函数
 load_scenario_config() {
     # 检查是否通过installer.sh调用，如果是则配置已加载
@@ -76,18 +76,6 @@ source "$SCENARIO_PROJECT_ROOT/install/configure.sh"
 source "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
 # source "$SCENARIO_PROJECT_ROOT/install/verify.sh"
 
-#=================================================
-# 全局状态变量
-#=================================================
-# 用于跟踪安装过程中的状态信息
-declare -A INSTALLATION_STATE
-INSTALLATION_STATE["start_time"]=$(date +%s)      # 安装开始时间
-INSTALLATION_STATE["current_step"]=""              # 当前执行步骤
-INSTALLATION_STATE["failed_step"]=""               # 失败的步骤（如果有）
-
-
-
-
 
 # 存量安装场景主函数
 # 功能: 执行Datakit存量安装的完整流程
@@ -102,12 +90,11 @@ execute_existing_installation() {
     log_info "开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
     
     # 记录脚本启动到Dataway
-    dataway_log "info" "开始Datakit存量安装: 场景=existing_installation"
+    log_info "开始Datakit存量安装: 场景=existing_installation"
     
     #=================================================
     # 步骤1: 检查安装状态 (致命错误 - 直接退出程序)
     #=================================================
-    INSTALLATION_STATE["current_step"]="status_check"
     log_info "步骤1: 检查安装状态..."
     if ! check_installation_status; then
         dataway_log "error" "不符合安装条件，退出安装"
@@ -118,7 +105,6 @@ execute_existing_installation() {
     #=================================================
     # 步骤2: 设置资源限制 (致命错误 - 直接退出程序)
     #=================================================
-    INSTALLATION_STATE["current_step"]="resource_limit"
     log_info "步骤2: 设置资源限制..."
     if ! set_resource_limits; then
         dataway_log "error" "资源限制设置失败，请检查机器规格"
@@ -129,7 +115,6 @@ execute_existing_installation() {
     #=================================================
     # 步骤3: 下载安装包 (致命错误 - 直接退出程序)
     #=================================================
-    # INSTALLATION_STATE["current_step"]="download"
     # log_info "步骤3: 下载安装包..."
     # if ! download_packages; then
     #     dataway_log "error" "下载任务失败，退出安装"
@@ -140,7 +125,6 @@ execute_existing_installation() {
     #=================================================
     # 步骤4: 获取主机信息 (非致命错误 - 退出函数)
     #=================================================
-    INSTALLATION_STATE["current_step"]="host_info"
     log_info "步骤4: 获取主机信息..."
     if ! get_host_info; then
         dataway_log "error" "获取主机信息失败，退出安装"
@@ -152,7 +136,6 @@ execute_existing_installation() {
     #=================================================
     # 步骤5: 执行安装 (致命错误 - 直接退出程序)
     #=================================================
-    INSTALLATION_STATE["current_step"]="install"
     log_info "步骤5: 执行安装..."
     if ! install_components; then
         dataway_log "error" "安装失败，退出安装"
@@ -163,7 +146,6 @@ execute_existing_installation() {
     #=================================================
     # 步骤6: 配置和验证 (非致命错误 - 退出函数)
     #=================================================
-    INSTALLATION_STATE["current_step"]="configure"
     log_info "步骤6: 配置和验证..."
     if ! configure_and_verify; then
         dataway_log "error" "配置和验证失败，退出安装"
@@ -175,8 +157,7 @@ execute_existing_installation() {
     #=================================================
     # 步骤7: 设置定时任务 (非致命错误 - 退出函数)
     #=================================================
-    INSTALLATION_STATE["current_step"]="setup_cron"
-    log_info "步骤7: 设置定时任务..."
+\    log_info "步骤7: 设置定时任务..."
     if ! setup_cron_jobs; then
         dataway_log "error" "设置定时任务失败，退出安装"
         handle_error "COMMAND_ERROR" "设置定时任务失败，退出安装" "ERROR" "false"
@@ -187,7 +168,6 @@ execute_existing_installation() {
     #=================================================
     # 步骤8: 验证安装结果 (非致命错误 - 退出函数)
     #=================================================
-    INSTALLATION_STATE["current_step"]="verify"
     log_info "步骤8: 验证安装结果..."
     if ! verify_installation; then
         dataway_log "error" "安装验证失败，退出安装"
@@ -208,7 +188,7 @@ execute_existing_installation() {
     log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
     
     # 记录成功信息到Dataway
-    dataway_log "info" "Datakit存量安装完成: 耗时=${duration}秒"
+    log_info "Datakit存量安装完成: 耗时=${duration}秒"
     
     return 0
 }
