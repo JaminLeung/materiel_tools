@@ -17,7 +17,7 @@ log_info() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $1${NC}"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1${NC}"
 }
 
@@ -55,7 +55,7 @@ check_system_requirements() {
         fi
     done
     
-    log_success "系统要求检查通过"
+    log_info "系统要求检查通过"
 }
 
 # 检查AWS CLI是否已安装
@@ -103,7 +103,7 @@ download_aws_cli() {
         exit 1
     fi
     
-    log_success "AWS CLI下载完成: ${file_size} bytes"
+    log_info "AWS CLI下载完成: ${file_size} bytes"
     
     # 解压安装包
     log_info "解压AWS CLI安装包..."
@@ -126,7 +126,7 @@ download_aws_cli() {
     # 验证安装
     if command -v aws >/dev/null 2>&1; then
         local aws_version=$(aws --version 2>/dev/null | head -n1)
-        log_success "AWS CLI安装成功: $aws_version"
+        log_info "AWS CLI安装成功: $aws_version"
     else
         log_error "AWS CLI安装验证失败"
         cd /
@@ -138,7 +138,7 @@ download_aws_cli() {
     cd /
     rm -rf "$temp_dir"
     
-    log_success "AWS CLI安装完成"
+    log_info "AWS CLI安装完成"
 }
 
 # 配置AWS CLI
@@ -164,7 +164,7 @@ EOF
     # 设置权限
     chmod 600 ~/.aws/config
     
-    log_success "AWS CLI配置完成"
+    log_info "AWS CLI配置完成"
     log_info "请使用 'aws configure' 命令配置您的AWS凭证"
 }
 
@@ -220,7 +220,7 @@ main() {
     # 配置AWS CLI
     configure_aws_cli
     
-    log_success "AWS CLI安装和配置完成"
+    log_info "AWS CLI安装和配置完成"
     log_info "使用 'aws --version' 验证安装"
     log_info "使用 'aws configure' 配置凭证"
 }

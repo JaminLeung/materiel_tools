@@ -24,7 +24,7 @@ log_info() {
     echo -e "${BLUE}[INFO]${NC} $*"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[SUCCESS]${NC} $*"
 }
 
@@ -159,7 +159,7 @@ test_core_modules() {
         assert_function_exists "log_info" "logging_log_info_function" "log_info函数应该存在"
         assert_function_exists "log_error" "logging_log_error_function" "log_error函数应该存在"
         assert_function_exists "log_warning" "logging_log_warning_function" "log_warning函数应该存在"
-        assert_function_exists "log_success" "logging_log_success_function" "log_success函数应该存在"
+        assert_function_exists "log_info" "logging_log_info_function" "log_info函数应该存在"
     fi
     
     # 加载utils模块

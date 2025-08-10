@@ -15,7 +15,7 @@ log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
@@ -36,7 +36,7 @@ test_cgroup_detection() {
     log_info "1. 检查cgroup挂载点"
     local cgroup_mounts=$(mount | grep -E "cgroup|cgroup2" | awk '{print $3}' | sort -u)
     if [ -n "$cgroup_mounts" ]; then
-        log_success "检测到cgroup挂载点: $cgroup_mounts"
+        log_info "检测到cgroup挂载点: $cgroup_mounts"
     else
         log_warning "未检测到cgroup挂载点"
     fi
@@ -46,7 +46,7 @@ test_cgroup_detection() {
     log_info "2. 检查cgroup文件系统类型"
     local cgroup_fs=$(mount | grep -E "cgroup|cgroup2" | awk '{print $5}' | sort -u)
     if [ -n "$cgroup_fs" ]; then
-        log_success "cgroup文件系统类型: $cgroup_fs"
+        log_info "cgroup文件系统类型: $cgroup_fs"
     else
         log_warning "未检测到cgroup文件系统"
     fi
@@ -55,7 +55,7 @@ test_cgroup_detection() {
     # 3. 检查cgroup v2
     log_info "3. 检查cgroup v2支持"
     if [ -d "/sys/fs/cgroup/unified" ] || ([ -d "/sys/fs/cgroup" ] && [ -f "/sys/fs/cgroup/cgroup.controllers" ]); then
-        log_success "检测到cgroup v2支持"
+        log_info "检测到cgroup v2支持"
         if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
             local controllers=$(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null | tr '\n' ' ')
             log_info "v2控制器: $controllers"
@@ -79,7 +79,7 @@ test_cgroup_detection() {
     fi
     
     if [ -n "$v1_controllers" ]; then
-        log_success "检测到cgroup v1控制器: $v1_controllers"
+        log_info "检测到cgroup v1控制器: $v1_controllers"
     else
         log_warning "未检测到cgroup v1控制器"
     fi
@@ -88,7 +88,7 @@ test_cgroup_detection() {
     # 5. 检查systemd cgroup
     log_info "5. 检查systemd cgroup"
     if [ -d "/sys/fs/cgroup/systemd" ]; then
-        log_success "检测到systemd cgroup"
+        log_info "检测到systemd cgroup"
         if systemctl --version >/dev/null 2>&1; then
             local systemd_cgroup=$(systemctl show --property=ControlGroup | cut -d'=' -f2)
             log_info "systemd cgroup路径: $systemd_cgroup"
@@ -101,7 +101,7 @@ test_cgroup_detection() {
     # 6. 检查legacy cgroup
     log_info "6. 检查legacy cgroup"
     if [ -d "/cgroup" ]; then
-        log_success "检测到legacy cgroup路径: /cgroup"
+        log_info "检测到legacy cgroup路径: /cgroup"
         if [ -d "/cgroup/cpu" ]; then
             log_info "Legacy CPU控制器: 可用"
         fi
@@ -117,7 +117,7 @@ test_cgroup_detection() {
     log_info "7. 检查cgroup权限"
     local cgroup_root="/sys/fs/cgroup"
     if [ -w "$cgroup_root" ]; then
-        log_success "有cgroup目录的写权限: $cgroup_root"
+        log_info "有cgroup目录的写权限: $cgroup_root"
     else
         log_warning "没有cgroup目录的写权限: $cgroup_root"
     fi
@@ -166,7 +166,7 @@ test_cgroup_detection() {
     fi
     
     if [ "$detected_version" != "none" ]; then
-        log_success "检测到的cgroup版本: $detected_version"
+        log_info "检测到的cgroup版本: $detected_version"
         log_info "cgroup根目录: $detected_root"
     else
         log_error "未检测到cgroup支持"

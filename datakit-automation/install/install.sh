@@ -10,6 +10,7 @@ install_components() {
     log_info "执行安装 ==="
     
     # 解压bundle文件
+    # TODO 去掉 dataway_log
     if ! extract_bundle_file; then
         handle_error "FILE_ERROR" "解压bundle文件任务失败" "ERROR" "false"
         dataway_log "error" "解压bundle文件任务失败"
@@ -29,7 +30,6 @@ install_components() {
         return 1
     fi
     
-    log_success "组件安装完成"
     log_info "组件安装完成"
     return 0
 }
@@ -63,7 +63,7 @@ extract_bundle_file() {
         fi
     done
     
-    log_success "Bundle文件解压完成，所有文件准备就绪"
+    log_info "Bundle文件解压完成，所有文件准备就绪"
     return 0
 }
 
@@ -139,7 +139,7 @@ EOF
     
     while [ $check_count -lt $max_checks ]; do
         if systemctl is-active --quiet node_exporter; then
-            log_success "Node Exporter安装成功"
+            log_info "Node Exporter安装成功"
             log_info "Node Exporter安装成功"
             return 0
         else
@@ -202,7 +202,7 @@ install_datakit() {
     
     while [ $check_count -lt $max_checks ]; do
         if systemctl is-active --quiet datakit; then
-            log_success "Datakit启动成功"
+            log_info "Datakit启动成功"
             log_info "Datakit启动成功"
             return 0
         fi

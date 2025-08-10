@@ -87,8 +87,8 @@ execute_incremental_installation() {
     # 步骤6: 健康检查
     perform_health_check
     
-    if command -v log_success >/dev/null 2>&1; then
-        log_success "增量安装完成"
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "增量安装完成"
     else
         echo "[SUCCESS] 增量安装完成"
     fi

@@ -16,7 +16,7 @@ log_info() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $1${NC}"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1${NC}"
 }
 
@@ -97,7 +97,7 @@ echo "AWS期望的哈希: $AWS_EXPECTED_CANONICAL_HASH"
 echo "我们计算的哈希: $OUR_CANONICAL_HASH"
 
 if [ "$AWS_EXPECTED_CANONICAL_HASH" = "$OUR_CANONICAL_HASH" ]; then
-    log_success "✅ Canonical Request 哈希匹配！"
+    log_info "✅ Canonical Request 哈希匹配！"
 else
     log_error "❌ Canonical Request 哈希不匹配！"
     

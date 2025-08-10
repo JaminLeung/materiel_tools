@@ -107,8 +107,8 @@ execute_version_upgrade() {
     # 步骤9: 健康检查
     perform_health_check
     
-    if command -v log_success >/dev/null 2>&1; then
-        log_success "版本更新完成"
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "版本更新完成"
     else
         echo "[SUCCESS] 版本更新完成"
     fi
@@ -197,8 +197,8 @@ verify_upgrade() {
     local target_version="${CONFIG[DATAKIT_VERSION]:-}"
     
     if [[ "$new_version" == "$target_version" ]]; then
-        if command -v log_success >/dev/null 2>&1; then
-            log_success "版本升级成功: $new_version"
+        if command -v log_info >/dev/null 2>&1; then
+            log_info "版本升级成功: $new_version"
         else
             echo "[SUCCESS] 版本升级成功: $new_version"
         fi

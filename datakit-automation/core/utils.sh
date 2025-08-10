@@ -123,7 +123,7 @@ safe_execute() {
     
     log_info "$description: $cmd"
     if eval "$cmd"; then
-        log_success "$description 成功"
+        log_info "$description 成功"
         clear_error_context
         return 0
     else
@@ -147,7 +147,7 @@ retry_execute() {
     while [ $attempt -le $max_attempts ]; do
         log_info "$description (尝试 $attempt/$max_attempts)"
         if eval "$cmd"; then
-            log_success "$description 成功"
+            log_info "$description 成功"
             clear_error_context
             return 0
         else
@@ -176,7 +176,7 @@ timeout_execute() {
     log_info "$description (超时: ${timeout}秒)"
     
     if timeout "$timeout" bash -c "$cmd"; then
-        log_success "$description 成功"
+        log_info "$description 成功"
         clear_error_context
         return 0
     else
@@ -236,7 +236,7 @@ create_backup() {
     
     if cp -r "$source_path" "$backup_path"; then
         SCRIPT_STATE["BACKUP_CREATED"]="true"
-        log_success "备份创建成功: $backup_path"
+        log_info "备份创建成功: $backup_path"
         
         # 清理旧备份
         cleanup_old_backups "$backup_name"
@@ -257,7 +257,7 @@ cleanup_old_backups() {
     if [[ -n "$old_backups" ]]; then
         log_info "清理旧备份..."
         echo "$old_backups" | xargs rm -rf
-        log_success "旧备份清理完成"
+        log_info "旧备份清理完成"
     fi
 }
 
@@ -323,7 +323,7 @@ get_host_ip() {
     
     # 设置全局状态
     set_global_state "HOST_IP" "$host_ip"
-    log_success "获取到本机IP地址: $host_ip"
+    log_info "获取到本机IP地址: $host_ip"
     return 0
 }
 
@@ -461,7 +461,7 @@ get_ops_config() {
                 if [ -n "$datakit_config" ] && [ "$datakit_config" != "null" ]; then
                     # 设置Datakit配置到全局状态
                     set_global_state "DATAKIT_CONFIG" "$datakit_config"
-                    log_success "获取Datakit配置成功"
+                    log_info "获取Datakit配置成功"
                 else
                     record_error "CONFIG_ERROR" "响应中未包含Datakit配置，使用默认配置" "WARNING"
                     # 设置默认Datakit配置
@@ -469,7 +469,7 @@ get_ops_config() {
                     set_global_state "DATAKIT_CONFIG" "$default_datakit_config"
                 fi
                 
-                log_success "获取运维平台配置成功"
+                log_info "获取运维平台配置成功"
                 log_info "环境: $env"
                 log_info "工作空间: $workspace"
                 log_info "全局标签: $global_tags"
@@ -494,13 +494,11 @@ get_host_info() {
     log_info "获取主机信息..."
     # 执行get_ops_config函数
     if get_ops_config; then
-        log_success "主机信息验证成功"
+        log_info "主机信息验证成功"
         return 0
     else
         record_error "API_ERROR" "获取运维平台配置失败，使用默认配置" "WARNING"
         log_warning "获取运维平台配置失败，使用默认配置"
-        
-
         
         # 使用缺省配置逻辑
         local dataway_url="${DATAWAY_LOG_URL:-${DATAWAY_URL:-${CONFIG_UPDATE_DATAWAY_URL:-}}}"
@@ -551,7 +549,7 @@ get_global_state() {
 #         return 1
 #     fi
     
-#     log_success "全局状态验证通过"
+#     log_info "全局状态验证通过"
 #     return 0
 # } 
 
@@ -596,7 +594,7 @@ cleanup_old_backup_dirs() {
         done
     fi
     
-    log_success "旧备份目录清理完成"
+    log_info "旧备份目录清理完成"
 }
 
 # =============================================================================
@@ -693,7 +691,7 @@ download_from_s3_with_curl() {
         # 检查文件大小，确保下载成功
         local file_size=$(stat -c%s "$local_path" 2>/dev/null || stat -f%z "$local_path" 2>/dev/null)
         if [ "$file_size" -gt 0 ]; then
-            log_success "文件下载成功: $local_path (${file_size} bytes)"
+            log_info "文件下载成功: $local_path (${file_size} bytes)"
             return 0
         else
             handle_error "NETWORK_ERROR" "下载的文件为空: $key" "ERROR" "false"
@@ -723,7 +721,7 @@ download_from_s3_with_retry() {
         log_info "下载尝试 $attempt/$max_attempts: $key"
         
         if download_from_s3_with_curl "$bucket" "$key" "$local_path"; then
-            log_success "下载成功: $key"
+            log_info "下载成功: $key"
             return 0
         fi
         
@@ -752,7 +750,7 @@ verify_file_md5() {
     local actual_md5=$(md5sum "$file_path" | awk '{print $1}')
     
     if [ "$expected_md5" = "$actual_md5" ]; then
-        log_success "MD5验证成功: $file_path"
+        log_info "MD5验证成功: $file_path"
         return 0
     else
         handle_error "VALIDATION_ERROR" "MD5验证失败: $file_path" "ERROR" "false"
@@ -784,7 +782,7 @@ extract_package() {
     case "$package_path" in
         *.tar.gz|*.tgz)
             if tar -xzf "$package_path"; then
-                log_success "解压成功: $package_path"
+                log_info "解压成功: $package_path"
                 return 0
             else
                 handle_error "FILE_ERROR" "解压失败: $package_path" "ERROR" "false"
@@ -793,7 +791,7 @@ extract_package() {
             ;;
         *.tar)
             if tar -xf "$package_path"; then
-                log_success "解压成功: $package_path"
+                log_info "解压成功: $package_path"
                 return 0
             else
                 handle_error "FILE_ERROR" "解压失败: $package_path" "ERROR" "false"
@@ -802,7 +800,7 @@ extract_package() {
             ;;
         *.zip)
             if unzip -q "$package_path"; then
-                log_success "解压成功: $package_path"
+                log_info "解压成功: $package_path"
                 return 0
             else
                 handle_error "FILE_ERROR" "解压失败: $package_path" "ERROR" "false"
@@ -841,7 +839,7 @@ install_tools() {
         log_info "yj工具安装完成"
     fi
     
-    log_success "工具安装完成"
+    log_info "工具安装完成"
 }
 
 # 检查必需的工具
@@ -862,7 +860,7 @@ check_required_tools() {
         return 1
     fi
     
-    log_success "所有必需工具检查通过"
+    log_info "所有必需工具检查通过"
     return 0
 }
 
@@ -886,7 +884,7 @@ create_package_backup() {
     
     # 执行备份
     if cp -r "$source_path" "$backup_path"; then
-        log_success "备份创建成功: $backup_path"
+        log_info "备份创建成功: $backup_path"
         return 0
     else
         handle_error "BACKUP_ERROR" "备份创建失败: $source_path" "ERROR" "false"
@@ -901,7 +899,7 @@ cleanup_package_temp_files() {
     if [ -n "$temp_dir" ] && [ -d "$temp_dir" ]; then
         log_info "清理临时文件: $temp_dir"
         rm -rf "$temp_dir"
-        log_success "临时文件清理完成"
+        log_info "临时文件清理完成"
     fi
 }
 
@@ -974,26 +972,9 @@ get_machine_specs() {
         return 1
     fi
     
-    log_success "资源限制验证通过: CPU=${cpu_limit}C, 内存=${memory_limit}MB"
+    log_info "资源限制验证通过: CPU=${cpu_limit}C, 内存=${memory_limit}MB"
     return 0
     
-}
-
-
- set_resource_limits() {
-    log_info "=== 设置资源限制 ==="
-    
-    # 获取机器规格并设置资源限制
-    if ! get_machine_specs; then
-        handle_error "RESOURCE_ERROR" "获取机器规格失败" "ERROR" "false"
-        dataway_log "error" "获取机器规格失败"
-        return 1
-    fi
-    
-    
-    log_success "资源限制设置完成"
-    log_info "资源限制设置完成"
-    return 0
 }
 
 # =============================================================================
@@ -1042,7 +1023,7 @@ update_toml_config() {
         log_info "原文件不存在，无需备份"
     fi
     safe_execute "echo '$json_data' | yj -jt > '$toml_file'" "更新配置文件" || return 1
-    log_success "配置文件更新成功: $toml_file"
+    log_info "配置文件更新成功: $toml_file"
     log_info "备份文件: $backup_file"
     return 0
 }
@@ -1143,7 +1124,7 @@ load_config_file() {
         fi
     done
     
-    log_success "配置文件加载完成: $config_file"
+    log_info "配置文件加载完成: $config_file"
     return 0
 }
 
@@ -1240,7 +1221,7 @@ validate_required_config() {
         return 1
     fi
     
-    log_success "所有必需配置项验证通过"
+    log_info "所有必需配置项验证通过"
     return 0
 }
 
@@ -1274,7 +1255,7 @@ generate_config_template() {
         return 1
     }
     
-    log_success "配置模板已生成: $output_file"
+    log_info "配置模板已生成: $output_file"
     return 0
 } 
 

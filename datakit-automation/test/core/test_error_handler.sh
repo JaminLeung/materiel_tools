@@ -43,7 +43,7 @@ run_test() {
     log_info "运行测试: $test_name"
     
     if "$test_function"; then
-        log_success "测试通过: $test_name"
+        log_info "测试通过: $test_name"
         TEST_PASSED=$((TEST_PASSED + 1))
         return 0
     else
@@ -78,7 +78,7 @@ test_error_codes_definition() {
         return 1
     fi
     
-    log_success "错误代码定义测试通过"
+    log_info "错误代码定义测试通过"
     return 0
 }
 
@@ -112,7 +112,7 @@ test_error_severity_definition() {
         return 1
     fi
     
-    log_success "错误严重程度定义测试通过"
+    log_info "错误严重程度定义测试通过"
     return 0
 }
 
@@ -126,7 +126,7 @@ test_error_handler_init() {
         return 1
     fi
     
-    log_success "错误处理器初始化测试通过"
+    log_info "错误处理器初始化测试通过"
     return 0
 }
 
@@ -152,7 +152,7 @@ test_record_error() {
         return 1
     fi
     
-    log_success "记录错误函数测试通过"
+    log_info "记录错误函数测试通过"
     return 0
 }
 
@@ -172,7 +172,7 @@ test_handle_error() {
         return 1
     fi
     
-    log_success "标准错误处理函数测试通过"
+    log_info "标准错误处理函数测试通过"
     return 0
 }
 
@@ -198,7 +198,7 @@ EOF
     fi
     
     rm -f "$temp_script"
-    log_success "die函数测试通过"
+    log_info "die函数测试通过"
     return 0
 }
 
@@ -218,7 +218,7 @@ test_check_error() {
         return 1
     fi
     
-    log_success "错误检查函数测试通过"
+    log_info "错误检查函数测试通过"
     return 0
 }
 
@@ -265,7 +265,7 @@ test_cleanup_temp_files() {
         fi
     done
     
-    log_success "清理临时文件函数测试通过"
+    log_info "清理临时文件函数测试通过"
     return 0
 }
 
@@ -314,7 +314,7 @@ test_cleanup_log_files() {
         return 1
     fi
     
-    log_success "清理日志文件函数测试通过"
+    log_info "清理日志文件函数测试通过"
     return 0
 }
 
@@ -328,7 +328,7 @@ test_cleanup_on_exit() {
         return 1
     fi
     
-    log_success "退出清理函数测试通过"
+    log_info "退出清理函数测试通过"
     return 0
 }
 
@@ -357,7 +357,7 @@ EOF
     fi
     
     rm -f "$temp_script"
-    log_success "信号处理函数测试通过"
+    log_info "信号处理函数测试通过"
     return 0
 }
 
@@ -381,7 +381,7 @@ test_error_code_mapping() {
         return 1
     fi
     
-    log_success "错误代码映射测试通过"
+    log_info "错误代码映射测试通过"
     return 0
 }
 
@@ -426,7 +426,7 @@ main() {
         done
         return 1
     else
-        log_success "所有单元测试通过！"
+        log_info "所有单元测试通过！"
         return 0
     fi
 }

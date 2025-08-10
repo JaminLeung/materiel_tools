@@ -22,7 +22,7 @@ setup() {
     # 模拟日志函数（如果不存在）
     if ! command -v log_info >/dev/null 2>&1; then
         log_info() { echo "[INFO] $1"; }
-        log_success() { echo "[SUCCESS] $1"; }
+        log_info() { echo "[SUCCESS] $1"; }
         log_error() { echo "[ERROR] $1"; }
         log_warning() { echo "[WARNING] $1"; }
     fi

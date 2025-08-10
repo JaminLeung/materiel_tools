@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #=================================================
-# 步骤6: 配置和验证
+# 配置和验证
 #=================================================
 # 功能: 配置Datakit、采集器、定时任务、验证安装
 #=================================================
@@ -25,10 +25,18 @@ configure_and_verify() {
     fi
     
     # 重启Datakit
+    # TODO restart_datakit 提取单独封装
     if ! restart_datakit; then
         handle_error "SERVICE_ERROR" "重启Datakit失败，回退配置" "ERROR" "false"
         dataway_log "error" "重启Datakit失败，回退配置"
 
+        # 1、获取 ops 配置，写到一个目录里
+        # 2、将 datakit 已有的配置与 ops 的对比
+            # - 有差异：备份整个 datakit 相关配置
+            # /var/datakit/backup/20151001/
+            # 保留最近 30 个版本
+
+        # TODO 备份统一处理
         # 备份失败的配置文件
         mv "$datakit_conf" "$datakit_conf.backup.$Date.failed"
 
@@ -41,17 +49,14 @@ configure_and_verify() {
             dataway_log "error" "重启Datakit失败"
             return 1
         else
-            log_success "配置回退成功"
             log_info "配置回退成功"
             return 0
         fi
 
         return 1
 
-
     fi
     
-    log_success "配置完成"
     log_info "配置完成"
     return 0
 }
@@ -161,7 +166,7 @@ configure_datakit_main_config() {
         return 1
     fi
     
-    log_success "Datakit主配置文件配置完成"
+    log_info "Datakit主配置文件配置完成"
     log_info "Datakit主配置文件配置完成"
     return 0
 }
@@ -313,7 +318,7 @@ EOF
   keep_exist_metric_name = true
 EOF
 
-    log_success "采集器配置完成"
+    log_info "采集器配置完成"
     log_info "采集器配置完成"
     return 0
 }

@@ -16,7 +16,7 @@ log_info() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $1${NC}"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1${NC}"
 }
 
@@ -132,7 +132,7 @@ download_from_s3_with_curl() {
         # 检查文件大小，确保下载成功
         local file_size=$(stat -c%s "$local_path" 2>/dev/null || stat -f%z "$local_path" 2>/dev/null)
         if [ "$file_size" -gt 0 ]; then
-            log_success "文件下载成功: $local_path (${file_size} bytes)"
+            log_info "文件下载成功: $local_path (${file_size} bytes)"
             return 0
         else
             log_error "下载的文件为空: $key"
@@ -153,7 +153,7 @@ test_download() {
     log_info "开始测试下载: $test_file"
     
     if download_from_s3_with_curl "$S3_BUCKET" "$test_key" "$local_path"; then
-        log_success "测试成功: $test_file"
+        log_info "测试成功: $test_file"
         # 显示文件信息
         ls -la "$local_path"
         # 清理测试文件
@@ -198,7 +198,7 @@ main() {
     log_info "测试完成: $success_count/$total_count 个文件下载成功"
     
     if [ "$success_count" -eq "$total_count" ]; then
-        log_success "所有测试通过！"
+        log_info "所有测试通过！"
     else
         log_warning "部分测试失败，请检查S3配置和网络连接"
     fi

@@ -28,7 +28,7 @@ validate_required_commands() {
         return 1
     fi
     
-    log_success "所有必需命令验证通过"
+    log_info "所有必需命令验证通过"
     return 0
 }
 
@@ -46,7 +46,7 @@ validate_system_environment() {
         return 1
     fi
         
-    log_success "系统环境验证通过"
+    log_info "系统环境验证通过"
     return 0
 }
 
@@ -77,7 +77,7 @@ validate_system_resources_validation() {
         log_warning "系统负载较高: $load_average"
     fi
     
-    log_success "系统资源验证通过"
+    log_info "系统资源验证通过"
     return 0
 }
 
@@ -105,7 +105,7 @@ validate_network_connectivity() {
         fi
     fi
     
-    log_success "网络连通性验证通过"
+    log_info "网络连通性验证通过"
     return 0
 }
 
@@ -254,7 +254,7 @@ validate_config() {
     fi
     
     if [ "$validation_passed" = true ]; then
-        log_success "配置验证通过"
+        log_info "配置验证通过"
         return 0
     else
         log_error "配置验证失败"
@@ -291,7 +291,7 @@ validate_environment() {
         return 1
     fi
     
-    log_success "环境完整性验证通过"
+    log_info "环境完整性验证通过"
     return 0
 }
 
@@ -491,7 +491,7 @@ verify_installation() {
     done
     
     if [ "$verification_passed" = true ]; then
-        log_success "=== 所有验证项通过 ==="
+        log_info "=== 所有验证项通过 ==="
         log_info "Datakit安装验证通过: 所有6项检查均通过"
         return 0
     else

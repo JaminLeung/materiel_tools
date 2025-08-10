@@ -16,7 +16,7 @@ log_info() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $1${NC}"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1${NC}"
 }
 
@@ -47,7 +47,7 @@ test_bucket_exists() {
     log_info "响应: $response"
     
     if echo "$response" | grep -q "200 OK"; then
-        log_success "Bucket存在且可访问"
+        log_info "Bucket存在且可访问"
         return 0
     elif echo "$response" | grep -q "403 Forbidden"; then
         log_error "Bucket存在但无权限访问"
@@ -78,7 +78,7 @@ test_list_bucket() {
     log_info "响应: $response"
     
     if echo "$response" | grep -q "<?xml"; then
-        log_success "成功获取bucket列表"
+        log_info "成功获取bucket列表"
         return 0
     else
         log_error "获取bucket列表失败"
@@ -104,7 +104,7 @@ test_file_exists() {
     log_info "响应: $response"
     
     if echo "$response" | grep -q "200 OK"; then
-        log_success "文件存在"
+        log_info "文件存在"
         return 0
     elif echo "$response" | grep -q "404 Not Found"; then
         log_error "文件不存在"
@@ -121,7 +121,7 @@ main() {
     
     # 测试bucket访问
     if test_bucket_exists; then
-        log_success "Bucket访问测试通过"
+        log_info "Bucket访问测试通过"
     else
         log_error "Bucket访问测试失败"
         exit 1
@@ -131,7 +131,7 @@ main() {
     
     # 测试列出bucket内容
     if test_list_bucket; then
-        log_success "Bucket列表测试通过"
+        log_info "Bucket列表测试通过"
     else
         log_error "Bucket列表测试失败"
     fi
@@ -147,7 +147,7 @@ main() {
     
     for test_file in "${test_files[@]}"; do
         if test_file_exists "$test_file"; then
-            log_success "文件存在: $test_file"
+            log_info "文件存在: $test_file"
         else
             log_error "文件不存在: $test_file"
         fi
