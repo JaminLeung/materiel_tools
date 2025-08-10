@@ -15,7 +15,7 @@ log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
@@ -176,67 +176,67 @@ EOF
         log_error "❌ 配置错误: 日志分片应为 32，实际为 $logging_rotate"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: 日志分片 = $logging_rotate"
+        log_info "✅ 配置正确: 日志分片 = $logging_rotate"
     fi
     
     if [[ "$http_listen" != "0.0.0.0:9529" ]]; then
         log_error "❌ 配置错误: HTTP API监听应为 0.0.0.0:9529，实际为 $http_listen"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: HTTP API监听 = $http_listen"
+        log_info "✅ 配置正确: HTTP API监听 = $http_listen"
     fi
     
     if [[ "$cpu_cores" != "1.0" && "$cpu_cores" != "1" ]]; then
         log_error "❌ 配置错误: CPU限制应为 1.0 或 1，实际为 $cpu_cores"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: CPU限制 = $cpu_cores"
+        log_info "✅ 配置正确: CPU限制 = $cpu_cores"
     fi
     
     if [[ "$mem_mb" != "2048" ]]; then
         log_error "❌ 配置错误: 内存限制应为 2048，实际为 $mem_mb"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: 内存限制 = $mem_mb"
+        log_info "✅ 配置正确: 内存限制 = $mem_mb"
     fi
     
     if [[ "$env_tag" != "unit_test" ]]; then
         log_error "❌ 配置错误: 环境标签应为 unit_test，实际为 $env_tag"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: 环境标签 = $env_tag"
+        log_info "✅ 配置正确: 环境标签 = $env_tag"
     fi
     
     if [[ "$workspace_tag" != "test_workspace" ]]; then
         log_error "❌ 配置错误: 工作空间标签应为 test_workspace，实际为 $workspace_tag"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: 工作空间标签 = $workspace_tag"
+        log_info "✅ 配置正确: 工作空间标签 = $workspace_tag"
     fi
     
     if [[ "$test_tag" != "test_value" ]]; then
         log_error "❌ 配置错误: 测试标签应为 test_value，实际为 $test_tag"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: 测试标签 = $test_tag"
+        log_info "✅ 配置正确: 测试标签 = $test_tag"
     fi
     
     if [[ "$version_tag" != "1.78.0" ]]; then
         log_error "❌ 配置错误: 版本标签应为 1.78.0，实际为 $version_tag"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: 版本标签 = $version_tag"
+        log_info "✅ 配置正确: 版本标签 = $version_tag"
     fi
     
     if [[ "$dataway_urls" != "http://test-dataway:9529" ]]; then
         log_error "❌ 配置错误: Dataway地址应为 http://test-dataway:9529，实际为 $dataway_urls"
         ((config_errors++))
     else
-        log_success "✅ 配置正确: Dataway地址 = $dataway_urls"
+        log_info "✅ 配置正确: Dataway地址 = $dataway_urls"
     fi
     
     if [[ $config_errors -eq 0 ]]; then
-        log_success "🎉 所有配置验证通过！"
+        log_info "🎉 所有配置验证通过！"
     else
         log_error "❌ 配置验证失败，共 $config_errors 个错误"
         return 1
@@ -291,7 +291,7 @@ test_collector_configs() {
     fi
     
     if [[ $config_errors -eq 0 ]]; then
-        log_success "🎉 所有采集器配置验证通过！"
+        log_info "🎉 所有采集器配置验证通过！"
     else
         log_error "❌ 采集器配置验证失败，共 $config_errors 个错误"
         return 1
@@ -399,21 +399,21 @@ EOF
     
     # 验证关键配置项
     if grep -q "urls = \[\"http://127.0.0.1:9100/metrics\"\]" "$temp_file"; then
-        log_success "✅ 配置正确: Prometheus URLs配置"
+        log_info "✅ 配置正确: Prometheus URLs配置"
     else
         log_error "❌ 配置错误: Prometheus URLs配置缺失"
         return 1
     fi
     
     if grep -q "source = \"prom\"" "$temp_file"; then
-        log_success "✅ 配置正确: Prometheus source配置"
+        log_info "✅ 配置正确: Prometheus source配置"
     else
         log_error "❌ 配置错误: Prometheus source配置缺失"
         return 1
     fi
     
     if grep -q "measurement_name = \"node_exporter\"" "$temp_file"; then
-        log_success "✅ 配置正确: Prometheus measurement_name配置"
+        log_info "✅ 配置正确: Prometheus measurement_name配置"
     else
         log_error "❌ 配置错误: Prometheus measurement_name配置缺失"
         return 1
@@ -468,14 +468,14 @@ EOF
     
     # 验证配置
     if grep -q "enable = true" "$temp_file"; then
-        log_success "✅ 配置正确: OpenTelemetry HTTP启用"
+        log_info "✅ 配置正确: OpenTelemetry HTTP启用"
     else
         log_error "❌ 配置错误: OpenTelemetry HTTP未启用"
         return 1
     fi
     
     if grep -q "addr = \"0.0.0.0:4317\"" "$temp_file"; then
-        log_success "✅ 配置正确: OpenTelemetry gRPC地址"
+        log_info "✅ 配置正确: OpenTelemetry gRPC地址"
     else
         log_error "❌ 配置错误: OpenTelemetry gRPC地址缺失"
         return 1
@@ -552,21 +552,21 @@ EOF
     
     # 验证配置
     if grep -q "/var/log/syslog" "$temp_file"; then
-        log_success "✅ 配置正确: 系统日志文件路径"
+        log_info "✅ 配置正确: 系统日志文件路径"
     else
         log_error "❌ 配置错误: 系统日志文件路径缺失"
         return 1
     fi
     
     if grep -q "auto_multiline_detection = true" "$temp_file"; then
-        log_success "✅ 配置正确: 自动多行检测启用"
+        log_info "✅ 配置正确: 自动多行检测启用"
     else
         log_error "❌ 配置错误: 自动多行检测未启用"
         return 1
     fi
     
     if grep -q "ignore_dead_log = \"12h\"" "$temp_file"; then
-        log_success "✅ 配置正确: 忽略死日志时间设置"
+        log_info "✅ 配置正确: 忽略死日志时间设置"
     else
         log_error "❌ 配置错误: 忽略死日志时间设置缺失"
         return 1
@@ -614,21 +614,21 @@ EOF
     
     # 验证配置
     if grep -q "route_prefix = \"/v1/pushgateway\"" "$temp_file"; then
-        log_success "✅ 配置正确: Pushgateway路由前缀"
+        log_info "✅ 配置正确: Pushgateway路由前缀"
     else
         log_error "❌ 配置错误: Pushgateway路由前缀缺失"
         return 1
     fi
     
     if grep -q "job_as_measurement = false" "$temp_file"; then
-        log_success "✅ 配置正确: Pushgateway job_as_measurement设置"
+        log_info "✅ 配置正确: Pushgateway job_as_measurement设置"
     else
         log_error "❌ 配置错误: Pushgateway job_as_measurement设置缺失"
         return 1
     fi
     
     if grep -q "keep_exist_metric_name = true" "$temp_file"; then
-        log_success "✅ 配置正确: Pushgateway keep_exist_metric_name设置"
+        log_info "✅ 配置正确: Pushgateway keep_exist_metric_name设置"
     else
         log_error "❌ 配置错误: Pushgateway keep_exist_metric_name设置缺失"
         return 1
@@ -647,7 +647,7 @@ main() {
     
     # 测试Datakit主配置文件
     if test_datakit_main_config; then
-        log_success "Datakit主配置文件测试通过"
+        log_info "Datakit主配置文件测试通过"
     else
         log_error "Datakit主配置文件测试失败"
         return 1
@@ -655,13 +655,13 @@ main() {
     
     # 测试采集器配置
     if test_collector_configs; then
-        log_success "采集器配置测试通过"
+        log_info "采集器配置测试通过"
     else
         log_error "采集器配置测试失败"
         return 1
     fi
     
-    log_success "🎉 所有configure模块测试通过！"
+    log_info "🎉 所有configure模块测试通过！"
     return 0
 }
 

@@ -135,7 +135,7 @@ rollback_to_backup() {
     
     # 检查服务状态
     if systemctl is-active --quiet datakit; then
-        log_success "回滚完成，Datakit服务已启动"
+        log_info "回滚完成，Datakit服务已启动"
         return 0
     else
         log_error "回滚完成，但Datakit服务启动失败"
@@ -233,7 +233,7 @@ main() {
     # 执行回滚
     if [ -n "$backup_file" ]; then
         if rollback_to_backup "$backup_file"; then
-            log_success "回滚操作完成"
+            log_info "回滚操作完成"
             exit 0
         else
             log_error "回滚操作失败"

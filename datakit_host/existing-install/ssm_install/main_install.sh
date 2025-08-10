@@ -47,7 +47,7 @@ log_info() {
     echo -e "${BLUE}${message}${NC}" | tee -a "$LOG_FILE"
 }
 
-log_success() {
+log_info() {
     local message="[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1"
     echo -e "${GREEN}${message}${NC}" | tee -a "$LOG_FILE"
 }
@@ -79,7 +79,7 @@ get_host_ip() {
         exit 1
     fi
     
-    log_success "获取到本机IP地址: $HOST_IP"
+    log_info "获取到本机IP地址: $HOST_IP"
 }
 
 
@@ -167,7 +167,7 @@ get_ops_config() {
             # 构建完整的Dataway URL
             DATAWAY_FULL_URL="$DATAWAY_URL?token=$WORKSPACE_TOKEN"
             
-            log_success "获取运维平台配置成功"
+            log_info "获取运维平台配置成功"
             log_info "环境: $ENV"
             log_info "工作空间: $WORKSPACE"
             log_info "全局标签: $GLOBAL_TAGS"
@@ -195,7 +195,7 @@ get_host_info() {
     
     # 配置信息已经在get_ops_config中获取，这里只需要验证
     if [ -n "$ENV" ] && [ -n "$WORKSPACE" ] && [ -n "$WORKSPACE_TOKEN" ] && [ -n "$DATAWAY_FULL_URL" ]; then
-        log_success "主机信息验证成功"
+        log_info "主机信息验证成功"
         log_info "环境: $ENV"
         log_info "工作空间: $WORKSPACE"
         log_info "全局标签: $GLOBAL_TAGS"
@@ -208,7 +208,7 @@ get_host_info() {
         # 执行get_ops_config函数
         get_ops_config
         if [ $? -eq 0 ]; then
-            log_success "主机信息验证成功"
+            log_info "主机信息验证成功"
             return 0
         else
             log_error "主机信息不完整，请检查get_ops_config函数"
@@ -243,7 +243,7 @@ check_datakit_status() {
         exit 0
     fi
     
-    log_success "Datakit未安装，可以继续安装"
+    log_info "Datakit未安装，可以继续安装"
 }
 
 # 通过yj读取TOML文件并转换为JSON格式
@@ -411,7 +411,7 @@ download_datakit_packages() {
         exit 1
     fi
     
-    log_success "Bundle文件MD5验证成功"
+    log_info "Bundle文件MD5验证成功"
     
     # 解压bundle文件
     log_info "解压bundle文件..."
@@ -442,7 +442,7 @@ download_datakit_packages() {
         log_info "yj工具安装完成"
     fi
     
-    log_success "Bundle文件解压完成，所有文件准备就绪"
+    log_info "Bundle文件解压完成，所有文件准备就绪"
     log_info "Bundle文件下载和解压完成"
     
     # 返回临时目录路径
@@ -505,7 +505,7 @@ EOF
     # 检查服务状态,没2s检查一次，最多检查5次
     for i in {1..5}; do
         if systemctl is-active --quiet node_exporter; then
-            log_success "Node Exporter安装成功"
+            log_info "Node Exporter安装成功"
             log_info "Node Exporter安装成功"
             return 0
         else
@@ -558,7 +558,7 @@ install_datakit() {
     # 检查Datakit是否启动成功,没5s检查一次，最多检查10次    
     while [ $check_count -lt $max_checks ]; do
         if systemctl is-active --quiet datakit; then
-            log_success "Datakit启动成功"
+            log_info "Datakit启动成功"
             log_info "Datakit启动成功"
             return 0
         fi
@@ -609,7 +609,7 @@ configure_datakit() {
     # 修改Dataway地址
     yq eval ".dataway.dataway_url = [\"$DATAWAY_FULL_URL\"]" "$datakit_conf" -i
     
-    log_success "Datakit配置完成"
+    log_info "Datakit配置完成"
     log_info "Datakit配置完成"
 }
 
@@ -744,7 +744,7 @@ EOF
   keep_exist_metric_name = true
 EOF
 
-    log_success "采集器配置完成"
+    log_info "采集器配置完成"
     log_info "采集器配置完成"
 }
 
@@ -761,7 +761,7 @@ restart_datakit() {
     
     while [ $check_count -lt $max_checks ]; do
         if pgrep -x "datakit" >/dev/null && netstat -tlnp 2>/dev/null | grep -q ":9529 "; then
-            log_success "Datakit重启成功"
+            log_info "Datakit重启成功"
             log_info "Datakit重启成功"
             return 0
         fi
@@ -795,7 +795,7 @@ EOF
     # 重新加载cron配置
     systemctl reload crond 2>/dev/null || systemctl reload cron 2>/dev/null || true
     
-    log_success "定时任务设置完成"
+    log_info "定时任务设置完成"
     log_info "定时任务设置完成"
 }
 
@@ -831,7 +831,7 @@ verify_installation() {
     fi
     
     if [ "$verification_passed" = true ]; then
-        log_success "安装验证通过"
+        log_info "安装验证通过"
         log_info "Datakit安装验证通过"
         return 0
     else
@@ -921,7 +921,7 @@ download_from_s3_with_curl() {
         # 检查文件大小，确保下载成功
         local file_size=$(stat -c%s "$local_path" 2>/dev/null || stat -f%z "$local_path" 2>/dev/null)
         if [ "$file_size" -gt 0 ]; then
-            log_success "文件下载成功: $local_path (${file_size} bytes)"
+            log_info "文件下载成功: $local_path (${file_size} bytes)"
             return 0
         else
             log_error "下载的文件为空: $key"
@@ -958,7 +958,7 @@ EOF
     chmod 600 ~/.aws/credentials
     chmod 600 ~/.aws/config
     
-    log_success "AWS凭证配置完成"
+    log_info "AWS凭证配置完成"
 }
 
 # 主函数
@@ -1018,7 +1018,7 @@ main() {
     # 验证安装结果
     log_info "=== 验证安装结果 ==="
     if verify_installation; then
-        log_success "Datakit安装完成"
+        log_info "Datakit安装完成"
         log_info "Datakit安装完成"
     else
         log_error "Datakit安装失败"
@@ -1030,7 +1030,7 @@ main() {
     # 清理临时文件
     cleanup_temp_files "$temp_dir"
     
-    log_success "所有安装步骤完成"
+    log_info "所有安装步骤完成"
     log_info "Datakit安装流程完成"
 }
 

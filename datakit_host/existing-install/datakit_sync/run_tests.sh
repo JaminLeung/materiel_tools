@@ -16,7 +16,7 @@ log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
@@ -55,7 +55,7 @@ check_python_environment() {
         exit 1
     fi
     
-    log_success "Python环境检查通过"
+    log_info "Python环境检查通过"
 }
 
 # 安装测试依赖
@@ -70,7 +70,7 @@ install_test_dependencies() {
     # 安装测试依赖
     pip install pytest pytest-cov pytest-mock coverage
     
-    log_success "测试依赖安装完成"
+    log_info "测试依赖安装完成"
 }
 
 # 运行单元测试
@@ -88,7 +88,7 @@ run_unit_tests() {
     log_info "运行集成测试..."
     python3 -m unittest test_datakit_sync.TestDatakitSyncIntegration -v
     
-    log_success "单元测试完成"
+    log_info "单元测试完成"
 }
 
 # 运行pytest测试
@@ -101,7 +101,7 @@ run_pytest_tests() {
     # 运行pytest测试
     python3 -m pytest test_datakit_sync.py -v --tb=short
     
-    log_success "pytest测试完成"
+    log_info "pytest测试完成"
 }
 
 # 生成测试覆盖率报告
@@ -120,7 +120,7 @@ generate_coverage_report() {
     # 显示覆盖率摘要
     python3 -m coverage report
     
-    log_success "覆盖率报告生成完成"
+    log_info "覆盖率报告生成完成"
     log_info "HTML报告位置: htmlcov/index.html"
 }
 
@@ -221,7 +221,7 @@ EOF
     # 清理性能测试文件
     rm -f performance_test.py
     
-    log_success "性能测试完成"
+    log_info "性能测试完成"
 }
 
 # 运行所有测试
@@ -246,7 +246,7 @@ run_all_tests() {
     # 运行性能测试
     run_performance_tests
     
-    log_success "所有测试完成"
+    log_info "所有测试完成"
 }
 
 # 显示帮助信息

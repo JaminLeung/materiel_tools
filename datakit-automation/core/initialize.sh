@@ -200,8 +200,8 @@ initialize_script() {
         exit 1
     fi
     
-    if command -v log_success >/dev/null 2>&1; then
-        log_success "脚本初始化完成"
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "脚本初始化完成"
     else
         echo "[SUCCESS] 脚本初始化完成"
     fi

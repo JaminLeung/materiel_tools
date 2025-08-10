@@ -37,7 +37,7 @@ download_packages() {
         return 1
     fi
     
-    log_success "安装包下载完成"
+    log_info "安装包下载完成"
     log_info "安装包下载完成"
     return 0
 }
@@ -52,7 +52,7 @@ prepare_install_directory() {
         return 1
     fi
     
-    log_success "安装目录准备完成: $DATAKIT_INSTALL_DIR"
+    log_info "安装目录准备完成: $DATAKIT_INSTALL_DIR"
     return 0
 }
 
@@ -84,7 +84,7 @@ download_bundle_file() {
     if [ -f "./$bundle_name" ]; then
         log_info "本地已存在同名包，进行MD5校验..."
         if verify_file_md5 "$bundle_name" "$expected_md5"; then
-            log_success "本地包MD5校验通过，跳过下载"
+            log_info "本地包MD5校验通过，跳过下载"
             return 0
         else
             record_error "VALIDATION_ERROR" "本地包MD5校验失败，将重新下载" "WARNING"
@@ -106,6 +106,6 @@ download_bundle_file() {
         return 1
     fi
     
-    log_success "Bundle文件下载和验证完成"
+    log_info "Bundle文件下载和验证完成"
     return 0
 } 

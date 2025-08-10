@@ -212,7 +212,7 @@ handle_dataway_config() {
             return 1
         }
         CONFIG_CHANGED=true
-        log_success "Dataway配置更新完成"
+        log_info "Dataway配置更新完成"
     else
         log_info "Dataway配置无需更新"
     fi
@@ -401,7 +401,7 @@ handle_input_create() {
     # 恢复配置文件
     if [ -n "$latest_backup" ] && [ -f "$latest_backup" ]; then
         if safe_execute "cp '$latest_backup' '$input_path'" "从备份恢复配置文件"; then
-            log_success "从备份恢复: $input_path"
+            log_info "从备份恢复: $input_path"
             log_info "备份文件: $latest_backup"
             return 0
         fi
@@ -415,7 +415,7 @@ handle_input_create() {
     }
     
     if safe_execute "cp '$sample_path' '$input_path'" "从sample创建配置文件"; then
-        log_success "从sample创建: $input_path"
+        log_info "从sample创建: $input_path"
         return 0
     else
         handle_error "FILE_ERROR" "配置文件创建失败: $input_path" "ERROR" "false"
@@ -471,7 +471,7 @@ handle_input_modify() {
                 handle_error "CONFIG_ERROR" "配置文件更新失败: $input_path" "ERROR" "false"
                 return 1
             }
-            log_success "配置更新成功: $key"
+            log_info "配置更新成功: $key"
             CONFIG_CHANGED=true
         else
             log_info "配置相同，跳过更新: $key"
@@ -489,7 +489,7 @@ handle_input_modify() {
             handle_error "CONFIG_ERROR" "配置文件更新失败: $input_path" "ERROR" "false"
             return 1
         }
-        log_success "配置新增成功: $key"
+        log_info "配置新增成功: $key"
         CONFIG_CHANGED=true
     fi
 }
@@ -515,7 +515,7 @@ handle_input_delete() {
     # 备份并删除文件
     safe_execute "cp '$input_path' '$backup_path' && rm '$input_path'" "备份并删除配置文件" || return 1
     
-    log_success "配置文件已备份并删除: $backup_path"
+    log_info "配置文件已备份并删除: $backup_path"
     return 0
 }
 
@@ -570,7 +570,7 @@ handle_input_delete_key() {
             handle_error "CONFIG_ERROR" "配置文件更新失败: $input_path" "ERROR" "false"
             return 1
         }
-        log_success "配置删除成功: $key"
+        log_info "配置删除成功: $key"
     else
         log_info "配置路径不存在，无需删除: $key"
     fi
@@ -615,7 +615,7 @@ handle_datakit_service_control() {
                 log_info "Datakit已经处于停止状态" >&2
             fi
             
-            log_success "Datakit停止操作完成，跳过配置更新" >&2
+            log_info "Datakit停止操作完成，跳过配置更新" >&2
             # enable=false的情况，返回false
             echo "false"
             return 0
@@ -734,9 +734,9 @@ main() {
     
     # 输出配置更新总结
     if [ "$CONFIG_CHANGED" = "true" ]; then
-        log_success "配置更新完成 - 检测到配置变更"
+        log_info "配置更新完成 - 检测到配置变更"
     else
-        log_success "配置更新完成 - 无配置变更，所有配置已是最新状态"
+        log_info "配置更新完成 - 无配置变更，所有配置已是最新状态"
     fi
     
     # 记录脚本结束

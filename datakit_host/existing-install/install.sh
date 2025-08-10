@@ -16,7 +16,7 @@ log_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
@@ -50,7 +50,7 @@ check_system_requirements() {
         exit 1
     fi
     
-    log_success "系统要求检查通过"
+    log_info "系统要求检查通过"
 }
 
 # 安装系统依赖
@@ -102,7 +102,7 @@ install_system_dependencies() {
         exit 1
     fi
     
-    log_success "系统依赖安装完成"
+    log_info "系统依赖安装完成"
 }
 
 # 安装Python依赖
@@ -124,7 +124,7 @@ install_python_dependencies() {
         pip install boto3 requests PyYAML click colorlog
     fi
     
-    log_success "Python依赖安装完成"
+    log_info "Python依赖安装完成"
 }
 
 # 设置权限
@@ -137,7 +137,7 @@ setup_permissions() {
     chmod +x datakit_sync/datakit_sync.py
     chmod +x ssm_install/main_install.sh
     
-    log_success "权限设置完成"
+    log_info "权限设置完成"
 }
 
 # 创建配置文件模板
@@ -182,7 +182,7 @@ export DATAWAY_URL=https://dataway.prod-guance.houtai.io
 export WORKSPACE_TOKEN=YOUR_WORKSPACE_TOKEN
 EOF
 
-    log_success "配置文件模板创建完成"
+    log_info "配置文件模板创建完成"
 }
 
 # 创建使用示例
@@ -224,7 +224,7 @@ EOF
 
     chmod +x examples/batch_install.sh
     
-    log_success "使用示例创建完成"
+    log_info "使用示例创建完成"
 }
 
 # 验证安装
@@ -261,7 +261,7 @@ verify_installation() {
         fi
     done
     
-    log_success "安装验证通过"
+    log_info "安装验证通过"
     return 0
 }
 
@@ -323,7 +323,7 @@ main() {
     # 验证安装
     if verify_installation; then
         show_usage
-        log_success "项目安装完成！"
+        log_info "项目安装完成！"
     else
         log_error "安装验证失败，请检查错误信息"
         exit 1

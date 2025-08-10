@@ -23,7 +23,7 @@ log_info() {
     echo -e "${BLUE}[INFO]${NC} $*"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[SUCCESS]${NC} $*"
 }
 
@@ -61,14 +61,14 @@ cleanup_all_temp_files() {
             log_info "清理临时目录: $dir"
             if rm -rf "$dir" 2>/dev/null; then
                 ((cleaned_count++))
-                log_success "已清理: $dir"
+                log_info "已清理: $dir"
             else
                 log_error "清理失败: $dir"
             fi
         fi
     done
     
-    log_success "清理完成，共清理 $cleaned_count 个临时目录"
+    log_info "清理完成，共清理 $cleaned_count 个临时目录"
 }
 
 # 清理测试相关的临时文件
@@ -89,7 +89,7 @@ cleanup_test_temp_files() {
         find /tmp -maxdepth 1 -name "$(basename "$pattern")" -delete 2>/dev/null || true
     done
     
-    log_success "测试临时文件清理完成"
+    log_info "测试临时文件清理完成"
 }
 
 # 清理日志文件
@@ -114,7 +114,7 @@ cleanup_log_files() {
         done < <(find /tmp -maxdepth 1 -name "$pattern" -print0 2>/dev/null)
     done
     
-    log_success "日志文件清理完成，共清理 $cleaned_count 个文件"
+    log_info "日志文件清理完成，共清理 $cleaned_count 个文件"
 }
 
 # 清理孤立的临时文件（超过指定时间的）
@@ -136,14 +136,14 @@ cleanup_orphaned_temp_files() {
             log_info "清理过期临时目录: $dir (已存在 ${dir_age_hours} 小时)"
             if rm -rf "$dir" 2>/dev/null; then
                 ((cleaned_count++))
-                log_success "已清理: $dir"
+                log_info "已清理: $dir"
             else
                 log_error "清理失败: $dir"
             fi
         fi
     done < <(find /tmp -maxdepth 1 -type d -name "$pattern" -print0 2>/dev/null)
     
-    log_success "孤立临时文件清理完成，共清理 $cleaned_count 个目录"
+    log_info "孤立临时文件清理完成，共清理 $cleaned_count 个目录"
 }
 
 # 强制清理所有临时文件（谨慎使用）

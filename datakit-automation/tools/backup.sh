@@ -107,7 +107,7 @@ EOF
     tar -czf "${backup_name}.tar.gz" "$backup_name"
     rm -rf "$backup_name"
     
-    log_success "备份创建完成: ${backup_name}.tar.gz"
+    log_info "备份创建完成: ${backup_name}.tar.gz"
     
     # 清理旧备份
     cleanup_old_backups "datakit_backup"
@@ -127,7 +127,7 @@ main() {
     
     # 创建备份
     if create_datakit_backup; then
-        log_success "备份操作完成"
+        log_info "备份操作完成"
         exit 0
     else
         log_error "备份操作失败"

@@ -96,8 +96,8 @@ execute_reinstall() {
     # 步骤9: 健康检查
     perform_health_check
     
-    if command -v log_success >/dev/null 2>&1; then
-        log_success "重装完成"
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "重装完成"
     else
         echo "[SUCCESS] 重装完成"
     fi

@@ -17,7 +17,7 @@ log_info() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $1${NC}"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1${NC}"
 }
 
@@ -133,7 +133,7 @@ download_s3_file() {
         # 检查文件大小，确保下载成功
         local file_size=$(stat -c%s "$local_path" 2>/dev/null || stat -f%z "$local_path" 2>/dev/null)
         if [ "$file_size" -gt 0 ]; then
-            log_success "文件下载成功: $local_path (${file_size} bytes)"
+            log_info "文件下载成功: $local_path (${file_size} bytes)"
             return 0
         else
             log_error "下载的文件为空: $key"
@@ -155,7 +155,7 @@ download_and_verify_md5() {
     
     # 直接下载主文件，不进行MD5校验
     if download_s3_file "$bucket" "$key" "$local_path"; then
-        log_success "文件下载完成: $local_path"
+        log_info "文件下载完成: $local_path"
         return 0
     else
         log_error "文件下载失败"

@@ -15,7 +15,7 @@ log_info() {
     echo -e "${BLUE}[$(date '+%Y-%m-%d %H:%M:%S')] [INFO] $1${NC}"
 }
 
-log_success() {
+log_info() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')] [SUCCESS] $1${NC}"
 }
 
@@ -129,7 +129,7 @@ if curl -v -o "$LOCAL_FILE" "$S3_URL" \
             log_error "下载的是XML错误响应，不是目标文件"
             head -5 "$LOCAL_FILE"
         else
-            log_success "文件下载成功！"
+            log_info "文件下载成功！"
         fi
     else
         log_error "文件下载失败"

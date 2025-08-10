@@ -103,7 +103,7 @@ check_datakit_health() {
     
     # 检查Datakit ping接口
     if timeout_execute "$HEALTH_CHECK_PING_TIMEOUT" "curl -s $HEALTH_CHECK_PING_URL" "Datakit ping接口检查"; then
-        log_success "Datakit健康检查通过"
+        log_info "Datakit健康检查通过"
         return 0
     else
         record_error "SERVICE_ERROR" "Datakit ping接口检查失败" "WARNING"
@@ -130,7 +130,7 @@ perform_health_check() {
         # 检查成功，重置失败计数
         local current_count=$(get_failure_count)
         if [ "$current_count" -gt 0 ]; then
-            log_success "Datakit恢复正常，重置失败计数"
+            log_info "Datakit恢复正常，重置失败计数"
             reset_failure_count
         fi
     else
@@ -146,7 +146,7 @@ perform_health_check() {
             handle_error "SERVICE_ERROR" "Datakit连续失败 $HEALTH_CHECK_MAX_FAILURE_COUNT 次，执行重启" "ERROR" "false"
             
             if restart_datakit; then
-                log_success "Datakit重启成功"
+                log_info "Datakit重启成功"
                 reset_failure_count
             else
                 handle_error "SERVICE_ERROR" "Datakit重启失败" "ERROR" "false"
@@ -183,7 +183,7 @@ show_status() {
     
     # 检查Datakit状态
     if check_datakit_health; then
-        log_success "Datakit状态正常"
+        log_info "Datakit状态正常"
     else
         handle_error "SERVICE_ERROR" "Datakit状态异常" "ERROR" "false"
     fi
