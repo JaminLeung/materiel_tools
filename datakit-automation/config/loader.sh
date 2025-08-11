@@ -10,6 +10,9 @@
 # 配置加载器函数
 # =============================================================================
 
+source "$SCENARIO_PROJECT_ROOT/config/base/base_config.sh"
+
+
 # 加载解密模块
 load_decrypt_module() {
     local decrypt_module="$CONFIG_DIR/core/decrypt.sh"
