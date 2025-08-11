@@ -14,9 +14,10 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 加载基础配置
-source "$SCRIPT_DIR/../config/base/base_config.sh" 2>/dev/null || echo "警告: 无法加载base_config.sh" >&2
-
-source "$SCRIPT_DIR/../config/env/benjamin.sh" 2>/dev/null || echo "警告: benjamin.sh" >&2
+# 加载基础配置
+# 加载基础配置
+source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
+load_all_configs $ENV "config_update.sh"
 
 # =============================================================================
 # 全局变量

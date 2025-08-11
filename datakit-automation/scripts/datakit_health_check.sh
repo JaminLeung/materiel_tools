@@ -14,7 +14,8 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 加载基础配置
-source "$SCRIPT_DIR/../config/base/base_config.sh" 2>/dev/null || echo "警告: 无法加载base_config.sh" >&2
+source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
+load_all_configs $ENV "health_check.sh"
 
 # =============================================================================
 # 配置变量（从base_config.sh加载）

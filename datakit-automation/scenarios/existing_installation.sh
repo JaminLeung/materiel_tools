@@ -15,8 +15,8 @@ readonly SCENARIO_PROJECT_ROOT="$(cd "$SCENARIO_SCRIPT_DIR/.." && pwd)"
 # 配置加载函数
 
 
-# 加载配置（仅在需要时）
-load_scenario_config
+
+
 
 source "$SCENARIO_PROJECT_ROOT/core/utils.sh"
 source "$SCENARIO_PROJECT_ROOT/core/validation.sh"
@@ -24,7 +24,10 @@ source "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
 # config_api.sh的功能已合并到utils.sh中
 source "$SCENARIO_PROJECT_ROOT/core/utils.sh"
 
-# 安装工具模块功能已整合到core/utils.sh中
+
+source "$SCENARIO_PROJECT_ROOT/config/loader.sh"
+load_all_configs $ENV
+
 
 # 加载安装步骤模块
 # source "$SCENARIO_PROJECT_ROOT/install/host_info.sh"
@@ -112,7 +115,7 @@ execute_existing_installation() {
     #=================================================
     # 步骤7: 设置定时任务
     #=================================================
-\    log_info "步骤7: 设置定时任务..."
+    log_info "步骤7: 设置定时任务..."
     if ! setup_cron_jobs; then
         handle_error "COMMAND_ERROR" "设置定时任务失败，退出安装" "ERROR" "false"
         return 1
