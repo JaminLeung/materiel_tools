@@ -212,7 +212,7 @@ get_host_info() {
             return 0
         else
             log_error "主机信息不完整，请检查get_ops_config函数"
-            dataway_log "error" "主机信息不完整"
+            
             exit 1
         fi
     fi
@@ -386,7 +386,7 @@ download_datakit_packages() {
         # 下载bundle文件
         if ! download_from_s3_with_curl "$S3_BUCKET" "$bundle_key" "./$bundle_name"; then
             log_error "下载bundle文件失败"
-            dataway_log "error" "下载bundle文件失败"
+            
             exit 1
         fi
     fi
@@ -395,7 +395,7 @@ download_datakit_packages() {
     # 下载MD5文件
     if ! download_from_s3_with_curl "$S3_BUCKET" "$md5_key" "./$bundle_name.md5"; then
         log_error "下载bundle MD5文件失败"
-        dataway_log "error" "下载bundle MD5文件失败"
+        
         exit 1
     fi
     
@@ -407,7 +407,7 @@ download_datakit_packages() {
         log_error "Bundle文件MD5验证失败"
         log_error "期望: $expected_md5"
         log_error "实际: $actual_md5"
-        dataway_log "error" "Bundle文件MD5验证失败"
+        
         exit 1
     fi
     
@@ -417,7 +417,7 @@ download_datakit_packages() {
     log_info "解压bundle文件..."
     if ! tar -xzf "$bundle_name"; then
         log_error "解压bundle文件失败"
-        dataway_log "error" "解压bundle文件失败"
+        
         exit 1
     fi
     
@@ -427,7 +427,7 @@ download_datakit_packages() {
        [ ! -f "./dk_upgrader-linux-amd64.tar.gz" ] || \
        [ ! -f "./data.tar.gz" ]; then
         log_error "Bundle文件解压后缺少必要文件"
-        dataway_log "error" "Bundle文件解压后缺少必要文件"
+        
         exit 1
     fi
     
@@ -515,7 +515,7 @@ EOF
     done
     
     log_error "Node Exporter启动失败"
-    dataway_log "error" "Node Exporter启动失败"
+    
     return 1
 }
 
@@ -526,7 +526,7 @@ install_datakit() {
     # 判断DATAKIT_INSTALL_DIR是否存在，不存在则退出函数
     if [ ! -d "$DATAKIT_INSTALL_DIR" ]; then
         log_error "DATAKIT_INSTALL_DIR不存在"
-        dataway_log "error" "DATAKIT_INSTALL_DIR不存在"
+        
         return 1
     fi
     
@@ -541,7 +541,7 @@ install_datakit() {
     ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$DATAWAY_FULL_URL" --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64.tar.gz,data.tar.gz"
     if [ $? -ne 0 ]; then
         log_error "Datakit安装失败"
-        dataway_log "error" "Datakit安装失败"
+        
         return 1    
     fi
     
@@ -569,7 +569,7 @@ install_datakit() {
     done
     
     log_error "Datakit启动超时"
-    dataway_log "error" "Datakit启动超时"
+    
     return 1
 }
 
@@ -772,7 +772,7 @@ restart_datakit() {
     done
     
     log_error "Datakit重启失败"
-    dataway_log "error" "Datakit重启失败"
+    
     return 1
 }
 
@@ -836,7 +836,7 @@ verify_installation() {
         return 0
     else
         log_error "安装验证失败"
-        dataway_log "error" "Datakit安装验证失败"
+        
         return 1
     fi
 }
@@ -1022,7 +1022,7 @@ main() {
         log_info "Datakit安装完成"
     else
         log_error "Datakit安装失败"
-        dataway_log "error" "Datakit安装失败"
+        
         cleanup_temp_files "$temp_dir"
         exit 1
     fi

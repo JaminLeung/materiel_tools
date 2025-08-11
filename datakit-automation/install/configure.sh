@@ -13,14 +13,14 @@ configure_and_verify() {
     # 配置Datakit主配置文件
     if ! configure_datakit_main_config; then
         handle_error "CONFIG_ERROR" "配置Datakit主配置文件失败" "ERROR" "false"
-        dataway_log "error" "配置Datakit主配置文件失败"
+        
         return 1
     fi
     
     # 配置采集器
     if ! configure_datakit_inputs; then
         handle_error "CONFIG_ERROR" "配置采集器失败" "ERROR" "false"
-        dataway_log "error" "配置采集器失败"
+        
         return 1
     fi
     
@@ -28,7 +28,7 @@ configure_and_verify() {
     # TODO restart_datakit 提取单独封装
     if ! restart_datakit; then
         handle_error "SERVICE_ERROR" "重启Datakit失败，回退配置" "ERROR" "false"
-        dataway_log "error" "重启Datakit失败，回退配置"
+        
 
         # 1、获取 ops 配置，写到一个目录里
         # 2、将 datakit 已有的配置与 ops 的对比
@@ -46,7 +46,7 @@ configure_and_verify() {
         # 重启Datakit
         if ! restart_datakit; then
             handle_error "SERVICE_ERROR" "重启Datakit失败" "ERROR" "false"
-            dataway_log "error" "重启Datakit失败"
+            
             return 1
         else
             log_info "配置回退成功"

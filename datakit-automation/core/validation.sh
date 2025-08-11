@@ -496,7 +496,7 @@ verify_installation() {
         return 0
     else
         log_error "=== 部分验证项失败 ==="
-        dataway_log "error" "Datakit安装验证失败: 部分检查项未通过"
+        
         # return 1
     fi
 }

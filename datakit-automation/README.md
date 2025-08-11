@@ -44,6 +44,11 @@ datakit-automation/
 ## 🚀 快速开始
 
 ### 1. 环境准备
+
+拷贝 config/env/example.sh，自定义当前配置
+
+
+
 ```bash
 # 设置环境变量
 export DATAKIT_VERSION=1.78.0

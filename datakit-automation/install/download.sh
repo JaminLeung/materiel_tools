@@ -12,28 +12,28 @@ download_packages() {
     # 检查必需的工具
     if ! check_required_tools; then
         handle_error "DEPENDENCY_ERROR" "必需工具检查失败" "ERROR" "false"
-        dataway_log "error" "必需工具检查失败"
+        
         return 1
     fi
     
     # 准备安装目录
     if ! prepare_install_directory; then
         handle_error "FILE_ERROR" "准备安装目录失败" "ERROR" "false"
-        dataway_log "error" "准备安装目录失败"
+        
         return 1
     fi
     
     # 下载bundle文件
     if ! download_bundle_file; then
         handle_error "NETWORK_ERROR" "下载bundle文件失败" "ERROR" "false"
-        dataway_log "error" "下载bundle文件失败"
+        
         return 1
     fi
     
     # 安装工具
     if ! install_tools "$DATAKIT_INSTALL_DIR"; then
         handle_error "DEPENDENCY_ERROR" "安装工具失败" "ERROR" "false"
-        dataway_log "error" "安装工具失败"
+        
         return 1
     fi
     

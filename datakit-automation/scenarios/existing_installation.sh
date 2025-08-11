@@ -77,7 +77,7 @@ execute_existing_installation() {
     #=================================================
     # log_info "步骤3: 下载安装包..."
     # if ! download_packages; then
-    #     dataway_log "error" "下载任务失败，退出安装"
+    #     
     #     handle_error "NETWORK_ERROR" "下载任务失败，退出安装" "ERROR" "true"
     # fi
     # log_info "步骤3: 安装包下载完成"

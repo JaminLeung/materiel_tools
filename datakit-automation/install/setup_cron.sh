@@ -22,7 +22,7 @@ setup_cron_jobs() {
     local health_check_script="$SCENARIO_PROJECT_ROOT/scripts/datakit_health_check.sh"
     if [ ! -f "$health_check_script" ]; then
         handle_error "FILE_ERROR" "健康检测脚本不存在: $health_check_script" "ERROR" "false"
-        dataway_log "error" "健康检测脚本不存在: datakit_health_check.sh"
+        
         return 1
     fi
     
@@ -30,7 +30,7 @@ setup_cron_jobs() {
     local app_init_script="$SCENARIO_PROJECT_ROOT/scripts/app_init.sh"
     if [ ! -f "$app_init_script" ]; then
         handle_error "FILE_ERROR" "业务配置同步脚本不存在: $app_init_script" "ERROR" "false"
-        dataway_log "error" "业务配置同步脚本不存在: app_init.sh"
+        
         return 1
     fi
     
@@ -83,7 +83,7 @@ EOF
         log_info "定时任务设置成功: config_update.sh(15分钟), health_check.sh(5分钟), app_init.sh(10分钟)"
     else
         handle_error "COMMAND_ERROR" "定时任务设置失败" "ERROR" "false"
-        dataway_log "error" "定时任务设置失败"
+        
         return 1
     fi
     
