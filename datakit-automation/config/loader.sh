@@ -10,6 +10,47 @@
 # 配置加载器函数
 # =============================================================================
 
+# 加载解密模块
+load_decrypt_module() {
+    local decrypt_module="$CONFIG_DIR/core/decrypt.sh"
+    
+    if [[ -f "$decrypt_module" ]]; then
+        source "$decrypt_module"
+        log_info "已加载解密模块: $decrypt_module"
+        return 0
+    else
+        log_warn "解密模块不存在: $decrypt_module"
+        return 0
+    fi
+}
+
+# 自动解密敏感配置
+auto_decrypt_sensitive_config() {
+    if declare -F decrypt_config >/dev/null; then
+        log_info "检查并解密敏感配置..."
+        
+        # 获取配置目录
+        local config_dir
+        if [[ -n "${CONFIG_DIR:-}" ]]; then
+            config_dir="$CONFIG_DIR"
+        else
+            config_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        fi
+        
+        # 执行解密
+        if decrypt_config "$config_dir"; then
+            log_info "敏感配置解密完成"
+            return 0
+        else
+            log_warn "敏感配置解密失败，继续使用明文配置"
+            return 0
+        fi
+    else
+        log_info "解密模块未加载，跳过敏感配置解密"
+        return 0
+    fi
+}
+
 # 加载基础配置
 load_base_config() {
     local base_config_file="$CONFIG_DIR/base/base_config.sh"
@@ -96,22 +137,28 @@ load_all_configs() {
     
     log_info "开始加载配置..."
     
-    # 1. 加载基础配置
+    # 0. 加载解密模块
+    load_decrypt_module
+    
+    # 1. 自动解密敏感配置
+    auto_decrypt_sensitive_config
+    
+    # 2. 加载基础配置
     if ! load_base_config; then
         return 1
     fi
     
-    # 2. 加载状态配置
+    # 3. 加载状态配置
     if ! load_state_config; then
         return 1
     fi
     
-    # 3. 加载环境配置
+    # 4. 加载环境配置
     if ! load_env_config "$env_name"; then
         return 1
     fi
     
-    # 4. 加载脚本特定配置（如果指定）
+    # 5. 加载脚本特定配置（如果指定）
     if [[ -n "$script_name" ]]; then
         if ! load_script_config "$script_name"; then
             return 1
@@ -152,6 +199,29 @@ validate_config() {
         return 1
     fi
     
+    # 检查敏感配置是否已解密（如果存在）
+    if declare -F is_encrypted_file >/dev/null; then
+        local config_dir
+        if [[ -n "${CONFIG_DIR:-}" ]]; then
+            config_dir="$CONFIG_DIR"
+        else
+            config_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        fi
+        
+        # 检查是否还有未解密的文件
+        local has_encrypted=false
+        while IFS= read -r -d '' file; do
+            if is_encrypted_file "$file"; then
+                has_encrypted=true
+                break
+            fi
+        done < <(find "$config_dir" -name "*.encrypted" -type f -print0 2>/dev/null)
+        
+        if [[ "$has_encrypted" == true ]]; then
+            log_warning "发现未解密的配置文件，某些配置可能无法正常加载"
+        fi
+    fi
+    
     log_info "配置验证通过"
     return 0
 }
@@ -184,7 +254,43 @@ get_config_summary() {
   脚本配置: ${SCRIPT_NAME:-未指定}
   配置目录: $CONFIG_DIR
   项目根目录: $PROJECT_ROOT
+  解密模块: $(if declare -F decrypt_config >/dev/null; then echo "已加载"; else echo "未加载"; fi)
 EOF
+}
+
+# 显示加密状态
+show_encryption_status() {
+    if ! declare -F is_encrypted_file >/dev/null; then
+        log_info "加密状态: 解密模块未加载"
+        return
+    fi
+    
+    local config_dir
+    if [[ -n "${CONFIG_DIR:-}" ]]; then
+        config_dir="$CONFIG_DIR"
+    else
+        config_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
+    
+    log_info "检查配置加密状态..."
+    
+    local encrypted_count=0
+    local decrypted_count=0
+    
+    # 统计加密和已解密的文件
+    while IFS= read -r -d '' file; do
+        if is_encrypted_file "$file"; then
+            ((encrypted_count++))
+        else
+            ((decrypted_count++))
+        fi
+    done < <(find "$config_dir" -name "*.sh" -type f -print0 2>/dev/null)
+    
+    log_info "加密状态: 加密文件 $encrypted_count 个，已解密文件 $decrypted_count 个"
+    
+    if [[ $encrypted_count -gt 0 ]]; then
+        log_warning "仍有 $encrypted_count 个加密文件未解密，请检查密钥配置"
+    fi
 }
 
 # =============================================================================
@@ -205,6 +311,12 @@ fi
 if ! declare -F log_error >/dev/null; then
     log_error() {
         echo "[ERROR] $1" >&2
+    }
+fi
+
+if ! declare -F log_warning >/dev/null; then
+    log_warning() {
+        echo "[WARN] $1" >&2
     }
 fi
 
@@ -235,6 +347,9 @@ main() {
     
     # 显示配置摘要
     get_config_summary
+    
+    # 显示加密状态
+    show_encryption_status
 }
 
 # 如果直接执行此脚本
