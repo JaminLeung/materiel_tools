@@ -11,15 +11,6 @@
 #=================================================
 
 
-# TODO 去掉颜色
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-PURPLE='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m'
 
 # 日志级别定义
 LOG_LEVELS_NAMES=("DEBUG" "INFO" "WARNING" "ERROR" "CRITICAL" "SUCCESS")
@@ -34,25 +25,8 @@ LOG_COLORS_VALUES=("$CYAN" "$BLUE" "$YELLOW" "$RED" "$PURPLE" "$GREEN")
 # 配置变量（从配置文件加载，这里只提供默认值作为后备）
 #=================================================
 
-CURRENT_LOG_LEVEL=${LOG_LEVEL:-1}  # 默认INFO级别
 LOG_FILE="${LOG_FILE:-/var/log/datakit_install.log}"
 LOG_FORMAT="json"  # 统一使用JSON格式
-
-#=================================================
-# 工具函数
-#=================================================
-
-# 获取日志级别颜色
-get_log_color() {
-    local level="$1"
-    for i in "${!LOG_COLORS_NAMES[@]}"; do
-        if [[ "${LOG_COLORS_NAMES[$i]}" == "$level" ]]; then
-            # echo "${LOG_COLORS_VALUES[$i]}"
-            return 0
-        fi
-    done
-    echo "$NC"  # 默认返回无颜色
-}
 
 
 #=================================================
@@ -122,18 +96,11 @@ log_message() {
     local message="$2"
     local context="${3:-}"
     local extra_fields="${4:-}"
-    
-    
+     
     # 生成日志消息
     local log_message=$(generate_structured_log "$level" "$message" "$context" "$extra_fields")
     
-    # 输出到控制台（带颜色）
-    local color=$(get_log_color "$level")
-    if [[ -t 1 ]]; then
-        echo -e "${color}${log_message}${NC}"
-    else
-        echo "$log_message"
-    fi
+    echo "$log_message"
     
     # 写入日志文件
     write_log_to_file "$log_message" "$level"
@@ -146,7 +113,6 @@ log_warning() { log_message "WARNING" "$1" "${2:-}" "${3:-}"; }
 log_error() { log_message "ERROR" "$1" "${2:-}" "${3:-}"; }
 log_critical() { log_message "CRITICAL" "$1" "${2:-}" "${3:-}"; }
 log_success() { log_message "SUCCESS" "$1" "${2:-}" "${3:-}"; }
-
 
 
 #=================================================
@@ -178,7 +144,7 @@ init_logging() {
     chmod 644 "$log_file" 2>/dev/null || true
     
     # 记录初始化信息
-    local init_message=$(generate_structured_log "INFO" "日志系统初始化完成" "logging_init" ", \"log_file\": \"$log_file\", \"log_level\": $CURRENT_LOG_LEVEL")
+    local init_message=$(generate_structured_log "INFO" "日志系统初始化完成" "logging_init" ", \"log_file\": \"$log_file\")
     echo "$init_message" >> "$log_file"
     
     return 0

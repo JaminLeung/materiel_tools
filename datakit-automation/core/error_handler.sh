@@ -159,6 +159,7 @@ cleanup_on_exit() {
     local cleanup_steps=(
         "cleanup_temp_files:清理临时文件"
         "cleanup_log_files:清理日志文件"
+        # TODO dataway 统一读取日志文件上报
     )
     
     local success_count=0

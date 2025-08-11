@@ -10,23 +10,21 @@ install_components() {
     log_info "执行安装 ==="
     
     # 解压bundle文件
-    # TODO 去掉 dataway_log
     if ! extract_bundle_file; then
         handle_error "FILE_ERROR" "解压bundle文件任务失败" "ERROR" "false"
-        dataway_log "error" "解压bundle文件任务失败"
         return 1
     fi
     
     # 安装Node Exporter
     if ! install_node_exporter; then
         handle_error "DEPENDENCY_ERROR" "Node Exporter安装任务失败" "ERROR" "false"
-        dataway_log "error" "Node Exporter安装任务失败"
+        
     fi
     
     # 安装Datakit
     if ! install_datakit; then
         handle_error "DEPENDENCY_ERROR" "Datakit安装任务失败" "ERROR" "false"
-        dataway_log "error" "Datakit安装任务失败"
+        
         return 1
     fi
     
@@ -150,7 +148,7 @@ EOF
     done
     
     handle_error "SERVICE_ERROR" "Node Exporter启动失败" "ERROR" "false"
-    dataway_log "error" "Node Exporter启动失败"
+    
     return 1
 }
 
@@ -161,7 +159,7 @@ install_datakit() {
     # 判断DATAKIT_INSTALL_DIR是否存在
     if [ ! -d "$DATAKIT_INSTALL_DIR" ]; then
         handle_error "FILE_ERROR" "DATAKIT_INSTALL_DIR不存在" "ERROR" "false"
-        dataway_log "error" "DATAKIT_INSTALL_DIR不存在"
+        
         return 1
     fi
     
@@ -183,7 +181,7 @@ install_datakit() {
     
     if ! ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$dataway_url" --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64.tar.gz,data.tar.gz"; then
         handle_error "DEPENDENCY_ERROR" "Datakit安装失败" "ERROR" "false"
-        dataway_log "error" "Datakit安装失败"
+        
         return 1
     fi
     
@@ -213,6 +211,6 @@ install_datakit() {
     done
     
     handle_error "SERVICE_ERROR" "Datakit启动超时" "ERROR" "false"
-    dataway_log "error" "Datakit启动超时"
+    
     return 1
 } 

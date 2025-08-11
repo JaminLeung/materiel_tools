@@ -39,7 +39,7 @@ dataway_log() {
 }]
 EOF
 )
-    
+
     # 上报到Dataway
 
     # dataway_host 是从 DATAWAY_URL 中提取的
@@ -49,8 +49,6 @@ EOF
     # log_info "log_data: $log_data"
 
     if [ -n "$dataway_host" ]; then
-
-
         # log_info "执行命令：curl -s -X POST $dataway_host/v1/write/logging?token=$dataway_token&precision=ns -H 'Content-Type: application/json' -d '$log_data'"
 
         
