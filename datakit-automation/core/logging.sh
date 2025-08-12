@@ -124,6 +124,7 @@ init_logging() {
     local log_file="${LOG_FILE}"
     local log_dir=$(dirname "$log_file")
     
+    
     # 创建日志目录
     if [[ ! -d "$log_dir" ]]; then
         mkdir -p "$log_dir" 2>/dev/null || {
