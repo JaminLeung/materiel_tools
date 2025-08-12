@@ -391,7 +391,7 @@ get_ops_config() {
     log_info "请求数据: {\"server_ip\": \"$host_ip\"}"
     
     local response
-    if response=$(curl -s -w "%{http_code}" -X POST "$api_path" \
+    if response=$(curl -s -w "\n%{http_code}" -X POST "$api_path" \
         -H "Authorization: Token $ops_token" \
         -H "Content-Type: application/json;charset=UTF-8" \
         -d "{\"server_ip\": \"$host_ip\"}" \
