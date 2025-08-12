@@ -39,14 +39,14 @@ generate_structured_log() {
     local message="$2"
     local context="${3:-}"
     local extra_fields="${4:-}"
-    
+
     local timestamp=$(date -Iseconds)
     local pid=$$
     local script_name="${SCRIPT_NAME:-$(basename "$0")}"
     local script_version="${SCRIPT_VERSION:-unknown}"
     local hostname=$(hostname 2>/dev/null || echo "unknown")
     local user=$(whoami 2>/dev/null || echo "unknown")
-    
+
     # TODO 日志格式改为一行
     local json_log=$(cat <<EOF
 {
@@ -74,7 +74,7 @@ EOF
 write_log_to_file() {
     local log_message="$1"
     local level="$2"
-    
+
     # 直接写入日志文件
     if [[ -n "$LOG_FILE" && "$LOG_FILE" != "/dev/null" ]]; then
         echo "$log_message" >> "$LOG_FILE" 2>/dev/null || {
@@ -96,12 +96,12 @@ log_message() {
     local message="$2"
     local context="${3:-}"
     local extra_fields="${4:-}"
-     
+
     # 生成日志消息
     local log_message=$(generate_structured_log "$level" "$message" "$context" "$extra_fields")
-    
+
     echo "$log_message"
-    
+
     # 写入日志文件
     write_log_to_file "$log_message" "$level"
 }
@@ -123,8 +123,8 @@ log_success() { log_message "SUCCESS" "$1" "${2:-}" "${3:-}"; }
 init_logging() {
     local log_file="${LOG_FILE}"
     local log_dir=$(dirname "$log_file")
-    
-    
+
+
     # 创建日志目录
     if [[ ! -d "$log_dir" ]]; then
         mkdir -p "$log_dir" 2>/dev/null || {
@@ -133,21 +133,21 @@ init_logging() {
             return 1
         }
     fi
-    
+
     # 创建日志文件
     touch "$log_file" 2>/dev/null || {
         echo "警告：无法创建日志文件 $log_file，将输出到标准输出" >&2
         LOG_FILE="/dev/null"
         return 1
     }
-    
+
     # 设置文件权限
     chmod 644 "$log_file" 2>/dev/null || true
-    
+
     # 记录初始化信息
     local init_message=$(generate_structured_log "INFO" "日志系统初始化完成" "logging_init" ", \"log_file\": \"$log_file\")
     echo "$init_message" >> "$log_file"
-    
+
     return 0
 }
 
@@ -156,9 +156,9 @@ cleanup_old_logs() {
     local log_dir=$(dirname "$LOG_FILE")
     local base_name=$(basename "$LOG_FILE" | cut -d. -f1)
     local retention_days="${LOG_RETENTION_DAYS:-30}"
-    
+
     log_info "开始清理 $retention_days 天前的日志文件" "log_cleanup"
-    
+
     # 查找并删除过期的日志文件
     local deleted_count=0
     while IFS= read -r -d '' file; do
@@ -167,7 +167,7 @@ cleanup_old_logs() {
             deleted_count=$((deleted_count + 1))
         fi
     done < <(find "$log_dir" -name "${base_name}.*" -type f -mtime +$retention_days -print0 2>/dev/null)
-    
+
     log_info "清理完成，删除了 $deleted_count 个过期日志文件" "log_cleanup"
 }
 
@@ -203,4 +203,4 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             echo "  test    - 测试日志功能"
             ;;
     esac
-fi 
+fi
