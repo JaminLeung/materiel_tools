@@ -16,7 +16,7 @@ readonly CORE_DIR="$SCRIPT_DIR/../core"
 
 # 加载基础配置
 source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
-load_all_configs $ENV ""
+load_all_configs $ENV "app_init.sh"
 
 # 设置日志文件路径
 export LOG_FILE="$APP_INIT_LOG_FILE"

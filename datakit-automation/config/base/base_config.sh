@@ -16,6 +16,12 @@ SCRIPT_VERSION="0.1.1"
 # 基础路径配置
 # =============================================================================
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 直接计算项目根目录
+if [[ -n "${SCENARIO_PROJECT_ROOT:-}" ]]; then
+    PROJECT_ROOT="$SCENARIO_PROJECT_ROOT"
+else
+    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+fi
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 MODULES_DIR="$PROJECT_ROOT/modules"
 CONFIG_DIR="$PROJECT_ROOT/config"

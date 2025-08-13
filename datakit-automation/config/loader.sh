@@ -10,6 +10,15 @@
 # 配置加载器函数
 # =============================================================================
 
+# 设置 SCENARIO_PROJECT_ROOT 变量（如果未设置）
+if [[ -z "${SCENARIO_PROJECT_ROOT:-}" ]]; then
+    # 获取当前脚本所在目录
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # 设置项目根目录
+    SCENARIO_PROJECT_ROOT="$(cd "$script_dir/.." && pwd)"
+    export SCENARIO_PROJECT_ROOT
+fi
+
 source "$SCENARIO_PROJECT_ROOT/config/base/base_config.sh"
 
 

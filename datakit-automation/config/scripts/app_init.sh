@@ -26,7 +26,7 @@ APP_INIT_DATAWAY_URL="$DATAWAY_URL"
 # =============================================================================
 # Datakit配置目录
 # =============================================================================
-APP_INIT_LOGGING_DIR="/usr/local/datakit/conf.d/logging"
+APP_INIT_LOGGING_DIR="/usr/local/datakit/conf.d/log"
 APP_INIT_METRICS_DIR="/usr/local/datakit/conf.d/prom"
 APP_INIT_HEALTH_DIR="/usr/local/datakit/conf.d/host"
 
