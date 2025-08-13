@@ -9,17 +9,8 @@
 # =============================================================================
 # 配置加载器函数
 # =============================================================================
-
-# 设置 SCENARIO_PROJECT_ROOT 变量（如果未设置）
-if [[ -z "${SCENARIO_PROJECT_ROOT:-}" ]]; then
-    # 获取当前脚本所在目录
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    # 设置项目根目录
-    SCENARIO_PROJECT_ROOT="$(cd "$script_dir/.." && pwd)"
-    export SCENARIO_PROJECT_ROOT
-fi
-
-source "$SCENARIO_PROJECT_ROOT/config/base/base_config.sh"
+# log_info "SCRIPT_DIR: $SCRIPT_DIR"
+# source "$SCRIPT_DIR/../config/base/base_config.sh"
 
 
 # 加载解密模块
@@ -144,6 +135,9 @@ load_script_config() {
 
 # 加载所有配置
 load_all_configs() {
+    local LOADER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local PROJECT_ROOT="$LOADER_SCRIPT_DIR/.."
+    local CONFIG_DIR="$LOADER_SCRIPT_DIR"
     local env_name="${1:-$ENV}"
     local script_name="${2:-}"
     

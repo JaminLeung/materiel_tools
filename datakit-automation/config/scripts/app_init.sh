@@ -14,7 +14,7 @@ fi
 # =============================================================================
 APP_INIT_SCRIPT_NAME="datakit_app_init"
 APP_INIT_SCRIPT_VERSION="2.0.0"
-APP_INIT_LOG_FILE="/opt/datakit/app_init.log"
+APP_INIT_LOG_FILE="${RUNTIME_LOG_DIR}/app_init.log"
 
 # =============================================================================
 # 运维平台配置
@@ -31,25 +31,20 @@ APP_INIT_METRICS_DIR="/usr/local/datakit/conf.d/prom"
 APP_INIT_HEALTH_DIR="/usr/local/datakit/conf.d/host"
 
 # =============================================================================
-# 备份配置
+# 运行时目录配置
 # =============================================================================
-APP_INIT_BACKUP_BASE_DIR="$(dirname "$(dirname "$(dirname "${BASH_SOURCE[0]}")")")/backup"
-APP_INIT_BACKUP_DATE_DIR="${APP_INIT_BACKUP_BASE_DIR}/$(date +%Y%m%d)"
-APP_INIT_BACKUP_APP_INIT_DIR="${APP_INIT_BACKUP_DATE_DIR}/app_init"
+# 临时目录始终放在 runtime/tmp 下
+APP_INIT_TEMP_DIR="${RUNTIME_TMP_ROOT}/app_init"
+APP_INIT_BACKUP_DIR="${APP_INIT_TEMP_DIR}/backup"
 
-# =============================================================================
 # 临时存储目录
-# =============================================================================
-APP_INIT_LOGGING_TMP_DIR="${APP_INIT_BACKUP_APP_INIT_DIR}/log"
-APP_INIT_METRICS_TMP_DIR="${APP_INIT_BACKUP_APP_INIT_DIR}/prom"
-APP_INIT_HEALTH_TMP_DIR="${APP_INIT_BACKUP_APP_INIT_DIR}/host"
-
-# =============================================================================
-# 前一次存储目录
-# =============================================================================
-APP_INIT_LOGGING_PREV_DIR="${APP_INIT_BACKUP_APP_INIT_DIR}/log_prev"
-APP_INIT_METRICS_PREV_DIR="${APP_INIT_BACKUP_APP_INIT_DIR}/prom_prev"
-APP_INIT_HEALTH_PREV_DIR="${APP_INIT_BACKUP_APP_INIT_DIR}/host_prev"
+APP_INIT_LOGGING_TMP_DIR="${APP_INIT_TEMP_DIR}/log"
+APP_INIT_METRICS_TMP_DIR="${APP_INIT_TEMP_DIR}/prom"
+APP_INIT_HEALTH_TMP_DIR="${APP_INIT_TEMP_DIR}/host"
+# 前一次存储目录（放在 runtime/diff 下，独立于版本）
+APP_INIT_LOGGING_PREV_DIR="${RUNTIME_DIFF_ROOT}/app_init/log_prev"
+APP_INIT_METRICS_PREV_DIR="${RUNTIME_DIFF_ROOT}/app_init/prom_prev"
+APP_INIT_HEALTH_PREV_DIR="${RUNTIME_DIFF_ROOT}/app_init/host_prev"
 
 # =============================================================================
 # 模板文件路径

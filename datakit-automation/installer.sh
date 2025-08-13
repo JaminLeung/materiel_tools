@@ -25,24 +25,24 @@ readonly INSTALLER_TOOLS_DIR="$INSTALLER_SCRIPT_DIR/tools"
 load_config() {
     local env_config_file="$1"
     
-    log_info " 开始加载配置..."
+    echo "INFO: 开始加载配置..."
     
     # 1. 首先加载基础配置（config/base下的脚本）
     local base_config_dir="$INSTALLER_CONFIG_DIR/base"
     if [[ -d "$base_config_dir" ]]; then
-        log_info " 加载基础配置: $base_config_dir"
+        echo "INFO: 加载基础配置: $base_config_dir"
         
         # 先加载base_config.sh（基础配置）
         local base_config_file="$base_config_dir/base_config.sh"
         if [[ -f "$base_config_file" ]]; then
-            log_info " 加载基础配置文件: base_config.sh"
+            echo "INFO: 加载基础配置文件: base_config.sh"
             source "$base_config_file"
         fi
         
         # 再加载其他配置文件（除了base_config.sh）
         for config_file in "$base_config_dir"/*.sh; do
             if [[ -f "$config_file" && "$(basename "$config_file")" != "base_config.sh" ]]; then
-                log_info " 加载基础配置文件: $(basename "$config_file")"
+                echo "INFO: 加载基础配置文件: $(basename "$config_file")"
                 source "$config_file"
             fi
         done
@@ -76,20 +76,20 @@ load_config() {
         fi
         
         if [[ -f "$full_config_path" ]]; then
-            log_info " 加载环境配置文件: $full_config_path"
+            echo "INFO: 加载环境配置文件: $full_config_path"
             source "$full_config_path"
         else
             echo "[ERROR] 指定的配置文件不存在: $full_config_path" >&2
             exit 1
         fi
     else
-        log_info " 未指定环境配置文件，使用默认配置"
+        echo "INFO: 未指定环境配置文件，使用默认配置"
     fi
     
     # 设置默认的DATAKIT_VERSION（如果未设置）
     export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
     
-    log_info " 配置加载完成"
+    echo "INFO: 配置加载完成"
 }
 
 # 加载模块
@@ -99,7 +99,7 @@ load_module() {
     
     if [[ -f "$module_file" ]]; then
         source "$module_file"
-        log_info " 加载模块: $module_name"
+        echo "INFO: 加载模块: $module_name"
     else
         echo "[ERROR] 模块文件不存在: $module_file" >&2
         exit 1
@@ -109,7 +109,7 @@ load_module() {
 # 初始化安装器
 initialize_installer() {
 
-    log_info " === Datakit 安装器初始化 ==="
+    echo "INFO: === Datakit 安装器初始化 ==="
     
     # 检查必需目录
     local required_dirs=("$INSTALLER_CORE_DIR" "$INSTALLER_CONFIG_DIR" "$INSTALLER_INSTALL_DIR" "$INSTALLER_SCENARIOS_DIR")
@@ -138,11 +138,20 @@ initialize_installer() {
     fi
     
     # 安装模块已由scenarios脚本处理，此处不再加载旧模块
+    # 初始化运行时目录（仅创建基础目录，不创建版本目录）
+    if command -v init_runtime_dirs >/dev/null 2>&1; then
+        init_runtime_dirs
+    else
+        echo "INFO: 初始化运行时目录"
+        # 如果函数不可用，手动创建基本目录
+        mkdir -p "$RUNTIME_ROOT" "$RUNTIME_LOG_DIR" 2>/dev/null || true
+    fi
+    
     # 执行初始化脚本
     initialize_script
     
     if command -v log_info >/dev/null 2>&1; then
-        log_info "安装器初始化完成"
+        echo "INFO: 安装器初始化完成"
     else
         echo "[SUCCESS] 安装器初始化完成"
     fi
@@ -273,6 +282,9 @@ main() {
     
     # 加载配置（自动检测环境变量或配置文件）
     load_config "$env_config_file"
+    
+    # 设置当前命令为全局变量，供验证函数使用
+    export CURRENT_COMMAND="$command"
     
     # 初始化安装器
     initialize_installer
@@ -512,20 +524,6 @@ execute_config_sync() {
     if [[ -f "$config_sync_script" ]]; then
         log_info "调用配置同步脚本: $config_sync_script"
         
-        # 传递配置信息给脚本
-        export DATAKIT_CONFIG_FILE="$env_config_file"
-        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
-        
-        # 导出所有关键配置变量
-        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
-        export OPS_ADDR="${OPS_ADDR:-}"
-        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
-        export DATAWAY_URL="${DATAWAY_URL:-}"
-        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
-        export S3_BUCKET="${S3_BUCKET:-}"
-        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
-        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
-        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
         
         # 执行配置同步脚本
         bash "$config_sync_script"

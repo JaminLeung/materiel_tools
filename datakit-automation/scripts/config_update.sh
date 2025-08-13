@@ -17,7 +17,7 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 加载基础配置
 # 加载基础配置
 source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
-load_all_configs $ENV "config_update.sh"
+load_all_configs "${ENV:-test}" "config_update"
 
 # =============================================================================
 # 全局变量
@@ -38,6 +38,11 @@ source "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
 
 # 初始化日志系统
 init_logging
+
+# 初始化运行时目录（仅创建基础目录）
+if command -v init_runtime_dirs >/dev/null 2>&1; then
+    init_runtime_dirs
+fi
 
 # =============================================================================
 # 工具函数
@@ -93,13 +98,34 @@ handle_global_config() {
         key=$(echo "$config_item" | jq -r '.key // empty' 2>/dev/null)
         value=$(echo "$config_item" | jq -r '.value // empty' 2>/dev/null)
         
-        [ "$enable" = "true" ] && [ -n "$key" ] && [ -n "$value" ] || continue
-        
-        log_info "处理配置项: $key"
+        # 检查运维平台配置中的key字段是否为空
+        [ -n "$key" ] || continue
         
         # 确保key以点号开头
         local json_path="$key"
         [[ "$json_path" != .* ]] && json_path=".$json_path"
+        
+        if [ "$enable" = "false" ]; then
+            # enable=false: 检查配置项是否存在，如果存在则删除
+            if get_json_path_value "$current_config" "$json_path" >/dev/null; then
+                log_info "删除配置项: $key"
+                # 删除配置项（移除点号前缀，确保正确的jq路径格式）
+                local jq_path="${json_path#.}"
+                updated_config=$(echo "$updated_config" | jq "del(.$jq_path)" 2>/dev/null) || {
+                    record_error "CONFIG_ERROR" "配置删除失败: $key" "ERROR"
+                    continue
+                }
+                CONFIG_CHANGED=true
+            else
+                log_info "配置项不存在，跳过删除: $key"
+            fi
+            continue
+        fi
+        
+        # enable=true: 处理配置项更新
+        [ "$enable" = "true" ] && [ -n "$value" ] || continue
+        
+        log_info "处理配置项: $key"
         
         # 检查并更新配置
         if get_json_path_value "$current_config" "$json_path" >/dev/null; then
@@ -107,18 +133,18 @@ handle_global_config() {
             current_value_raw=$(echo "$current_config" | jq -r "$json_path" 2>/dev/null)
             expected_value_raw="$value"
             
-                    if [ "$current_value_raw" != "$expected_value_raw" ]; then
-            log_info "配置不一致，需要更新: $key"
-            log_info "当前值: $current_value_raw"
-            log_info "期望值: $expected_value_raw"
-            updated_config=$(set_json_path_value "$updated_config" "$json_path" "$value") || {
-                record_error "CONFIG_ERROR" "配置更新失败: $key" "ERROR"
-                continue
-            }
-            CONFIG_CHANGED=true
-        else
-            log_info "配置相同，跳过更新: $key"
-        fi
+            if [ "$current_value_raw" != "$expected_value_raw" ]; then
+                log_info "配置不一致，需要更新: $key"
+                log_info "当前值: $current_value_raw"
+                log_info "期望值: $expected_value_raw"
+                updated_config=$(set_json_path_value "$updated_config" "$json_path" "$value") || {
+                    record_error "CONFIG_ERROR" "配置更新失败: $key" "ERROR"
+                    continue
+                }
+                CONFIG_CHANGED=true
+            else
+                log_info "配置相同，跳过更新: $key"
+            fi
         else
             # 配置路径不存在，添加新配置
             log_info "配置路径不存在，添加新配置: $key"
@@ -381,33 +407,6 @@ handle_input_create() {
     # 确保备份目录存在
     safe_execute "mkdir -p '$CONFIG_UPDATE_BACKUP_DIR'" "创建备份目录" || return 1
     
-    # 优先使用备份目录中的备份文件
-    local filename=$(basename "$input_path")
-    local latest_backup=""
-    local latest_timestamp=""
-    
-    # 在所有日期目录中查找最新的备份文件
-    if [ -d "$CONFIG_UPDATE_BACKUP_BASE_DIR" ]; then
-        while IFS= read -r -d '' backup_file; do
-            [ -f "$backup_file" ] || continue
-            local file_timestamp
-            file_timestamp=$(stat -c %Y "$backup_file" 2>/dev/null || echo "0")
-            if [ "$latest_timestamp" = "" ] || [ "$file_timestamp" -gt "$latest_timestamp" ]; then
-                latest_timestamp="$file_timestamp"
-                latest_backup="$backup_file"
-            fi
-        done < <(find "$CONFIG_UPDATE_BACKUP_BASE_DIR" -type f -path "*/config_update/${filename}.backup.*" -print0 2>/dev/null)
-    fi
-    
-    # 恢复配置文件
-    if [ -n "$latest_backup" ] && [ -f "$latest_backup" ]; then
-        if safe_execute "cp '$latest_backup' '$input_path'" "从备份恢复配置文件"; then
-            log_info "从备份恢复: $input_path"
-            log_info "备份文件: $latest_backup"
-            return 0
-        fi
-    fi
-    
     # 使用sample文件
     local sample_path="${input_path}.sample"
     [ -f "$sample_path" ] || {
@@ -572,6 +571,7 @@ handle_input_delete_key() {
             return 1
         }
         log_info "配置删除成功: $key"
+        CONFIG_CHANGED=true
     else
         log_info "配置路径不存在，无需删除: $key"
     fi
@@ -593,7 +593,7 @@ handle_datakit_service_control() {
         config_enable=$(echo "$datakit_config" | jq -r '.enable' 2>/dev/null)
         
         if [ "$config_enable" = "false" ]; then
-            # enable=false: 停止Datakit并停止健康检查定时任务
+            # enable=false: 停止Datakit服务
             log_info "配置enable=false，执行停止Datakit操作" >&2
             
             # 检查当前状态
@@ -602,16 +602,7 @@ handle_datakit_service_control() {
             
             if [ "$current_status" = "running" ]; then
                 stop_datakit
-                log_info "Datakit已停止，检查健康检查定时任务状态" >&2
-                
-                # 检查健康检查定时任务是否存在
-                local health_check_script_path="$CONFIG_UPDATE_HEALTH_CHECK_SCRIPT"
-                if crontab -l 2>/dev/null | grep -q "$health_check_script_path"; then
-                    log_info "发现健康检查定时任务，执行停止操作" >&2
-                    control_health_check_service stop
-                else
-                    log_info "健康检查定时任务不存在，无需停止" >&2
-                fi
+                log_info "Datakit已停止" >&2
             else
                 log_info "Datakit已经处于停止状态" >&2
             fi
@@ -629,31 +620,13 @@ handle_datakit_service_control() {
             check_datakit_status && current_status="running" || current_status="stopped"
             
             if [ "$current_status" = "stopped" ]; then
-                log_info "Datakit未运行，启动Datakit和健康检查定时任务" >&2
+                log_info "Datakit未运行，启动Datakit" >&2
                 
                 start_datakit
                 
-                # 检查健康检查定时任务是否存在
-                local health_check_script_path="$CONFIG_UPDATE_HEALTH_CHECK_SCRIPT"
-                if crontab -l 2>/dev/null | grep -q "$health_check_script_path"; then
-                    log_info "健康检查定时任务已存在，跳过安装" >&2
-                else
-                    log_info "健康检查定时任务不存在，执行安装" >&2
-                    control_health_check_service start
-                fi
-                
                 log_info "Datakit启动完成，执行配置更新" >&2
             else
-                log_info "Datakit正在运行，检查健康检查定时任务状态" >&2
-                
-                # 检查健康检查定时任务是否存在
-                local health_check_script_path="$CONFIG_UPDATE_HEALTH_CHECK_SCRIPT"
-                if crontab -l 2>/dev/null | grep -q "$health_check_script_path"; then
-                    log_info "健康检查定时任务已存在，无需操作" >&2
-                else
-                    log_info "健康检查定时任务不存在，执行安装" >&2
-                    control_health_check_service start
-                fi
+                log_info "Datakit正在运行，继续执行配置更新" >&2
             fi
         fi
     else
@@ -709,7 +682,7 @@ main() {
     if [ "$config_enable" = "false" ]; then
         log_info "Datakit已停止，跳过配置更新，脚本执行完成"
         SCRIPT_EXIT_CODE=0
-        record_script_end
+        
         return 0
     fi
     
@@ -722,6 +695,36 @@ main() {
     # 所有配置完成后，统一重启Datakit（仅在enable=true且Datakit运行时）
 
     if [ "$CONFIG_CHANGED" = "true" ]; then
+        log_info "检测到配置变更，创建版本目录"
+        
+        # 创建版本目录
+        if command -v init_runtime_dirs >/dev/null 2>&1; then
+            init_runtime_dirs "$RUNTIME_ROOT" "true"
+        fi
+        
+        # 备份当前Datakit配置目录到版本目录
+        if [ -n "${RUNTIME_RELEASE:-}" ] && [ -d "/usr/local/datakit/conf.d" ]; then
+            log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
+            
+            # 备份整个conf.d目录
+            if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/datakit_conf.d" 2>/dev/null; then
+                log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
+            else
+                record_error "BACKUP_ERROR" "Datakit配置目录备份失败" "WARNING"
+            fi
+        fi
+        
+        # 移动临时文件到版本目录
+        if [ -n "${RUNTIME_RELEASE:-}" ]; then
+            log_info "移动临时文件到版本目录: $RUNTIME_RELEASE"
+            
+            # 移动config_update的临时文件
+            if [ -d "$CONFIG_UPDATE_TEMP_DIR" ]; then
+                mv "$CONFIG_UPDATE_TEMP_DIR" "$RUNTIME_TMP_DIR/config_update" 2>/dev/null || true
+                log_info "临时文件移动完成"
+            fi
+        fi
+        
         if [ "$config_enable" = "true" ]; then
             log_info "所有配置已完成，重启Datakit"
             restart_datakit
@@ -742,7 +745,7 @@ main() {
     
     # 记录脚本结束
     SCRIPT_EXIT_CODE=0
-    record_script_end
+    
 }
 
 # =============================================================================

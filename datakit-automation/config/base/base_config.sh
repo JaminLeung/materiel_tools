@@ -15,14 +15,18 @@ SCRIPT_VERSION="0.1.1"
 # =============================================================================
 # 基础路径配置
 # =============================================================================
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# 如果SCRIPT_DIR已经被定义为readonly，则使用不同的变量名
+if [[ -z "${SCRIPT_DIR:-}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+BASE_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # 直接计算项目根目录
 if [[ -n "${SCENARIO_PROJECT_ROOT:-}" ]]; then
     PROJECT_ROOT="$SCENARIO_PROJECT_ROOT"
 else
-    PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+    PROJECT_ROOT="$(cd "$BASE_CONFIG_DIR/../.." && pwd)"
 fi
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+PROJECT_ROOT="$(cd "$BASE_CONFIG_DIR/../.." && pwd)"
 MODULES_DIR="$PROJECT_ROOT/modules"
 CONFIG_DIR="$PROJECT_ROOT/config"
 SCENARIO_DIR="$PROJECT_ROOT/scenario"
@@ -43,13 +47,37 @@ DATAKIT_LOG_DIR="/var/log/datakit"
 # =============================================================================
 # 日志配置
 # =============================================================================
-LOG_FILE="${DATAKIT_LOG_FILE:-/var/log/datakit_install.log}"
 LOG_LEVEL="${LOG_LEVEL:-1}"
 
 # =============================================================================
 # 外部脚本配置
 # =============================================================================
 CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}"
+
+# =============================================================================
+# 运行时目录配置
+# =============================================================================
+# 运行时根目录
+RUNTIME_ROOT="${RUNTIME_ROOT:-$RUNTIME_DIR}"
+# 日志目录（独立于版本，始终存在）
+RUNTIME_LOG_DIR="${RUNTIME_LOG_DIR:-$RUNTIME_ROOT/log}"
+# 临时目录（独立于版本，始终存在）
+RUNTIME_TMP_ROOT="${RUNTIME_TMP_ROOT:-$RUNTIME_ROOT/tmp}"
+# 对比文件目录（独立于版本，始终存在）
+RUNTIME_DIFF_ROOT="${RUNTIME_DIFF_ROOT:-$RUNTIME_ROOT/diff}"
+# 版本目录（仅在需要时创建）
+RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_ROOT/releases}"
+# 当前发布版本目录（基于时间戳，仅在需要时创建）
+RUNTIME_RELEASE="${RUNTIME_RELEASE:-}"
+# 运行时子目录（仅在创建版本时使用）
+RUNTIME_BACKUP_DIR="${RUNTIME_BACKUP_DIR:-}"
+RUNTIME_CONF_DIR="${RUNTIME_CONF_DIR:-}"
+RUNTIME_TMP_DIR="${RUNTIME_TMP_DIR:-}"
+
+# =============================================================================
+# 日志配置（需要在运行时目录配置之后）
+# =============================================================================
+LOG_FILE="${DATAKIT_LOG_FILE:-${RUNTIME_LOG_DIR}/installer.log}"
 
 # =============================================================================
 # 通用配置

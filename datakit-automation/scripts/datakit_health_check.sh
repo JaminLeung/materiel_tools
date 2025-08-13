@@ -15,7 +15,12 @@ readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 加载基础配置
 source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
-load_all_configs $ENV "health_check.sh"
+load_all_configs "${ENV:-test}" "health_check"
+
+# 定义核心模块目录（如果配置文件中没有定义）
+if [ -z "${CONFIG_UPDATE_CORE_DIR:-}" ]; then
+    CONFIG_UPDATE_CORE_DIR="$(dirname "$SCRIPT_DIR")/core"
+fi
 
 # =============================================================================
 # 配置变量（从base_config.sh加载）
@@ -37,6 +42,17 @@ source "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
 
 # 初始化日志系统
 init_logging
+
+# 初始化运行时目录（仅创建基础目录）
+if command -v init_runtime_dirs >/dev/null 2>&1; then
+    init_runtime_dirs
+fi
+
+# 创建健康检查临时目录
+if [ ! -d "$HEALTH_CHECK_TEMP_DIR" ]; then
+    mkdir -p "$HEALTH_CHECK_TEMP_DIR"
+    log_info "创建健康检查临时目录: $HEALTH_CHECK_TEMP_DIR"
+fi
 
 # =============================================================================
 # 工具函数
@@ -128,12 +144,8 @@ perform_health_check() {
     
     # 执行健康检查
     if check_datakit_health; then
-        # 检查成功，重置失败计数
-        local current_count=$(get_failure_count)
-        if [ "$current_count" -gt 0 ]; then
-            log_info "Datakit恢复正常，重置失败计数"
-            reset_failure_count
-        fi
+        # 检查成功，记录状态但不重置失败计数
+        log_info "Datakit健康检查通过"
     else
         # 检查失败，增加失败计数
         local current_count=$(get_failure_count)
@@ -142,16 +154,9 @@ perform_health_check() {
         
         record_error "SERVICE_ERROR" "Datakit健康检查失败 (第 $new_count 次)" "WARNING"
         
-        # 达到最大失败次数时重启
+        # 达到最大失败次数时记录错误，但不自动重启
         if [ "$new_count" -ge "$HEALTH_CHECK_MAX_FAILURE_COUNT" ]; then
-            handle_error "SERVICE_ERROR" "Datakit连续失败 $HEALTH_CHECK_MAX_FAILURE_COUNT 次，执行重启" "ERROR" "false"
-            
-            if restart_datakit; then
-                log_info "Datakit重启成功"
-                reset_failure_count
-            else
-                handle_error "SERVICE_ERROR" "Datakit重启失败" "ERROR" "false"
-            fi
+            handle_error "SERVICE_ERROR" "Datakit连续失败 $HEALTH_CHECK_MAX_FAILURE_COUNT 次，需要手动处理" "ERROR" "false"
         fi
     fi
     

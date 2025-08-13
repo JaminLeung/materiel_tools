@@ -73,10 +73,48 @@ validate_system_resources_initialize() {
 
 # 验证配置参数
 validate_config() {
-    # 检查必需的环境变量
-    local required_vars=("DATAKIT_VERSION" "S3_BUCKET" "S3_ACCESS_KEY" "S3_SECRET_KEY" "DATAWAY_URL" "OPS_ADDR")
+    local current_command="${CURRENT_COMMAND:-}"
+    local required_vars=()
     local missing_vars=()
     
+    # 根据不同的命令设置不同的必需环境变量
+    case "$current_command" in
+        existing-install|incremental-install|version-upgrade|reinstall)
+            # 安装相关命令需要所有环境变量
+            required_vars=("DATAKIT_VERSION" "S3_BUCKET" "S3_ACCESS_KEY" "S3_SECRET_KEY" "DATAWAY_URL" "OPS_ADDR")
+            ;;
+        config-update)
+            # 配置更新需要基本配置
+            required_vars=("DATAKIT_VERSION" "DATAWAY_URL" "OPS_ADDR")
+            ;;
+        app-init)
+            # 应用初始化需要运维平台地址
+            required_vars=()
+            ;;
+        config-sync)
+            # 配置同步需要运维平台地址
+            required_vars=()
+            ;;
+        health-check)
+            # 健康检查不需要外部环境变量
+            required_vars=()
+            ;;
+        setup-cron)
+            # 设置定时任务不需要外部环境变量
+            required_vars=()
+            ;;
+        *)
+            # 默认情况，检查所有环境变量
+            required_vars=("DATAKIT_VERSION" "S3_BUCKET" "S3_ACCESS_KEY" "S3_SECRET_KEY" "DATAWAY_URL" "OPS_ADDR")
+            ;;
+    esac
+    
+    # 如果没有必需的环境变量，直接返回成功
+    if [[ ${#required_vars[@]} -eq 0 ]]; then
+        return 0
+    fi
+    
+    # 检查必需的环境变量
     for var in "${required_vars[@]}"; do
         if [[ -z "${!var:-}" ]]; then
             missing_vars+=("$var")

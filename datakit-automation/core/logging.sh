@@ -43,19 +43,9 @@ generate_structured_log() {
     local hostname=$(hostname 2>/dev/null || echo "unknown")
     local user=$(whoami 2>/dev/null || echo "unknown")
 
-    # TODO 日志格式改为一行
+    # 日志格式修改成一行，方便数据上报
     local json_log=$(cat <<EOF
-{
-    "timestamp": "$timestamp",
-    "level": "$level",
-    "message": "$message",
-    "pid": $pid,
-    "script_name": "$script_name",
-    "script_version": "$script_version",
-    "hostname": "$hostname",
-    "user": "$user",
-    "context": "$context"$extra_fields
-}
+{"timestamp": "$timestamp","level": "$level","message": "$message","pid": $pid,"script_name": "$script_name","script_version": "$script_version","hostname": "$hostname","user": "$user","context": "$context","extra_fields": "$extra_fields"}
 EOF
 )
     echo "$json_log"

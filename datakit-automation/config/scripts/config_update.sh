@@ -14,7 +14,7 @@ fi
 # =============================================================================
 CONFIG_UPDATE_SCRIPT_NAME="datakit_config_update"
 CONFIG_UPDATE_SCRIPT_VERSION="2.0.0"
-CONFIG_UPDATE_LOG_FILE="/opt/datakit/datakit_config_update.log"
+CONFIG_UPDATE_LOG_FILE="${RUNTIME_LOG_DIR}/config_update.log"
 
 # =============================================================================
 # 路径配置
@@ -24,9 +24,8 @@ CONFIG_UPDATE_CORE_DIR="$(dirname "$CONFIG_UPDATE_SCRIPT_DIR")/core"
 CONFIG_UPDATE_DATAKIT_CONF="/usr/local/datakit/conf.d/datakit.conf"
 CONFIG_UPDATE_DATAKIT_CONF_DIR="/usr/local/datakit/conf.d"
 CONFIG_UPDATE_HEALTH_CHECK_SCRIPT="$CONFIG_UPDATE_SCRIPT_DIR/datakit_health_check.sh"
-CONFIG_UPDATE_BACKUP_BASE_DIR="$(dirname "$CONFIG_UPDATE_SCRIPT_DIR")/backup"
-CONFIG_UPDATE_BACKUP_DATE_DIR="$CONFIG_UPDATE_BACKUP_BASE_DIR/$(date +%Y%m%d)"
-CONFIG_UPDATE_BACKUP_DIR="$CONFIG_UPDATE_BACKUP_DATE_DIR/config_update"
+CONFIG_UPDATE_TEMP_DIR="${RUNTIME_ROOT}/temp/config_update"
+CONFIG_UPDATE_BACKUP_DIR="${CONFIG_UPDATE_TEMP_DIR}/backup"
 
 # =============================================================================
 # 服务控制配置
