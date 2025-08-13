@@ -16,10 +16,6 @@
 LOG_LEVELS_NAMES=("DEBUG" "INFO" "WARNING" "ERROR" "CRITICAL" "SUCCESS")
 LOG_LEVELS_VALUES=(0 1 2 3 4 5)
 
-# 日志级别颜色映射
-LOG_COLORS_NAMES=("DEBUG" "INFO" "WARNING" "ERROR" "CRITICAL" "SUCCESS")
-LOG_COLORS_VALUES=("$CYAN" "$BLUE" "$YELLOW" "$RED" "$PURPLE" "$GREEN")
-
 
 #=================================================
 # 配置变量（从配置文件加载，这里只提供默认值作为后备）
@@ -47,19 +43,9 @@ generate_structured_log() {
     local hostname=$(hostname 2>/dev/null || echo "unknown")
     local user=$(whoami 2>/dev/null || echo "unknown")
 
-    # TODO 日志格式改为一行
+    # 日志格式修改成一行，方便数据上报
     local json_log=$(cat <<EOF
-{
-    "timestamp": "$timestamp",
-    "level": "$level",
-    "message": "$message",
-    "pid": $pid,
-    "script_name": "$script_name",
-    "script_version": "$script_version",
-    "hostname": "$hostname",
-    "user": "$user",
-    "context": "$context"$extra_fields
-}
+{"timestamp": "$timestamp","level": "$level","message": "$message","pid": $pid,"script_name": "$script_name","script_version": "$script_version","hostname": "$hostname","user": "$user","context": "$context","extra_fields": "$extra_fields"}
 EOF
 )
     echo "$json_log"
@@ -145,7 +131,7 @@ init_logging() {
     chmod 644 "$log_file" 2>/dev/null || true
 
     # 记录初始化信息
-    local init_message=$(generate_structured_log "INFO" "日志系统初始化完成" "logging_init" ", \"log_file\": \"$log_file\")
+    local init_message=$(generate_structured_log "INFO" "日志系统初始化完成" "logging_init" ", \"log_file\": \"$log_file\"")
     echo "$init_message" >> "$log_file"
 
     return 0
@@ -192,7 +178,7 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             log_warning "这是一条警告日志"
             log_error "这是一条错误日志"
             log_critical "这是一条严重错误日志"
-            log_info "这是一条成功日志"
+            log_success "这是一条成功日志"
             ;;
         *)
             echo "用法: $0 {init|cleanup|test}"

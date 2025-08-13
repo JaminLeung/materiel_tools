@@ -14,8 +14,9 @@ fi
 # =============================================================================
 HEALTH_CHECK_SCRIPT_NAME="datakit_health_check"
 HEALTH_CHECK_SCRIPT_VERSION="2.0.0"
-HEALTH_CHECK_LOG_FILE="/opt/datakit/health_check.log"
-HEALTH_CHECK_FAILURE_COUNT_FILE="/var/run/datakit_health_check_failure_count"
+HEALTH_CHECK_LOG_FILE="${RUNTIME_LOG_DIR}/health_check.log"
+HEALTH_CHECK_TEMP_DIR="${RUNTIME_ROOT}/temp/health"
+HEALTH_CHECK_FAILURE_COUNT_FILE="${HEALTH_CHECK_TEMP_DIR}/health_check_failure_count"
 
 # =============================================================================
 # 健康检查配置

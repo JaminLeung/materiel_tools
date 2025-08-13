@@ -9,8 +9,8 @@
 # =============================================================================
 # 配置加载器函数
 # =============================================================================
-
-source "$SCENARIO_PROJECT_ROOT/config/base/base_config.sh"
+# log_info "SCRIPT_DIR: $SCRIPT_DIR"
+# source "$SCRIPT_DIR/../config/base/base_config.sh"
 
 
 # 加载解密模块
@@ -135,6 +135,9 @@ load_script_config() {
 
 # 加载所有配置
 load_all_configs() {
+    local LOADER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local PROJECT_ROOT="$LOADER_SCRIPT_DIR/.."
+    local CONFIG_DIR="$LOADER_SCRIPT_DIR"
     local env_name="${1:-$ENV}"
     local script_name="${2:-}"
     

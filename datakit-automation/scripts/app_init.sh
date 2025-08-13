@@ -16,9 +16,9 @@ readonly CORE_DIR="$SCRIPT_DIR/../core"
 
 # 加载基础配置
 source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
-load_all_configs $ENV ""
+load_all_configs "${ENV:-test}" "app_init"
 
-# 设置日志文件路径
+# 设置日志文件路径（从配置文件中加载）
 export LOG_FILE="$APP_INIT_LOG_FILE"
 
 # 加载核心模块
@@ -30,6 +30,9 @@ source "$CORE_DIR/datakit_service.sh" 2>/dev/null || echo "警告: 无法加载d
 # 配置变量（从base_config.sh加载）
 # =============================================================================
 # 直接使用base_config.sh中的APP_INIT_变量，无需重新赋值
+
+# 所有配置变量都通过 load_all_configs 从配置文件中加载
+# 无需在此处定义任何变量
 
 # =============================================================================
 # 全局变量
@@ -60,9 +63,8 @@ health_diff_file_list=()
 create_directories() {
     log_info "创建必要的目录"
     
-    # 创建备份基础目录
-    local dirs=("$APP_INIT_BACKUP_BASE_DIR" "$APP_INIT_BACKUP_DATE_DIR" "$APP_INIT_BACKUP_APP_INIT_DIR"
-                "$APP_INIT_LOGGING_TMP_DIR" "$APP_INIT_METRICS_TMP_DIR" "$APP_INIT_HEALTH_TMP_DIR" 
+    # 创建运行时目录
+    local dirs=("$APP_INIT_TEMP_DIR" "$APP_INIT_BACKUP_DIR" "$APP_INIT_LOGGING_TMP_DIR" "$APP_INIT_METRICS_TMP_DIR" "$APP_INIT_HEALTH_TMP_DIR" 
                 "$APP_INIT_LOGGING_PREV_DIR" "$APP_INIT_METRICS_PREV_DIR" "$APP_INIT_HEALTH_PREV_DIR"
                 "$APP_INIT_LOGGING_DIR" "$APP_INIT_METRICS_DIR" "$APP_INIT_HEALTH_DIR")
     
@@ -104,7 +106,7 @@ update_toml_config() {
     
     # 备份原文件到备份目录
     local filename=$(basename "$toml_file")
-    local backup_file="${APP_INIT_BACKUP_APP_INIT_DIR}/${filename}.backup.$(date +%Y%m%d_%H%M%S)"
+    local backup_file="${APP_INIT_BACKUP_DIR}/${filename}.backup.$(date +%Y%m%d_%H%M%S)"
     cp "$toml_file" "$backup_file"
     log_info "备份配置文件: $filename -> $(basename "$backup_file")"
     
@@ -163,11 +165,11 @@ process_logging() {
         fi
         
         # 生成临时配置文件
-        local tmp_file="${APP_INIT_LOGGING_TMP_DIR}/${service_name}_${log_type}.conf"
+        local tmp_file="${APP_INIT_LOGGING_TMP_DIR}/${service_name}_${log_type}_auto.conf"
         echo "$logging_content_toml" > "$tmp_file"
         
         # 检查差异并处理
-        handle_config_diff "$tmp_file" "${APP_INIT_LOGGING_PREV_DIR}/${service_name}_${log_type}.conf" "logging"
+        handle_config_diff "$tmp_file" "${APP_INIT_LOGGING_PREV_DIR}/${service_name}_${log_type}_auto.conf" "logging"
     done
 }
 
@@ -207,11 +209,11 @@ process_metrics() {
         fi
         
         # 生成临时配置文件
-        local tmp_file="${APP_INIT_METRICS_TMP_DIR}/${service_name}_metrics.conf"
+        local tmp_file="${APP_INIT_METRICS_TMP_DIR}/${service_name}_metrics_auto.conf"
         echo "$metrics_content_toml" > "$tmp_file"
         
         # 检查差异并处理
-        handle_config_diff "$tmp_file" "${APP_INIT_METRICS_PREV_DIR}/${service_name}_metrics.conf" "metrics"
+        handle_config_diff "$tmp_file" "${APP_INIT_METRICS_PREV_DIR}/${service_name}_metrics_auto.conf" "metrics"
     done
 }
 
@@ -253,11 +255,11 @@ process_health() {
         fi
         
         # 生成临时配置文件
-        local tmp_file="${APP_INIT_HEALTH_TMP_DIR}/${service_name}_health.conf"
+        local tmp_file="${APP_INIT_HEALTH_TMP_DIR}/${service_name}_health_auto.conf"
         echo "$health_content_toml" > "$tmp_file"
         
         # 检查差异并处理
-        handle_config_diff "$tmp_file" "${APP_INIT_HEALTH_PREV_DIR}/${service_name}_health.conf" "health"
+        handle_config_diff "$tmp_file" "${APP_INIT_HEALTH_PREV_DIR}/${service_name}_health_auto.conf" "health"
     done
 }
 
@@ -269,8 +271,18 @@ handle_config_diff() {
     local prev_file="$2"
     local config_type="$3"
     
+    # 确保前一次存储目录存在
+    local prev_dir=$(dirname "$prev_file")
+    if [ ! -d "$prev_dir" ]; then
+        mkdir -p "$prev_dir"
+        log_info "创建前一次存储目录: $prev_dir"
+    fi
+    
+
+    
     # 如果前一次存储目录存在同名文件，检查差异
     if [ -f "$prev_file" ]; then
+        log_info "对比配置文件: $tmp_file vs $prev_file"
         local diff_result
         diff_result=$(diff "$tmp_file" "$prev_file" 2>/dev/null || echo "")
         
@@ -302,7 +314,7 @@ handle_config_diff() {
         fi
     else
         # 首次处理，直接复制
-        log_info "首次处理配置: $tmp_file"
+        log_info "首次处理配置: $tmp_file -> $prev_file"
         cp "$tmp_file" "$prev_file"
         
         # 增加计数器
@@ -489,7 +501,7 @@ cleanup_old_configs() {
     local services
     
     # 读取JSON数据并解析
-    local tmp_json_file="${APP_INIT_BACKUP_APP_INIT_DIR}/tmp.json"
+    local tmp_json_file="${APP_INIT_BACKUP_DIR}/tmp.json"
     if jq -e '.data' "$tmp_json_file" >/dev/null 2>&1; then
         services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || return 1
     else
@@ -545,29 +557,29 @@ cleanup_config_directory() {
         # 根据配置类型检查文件格式并提取服务名称
         case "$config_type" in
             "logging")
-                # 格式: xxx.conf (任何以服务名开头的.conf文件)
-                if [[ "$filename" =~ ^[^_]+_.*\.conf$ ]]; then
-                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_.*\.conf$/\1/p')
+                # 格式: xxx_*_auto.conf (任何以服务名开头并以_auto.conf结尾的文件)
+                if [[ "$filename" =~ ^[^_]+_.*_auto\.conf$ ]]; then
+                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_.*_auto\.conf$/\1/p')
                     should_backup=true
                 else
-                    log_info "跳过不符合日志格式的文件: $filename (应为 xxx_*.conf)"
+                    log_info "跳过不符合日志格式的文件: $filename (应为 xxx_*_auto.conf)"
                     continue
                 fi
                 ;;
             "metrics")
-                # 格式: xxx_metrics.conf
-                if [[ "$filename" =~ ^[^_]+_metrics\.conf$ ]]; then
-                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_metrics\.conf$/\1/p')
+                # 格式: xxx_metrics_auto.conf
+                if [[ "$filename" =~ ^[^_]+_metrics_auto\.conf$ ]]; then
+                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_metrics_auto\.conf$/\1/p')
                     should_backup=true
                 else
-                    log_info "跳过不符合指标格式的文件: $filename (应为 xxx_metrics.conf)"
+                    log_info "跳过不符合指标格式的文件: $filename (应为 xxx_metrics_auto.conf)"
                     continue
                 fi
                 ;;
             "health")
-                # 格式: xxx_health.conf
-                if [[ "$filename" =~ ^[^_]+_health\.conf$ ]]; then
-                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_health\.conf$/\1/p')
+                # 格式: xxx_health_auto.conf
+                if [[ "$filename" =~ ^[^_]+_health_auto\.conf$ ]]; then
+                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_health_auto\.conf$/\1/p')
                     should_backup=true
                 fi
                 ;;
@@ -585,10 +597,12 @@ cleanup_config_directory() {
             done
             
             if [ "$found" = false ]; then
-                        # 服务不在当前列表中，备份文件到备份目录
-        local backup_file="${APP_INIT_BACKUP_APP_INIT_DIR}/${filename}.backup_$(date +%Y%m%d_%H%M%S)"
+                # 服务不在当前列表中，备份文件到备份目录
+                local backup_file="${APP_INIT_BACKUP_DIR}/${filename}.backup_$(date +%Y%m%d_%H%M%S)"
                 if mv "$config_file" "$backup_file"; then
                     log_info "备份旧配置文件: $filename -> $(basename "$backup_file")"
+                    # 标记配置已变更，需要重启Datakit
+                    CONFIG_CHANGED=true
                 else
                     record_error "BACKUP_ERROR" "备份配置文件失败: $filename" "ERROR"
                 fi
@@ -607,7 +621,7 @@ process_services() {
     
     # 读取JSON数据并解析
     local services
-    local tmp_json_file="${APP_INIT_BACKUP_APP_INIT_DIR}/tmp.json"
+    local tmp_json_file="${APP_INIT_BACKUP_DIR}/tmp.json"
     # 检查是否有data字段，如果没有则直接使用根对象
     if jq -e '.data' "$tmp_json_file" >/dev/null 2>&1; then
         services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || {
@@ -664,6 +678,19 @@ main() {
         return 1
     }
     
+    # 校验Datakit运行状态
+    log_info "校验Datakit运行状态"
+    if ! check_datakit_status; then
+        handle_error "SERVICE_ERROR" "Datakit未正常运行，跳过业务配置同步" "WARNING" "false"
+        return 0
+    fi
+    log_info "Datakit运行状态正常，继续执行业务配置同步"
+    
+    # 初始化运行时目录（仅创建基础目录）
+    if command -v init_runtime_dirs >/dev/null 2>&1; then
+        init_runtime_dirs
+    fi
+    
     # 创建必要的目录
     create_directories
     
@@ -698,7 +725,7 @@ main() {
     fi
     
     # 调用业务配置API
-    local tmp_json_file="${APP_INIT_BACKUP_APP_INIT_DIR}/tmp.json"
+    local tmp_json_file="${APP_INIT_BACKUP_DIR}/tmp.json"
     local http_code
     http_code=$(curl -s -o "$tmp_json_file" -w "%{http_code}" -X POST "$APP_INIT_OPS_API_URL" \
         -H "Authorization: Token $ops_token" \
@@ -744,7 +771,7 @@ main() {
     cleanup_old_configs
     
     # 清理旧备份目录
-    cleanup_old_backup_dirs "$APP_INIT_BACKUP_BASE_DIR" "$APP_INIT_BACKUP_KEEP_DAYS"
+    cleanup_old_backup_dirs "$RUNTIME_ROOT" "$APP_INIT_BACKUP_KEEP_DAYS"
     
     # 输出统计信息
     log_info "配置差异统计:"
@@ -753,8 +780,54 @@ main() {
     log_info "  指标差异数: $diff_count_metrics"
     log_info "  健康检查差异数: $diff_count_health"
     
-    # 如果有配置变更，重启Datakit
+    # 如果有配置变更，创建版本目录并重启Datakit
     if [ "$CONFIG_CHANGED" = true ]; then
+        log_info "检测到配置变更，创建版本目录"
+        
+        # 创建版本目录
+        if command -v init_runtime_dirs >/dev/null 2>&1; then
+            init_runtime_dirs "$RUNTIME_ROOT" "true"
+        fi
+        
+        # 备份当前Datakit配置目录到版本目录
+        if [ -n "${RUNTIME_RELEASE:-}" ] && [ -d "/usr/local/datakit/conf.d" ]; then
+            log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
+            
+            # 备份整个conf.d目录
+            if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/datakit_conf.d" 2>/dev/null; then
+                log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
+            else
+                record_error "BACKUP_ERROR" "Datakit配置目录备份失败" "WARNING"
+            fi
+        fi
+        
+        # 移动临时文件到版本目录（保留前一次文件用于下次对比）
+        if [ -n "${RUNTIME_RELEASE:-}" ]; then
+            log_info "移动临时文件到版本目录: $RUNTIME_RELEASE"
+            
+            # 创建版本目录下的临时目录
+            mkdir -p "$RUNTIME_TMP_DIR/app_init"
+            
+            # 只移动备份文件和临时配置文件，保留前一次文件
+            if [ -d "$APP_INIT_TEMP_DIR" ]; then
+                # 移动备份文件
+                if [ -d "$APP_INIT_TEMP_DIR/backup" ]; then
+                    mv "$APP_INIT_TEMP_DIR/backup" "$RUNTIME_TMP_DIR/app_init/" 2>/dev/null || true
+                    log_info "备份文件移动完成"
+                fi
+                
+                # 移动临时配置文件（log, prom, host）
+                for dir in "log" "prom" "host"; do
+                    if [ -d "$APP_INIT_TEMP_DIR/$dir" ]; then
+                        mv "$APP_INIT_TEMP_DIR/$dir" "$RUNTIME_TMP_DIR/app_init/" 2>/dev/null || true
+                        log_info "临时配置文件 $dir 移动完成"
+                    fi
+                done
+                
+                log_info "临时文件移动完成，前一次文件保留在 $RUNTIME_DIFF_ROOT"
+            fi
+        fi
+        
         log_info "检测到配置变更，重启Datakit"
         restart_datakit
         log_info "Datakit重启完成"

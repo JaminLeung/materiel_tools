@@ -98,6 +98,90 @@ port_listening() {
     ss -tlnp 2>/dev/null | grep -q ":$port "
 }
 
+# 初始化运行时目录
+init_runtime_dirs() {
+    local runtime_root="${1:-$RUNTIME_ROOT}"
+    local create_release="${2:-false}"
+    
+    # 创建基础运行时目录结构
+    local dirs=(
+        "$runtime_root"
+        "$RUNTIME_LOG_DIR"
+        "$RUNTIME_TMP_ROOT"
+        "$RUNTIME_DIFF_ROOT"
+    )
+    
+    for dir in "${dirs[@]}"; do
+        if [ ! -d "$dir" ]; then
+            mkdir -p "$dir"
+            if command -v log_info >/dev/null 2>&1; then
+                log_info "创建运行时目录: $dir"
+            else
+                echo "INFO: 创建运行时目录: $dir"
+            fi
+        fi
+    done
+    
+    # 如果需要创建版本目录
+    if [ "$create_release" = "true" ]; then
+        local runtime_release="$RUNTIME_RELEASES_DIR/$(date +%Y%m%d_%H%M%S)"
+        
+        # 创建版本目录结构
+        local release_dirs=(
+            "$RUNTIME_RELEASES_DIR"
+            "$runtime_release"
+            "$runtime_release/backup"
+            "$runtime_release/conf"
+            "$runtime_release/tmp"
+            "$runtime_release/backup/app_init"
+            "$runtime_release/backup/config_update"
+            "$runtime_release/backup/health"
+            "$runtime_release/tmp/app_init"
+            "$runtime_release/tmp/config_update"
+            "$runtime_release/tmp/health"
+        )
+        
+        for dir in "${release_dirs[@]}"; do
+            if [ ! -d "$dir" ]; then
+                mkdir -p "$dir"
+                if command -v log_info >/dev/null 2>&1; then
+                    log_info "创建版本目录: $dir"
+                else
+                    echo "INFO: 创建版本目录: $dir"
+                fi
+            fi
+        done
+        
+        # 设置版本目录权限
+        chmod 755 "$RUNTIME_RELEASES_DIR" 2>/dev/null || true
+        chmod 755 "$runtime_release" 2>/dev/null || true
+        
+        # 导出版本目录变量供其他脚本使用
+        export RUNTIME_RELEASE="$runtime_release"
+        export RUNTIME_BACKUP_DIR="$runtime_release/backup"
+        export RUNTIME_CONF_DIR="$runtime_release/conf"
+        export RUNTIME_TMP_DIR="$runtime_release/tmp"
+        
+        if command -v log_info >/dev/null 2>&1; then
+            log_info "版本目录创建完成: $runtime_release"
+        else
+            echo "INFO: 版本目录创建完成: $runtime_release"
+        fi
+    fi
+    
+    # 设置基础目录权限
+    chmod 755 "$runtime_root" 2>/dev/null || true
+    chmod 755 "$RUNTIME_LOG_DIR" 2>/dev/null || true
+    chmod 755 "$RUNTIME_TMP_ROOT" 2>/dev/null || true
+    chmod 755 "$RUNTIME_DIFF_ROOT" 2>/dev/null || true
+    
+    if command -v log_info >/dev/null 2>&1; then
+        log_info "运行时目录初始化完成: $runtime_root"
+    else
+        echo "INFO: 运行时目录初始化完成: $runtime_root"
+    fi
+}
+
 # 错误上下文管理函数
 set_error_context() {
     local context="$1"
@@ -1009,6 +1093,7 @@ update_toml_config() {
         log_info "配置相同，跳过更新: $toml_file"
         return 0
     fi
+    
     # 使用CONFIG_UPDATE_BACKUP_DIR，如果未定义则使用默认值
     local backup_dir="${CONFIG_UPDATE_BACKUP_DIR:-/var/backups/datakit}"
     safe_execute "mkdir -p '$backup_dir'" "创建备份目录" || return 1
@@ -1020,9 +1105,10 @@ update_toml_config() {
     else
         log_info "原文件不存在，无需备份"
     fi
+    
+    # 更新配置文件
     safe_execute "echo '$json_data' | yj -jt > '$toml_file'" "更新配置文件" || return 1
     log_info "配置文件更新成功: $toml_file"
-    log_info "备份文件: $backup_file"
     return 0
 }
 
@@ -1323,26 +1409,26 @@ execute_cron_wrapper() {
         
         # 检查进程是否还在运行
         if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - 上一个$task_name任务(PID: $pid)还在运行，跳过本次执行" >> "$log_file"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - 上一个$task_name任务(PID: $pid)还在运行，跳过本次执行" 
             return 0
         else
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - 发现僵尸锁文件，清理并继续执行" >> "$log_file"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - 发现僵尸锁文件，清理并继续执行"
             rm -f "$lock_file"
         fi
     fi
     
     # 执行实际脚本（脚本内部会处理锁机制）
     if [ -f "$script_path" ]; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - 执行脚本: $script_path" >> "$log_file"
-        if bash "$script_path" >> "$log_file" 2>&1; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - $task_name执行成功" >> "$log_file"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - 执行脚本: $script_path"
+        if bash "$script_path" 2>&1; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - $task_name执行成功"
             return 0
         else
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - $task_name执行失败" >> "$log_file"
+            echo "$(date '+%Y-%m-%d %H:%M:%S') - $task_name执行失败"
             return 1
         fi
     else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - 脚本文件不存在: $script_path" >> "$log_file"
+        echo "$(date '+%Y-%m-%d %H:%M:%S') - 脚本文件不存在: $script_path"
         return 1
     fi
 }
@@ -1435,6 +1521,5 @@ cleanup_task_lock() {
     fi
     
     return 1
-} 
+}
 
- 
