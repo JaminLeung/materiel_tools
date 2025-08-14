@@ -43,6 +43,7 @@ DATAKIT_BIN_DIR="/usr/local/bin"
 DATAKIT_CONFIG_DIR="/usr/local/datakit/conf.d"
 DATAKIT_DATA_DIR="/usr/local/datakit/data"
 DATAKIT_LOG_DIR="/var/log/datakit"
+DATAKIT_PID_FILE="/var/run/datakit_install.pid"
 
 # =============================================================================
 # 日志配置
@@ -69,6 +70,7 @@ RUNTIME_DIFF_ROOT="${RUNTIME_DIFF_ROOT:-$RUNTIME_ROOT/diff}"
 RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_ROOT/releases}"
 # 当前发布版本目录（基于时间戳，仅在需要时创建）
 RUNTIME_RELEASE="${RUNTIME_RELEASE:-}"
+
 # 运行时子目录（仅在创建版本时使用）
 RUNTIME_BACKUP_DIR="${RUNTIME_BACKUP_DIR:-}"
 RUNTIME_CONF_DIR="${RUNTIME_CONF_DIR:-}"

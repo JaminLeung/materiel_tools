@@ -47,6 +47,9 @@ datakit-automation/
 
 拷贝 config/env/example.sh，自定义当前配置
 
+DATAKIT_ENV=dev && bash installer.sh 
+
+
 
 
 ```bash

@@ -2,8 +2,6 @@
 
 # Datakit配置更新脚本 - 生产版本
 # 功能：Datakit服务控制、全局配置修改、采集器配置管理
-# 版本：2.0.0
-# 作者：Datakit运维团队
 
 set -euo pipefail
 
