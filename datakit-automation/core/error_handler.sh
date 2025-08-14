@@ -159,7 +159,6 @@ cleanup_on_exit() {
     local cleanup_steps=(
         "cleanup_temp_files:清理临时文件"
         "cleanup_log_files:清理日志文件"
-        "cleanup_runtime_temp_dirs:清理运行时临时目录"
         # TODO dataway 统一读取日志文件上报
     )
     
@@ -272,88 +271,6 @@ cleanup_log_files() {
     
     if [[ $cleaned_count -gt 0 ]]; then
         log_info "日志文件清理完成，清理: $cleaned_count 个文件"
-    fi
-    
-    return $((error_count == 0 ? 0 : 1))
-}
-
-# 清理运行时临时目录
-cleanup_runtime_temp_dirs() {
-    log_info "清理运行时临时目录..."
-    
-    # 获取运行时根目录
-    local runtime_root="${RUNTIME_ROOT:-}"
-    if [[ -z "$runtime_root" ]]; then
-        # 尝试从环境变量或默认路径获取
-        runtime_root="${SCENARIO_PROJECT_ROOT:-$(pwd)}/runtime"
-    fi
-    
-    if [[ ! -d "$runtime_root" ]]; then
-        log_debug "运行时目录不存在，跳过清理: $runtime_root"
-        return 0
-    fi
-    
-    local cleaned_count=0
-    local error_count=0
-    
-    # 清理tmp目录
-    if [[ -d "$runtime_root/tmp" ]]; then
-        log_info "清理tmp目录: $runtime_root/tmp"
-        if rm -rf "$runtime_root/tmp" 2>/dev/null; then
-            log_info "tmp目录清理完成"
-            cleaned_count=$((cleaned_count + 1))
-        else
-            log_warning "tmp目录清理失败"
-            error_count=$((error_count + 1))
-        fi
-    else
-        log_debug "tmp目录不存在，跳过清理"
-    fi
-    
-    # 清理temp目录
-    if [[ -d "$runtime_root/temp" ]]; then
-        log_info "清理temp目录: $runtime_root/temp"
-        if rm -rf "$runtime_root/temp" 2>/dev/null; then
-            log_info "temp目录清理完成"
-            cleaned_count=$((cleaned_count + 1))
-        else
-            log_warning "temp目录清理失败"
-            error_count=$((error_count + 1))
-        fi
-    else
-        log_debug "temp目录不存在，跳过清理"
-    fi
-    
-    # 清理releases目录中的tmp目录
-    if [[ -d "$runtime_root/releases" ]]; then
-        log_info "清理releases目录中的tmp目录"
-        local release_tmp_dirs
-        release_tmp_dirs=$(find "$runtime_root/releases" -type d -name "tmp" 2>/dev/null)
-        
-        if [[ -n "$release_tmp_dirs" ]]; then
-            local dir_count=0
-            while IFS= read -r dir; do
-                if [[ -d "$dir" ]]; then
-                    log_info "清理版本tmp目录: $dir"
-                    if rm -rf "$dir" 2>/dev/null; then
-                        log_info "版本tmp目录清理完成: $dir"
-                        dir_count=$((dir_count + 1))
-                    else
-                        log_warning "版本tmp目录清理失败: $dir"
-                        error_count=$((error_count + 1))
-                    fi
-                fi
-            done <<< "$release_tmp_dirs"
-            cleaned_count=$((cleaned_count + dir_count))
-        else
-            log_debug "未找到版本tmp目录"
-        fi
-    else
-        log_debug "releases目录不存在，跳过版本tmp目录清理"
-    fi
-    
-    if [[ $cleaned_count -gt 0 ]]; then
-        log_info "运行时临时目录清理完成，共清理 $cleaned_count 个目录"
     fi
     
     return $((error_count == 0 ? 0 : 1))

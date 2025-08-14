@@ -15,8 +15,8 @@ fi
 HEALTH_CHECK_SCRIPT_NAME="datakit_health_check"
 HEALTH_CHECK_SCRIPT_VERSION="2.0.0"
 HEALTH_CHECK_LOG_FILE="${RUNTIME_LOG_DIR}/health_check.log"
-HEALTH_CHECK_TEMP_DIR="${RUNTIME_ROOT}/temp/health"
-HEALTH_CHECK_FAILURE_COUNT_FILE="${HEALTH_CHECK_TEMP_DIR}/health_check_failure_count"
+# 删除临时目录配置，失败计数文件直接存储在锁文件目录
+HEALTH_CHECK_FAILURE_COUNT_FILE="$LOCK_FILE_BASE/health_check_failure_count"
 
 # =============================================================================
 # 健康检查配置
