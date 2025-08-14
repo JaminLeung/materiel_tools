@@ -11,88 +11,84 @@ readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
 readonly INSTALLER_SCRIPT_VERSION="2.0.0"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 模块目录
-readonly INSTALLER_MODULES_DIR="$INSTALLER_SCRIPT_DIR/modules"
-readonly INSTALLER_CONFIG_DIR="$INSTALLER_SCRIPT_DIR/config"
-readonly INSTALLER_CORE_DIR="$INSTALLER_SCRIPT_DIR/core"
-readonly INSTALLER_INSTALL_DIR="$INSTALLER_SCRIPT_DIR/install"
-readonly INSTALLER_MONITOR_DIR="$INSTALLER_SCRIPT_DIR/monitor"
-readonly INSTALLER_SCENARIOS_DIR="$INSTALLER_SCRIPT_DIR/scenarios"
-readonly INSTALLER_TOOLS_DIR="$INSTALLER_SCRIPT_DIR/tools"
+
+# TODO 定时任务修改 ENV 
+DAT=AKIT_ENV= "${DATAKIT_ENV:-dev}"
 
 
-# 加载配置
-load_config() {
-    local env_config_file="$1"
+# # 加载配置
+# load_config() {
+#     local env_config_file="$1"
     
-    echo "INFO: 开始加载配置..."
+#     echo "INFO: 开始加载配置..."
     
-    # 1. 首先加载基础配置（config/base下的脚本）
-    local base_config_dir="$INSTALLER_CONFIG_DIR/base"
-    if [[ -d "$base_config_dir" ]]; then
-        echo "INFO: 加载基础配置: $base_config_dir"
+#     # 1. 首先加载基础配置（config/base下的脚本）
+#     local base_config_dir="$INSTALLER_SCRIPT_DIR/config/base"
+#     if [[ -d "$base_config_dir" ]]; then
+#         echo "INFO: 加载基础配置: $base_config_dir"
         
-        # 先加载base_config.sh（基础配置）
-        local base_config_file="$base_config_dir/base_config.sh"
-        if [[ -f "$base_config_file" ]]; then
-            echo "INFO: 加载基础配置文件: base_config.sh"
-            source "$base_config_file"
-        fi
+#         # 先加载base_config.sh（基础配置）
+#         local base_config_file="$base_config_dir/base_config.sh"
+#         if [[ -f "$base_config_file" ]]; then
+#             echo "INFO: 加载基础配置文件: base_config.sh"
+#             source "$base_config_file"
+#         fi
         
-        # 再加载其他配置文件（除了base_config.sh）
-        for config_file in "$base_config_dir"/*.sh; do
-            if [[ -f "$config_file" && "$(basename "$config_file")" != "base_config.sh" ]]; then
-                echo "INFO: 加载基础配置文件: $(basename "$config_file")"
-                source "$config_file"
-            fi
-        done
-    else
-        echo "[ERROR] 基础配置目录不存在: $base_config_dir" >&2
-        exit 1
-    fi
+#         # 再加载其他配置文件（除了base_config.sh）
+#         for config_file in "$base_config_dir"/*.sh; do
+#             if [[ -f "$config_file" && "$(basename "$config_file")" != "base_config.sh" ]]; then
+#                 echo "INFO: 加载基础配置文件: $(basename "$config_file")"
+#                 source "$config_file"
+#             fi
+#         done
+#     else
+#         echo "[ERROR] 基础配置目录不存在: $base_config_dir" >&2
+#         exit 1
+#     fi
     
-    # 2. 如果指定了环境配置文件，则加载它（会覆盖基础配置）
-    if [[ -n "$env_config_file" ]]; then
-        local full_config_path=""
+#     # 2. 如果指定了环境配置文件，则加载它（会覆盖基础配置）
+#     if [[ -n "$env_config_file" ]]; then
+#         local full_config_path=""
         
-        # 检查是否是绝对路径
-        if [[ "$env_config_file" = /* ]]; then
-            full_config_path="$env_config_file"
-        else
-            # 相对路径，尝试在config目录下查找
-            # 如果路径已经包含config，则直接使用
-            if [[ "$env_config_file" =~ ^config/ ]]; then
-                full_config_path="$INSTALLER_SCRIPT_DIR/$env_config_file"
-            else
-                # 首先尝试在config/env目录下查找
-                local env_config_path="$INSTALLER_CONFIG_DIR/env/$env_config_file"
-                if [[ -f "$env_config_path" ]]; then
-                    full_config_path="$env_config_path"
-                else
-                    # 如果不在env目录，尝试在config根目录下查找
-                    full_config_path="$INSTALLER_CONFIG_DIR/$env_config_file"
-                fi
-            fi
-        fi
+#         # 检查是否是绝对路径
+#         if [[ "$env_config_file" = /* ]]; then
+#             full_config_path="$env_config_file"
+#         else
+#             # 相对路径，尝试在config目录下查找
+#             # 如果路径已经包含config，则直接使用
+#             if [[ "$env_config_file" =~ ^config/ ]]; then
+#                 full_config_path="$INSTALLER_SCRIPT_DIR/$env_config_file"
+#             else
+#                 # 首先尝试在config/env目录下查找
+#                 local env_config_path="$INSTALLER_SCRIPT_DIR/config/env/$env_config_file"
+#                 if [[ -f "$env_config_path" ]]; then
+#                     full_config_path="$env_config_path"
+#                 else
+#                     # 如果不在env目录，尝试在config根目录下查找
+#                     full_config_path="$INSTALLER_SCRIPT_DIR/config/$env_config_file"
+#                 fi
+#             fi
+#         fi
         
-        if [[ -f "$full_config_path" ]]; then
-            echo "INFO: 加载环境配置文件: $full_config_path"
-            source "$full_config_path"
-        else
-            echo "[ERROR] 指定的配置文件不存在: $full_config_path" >&2
-            exit 1
-        fi
-    else
-        echo "INFO: 未指定环境配置文件，使用默认配置"
-    fi
+#         if [[ -f "$full_config_path" ]]; then
+#             echo "INFO: 加载环境配置文件: $full_config_path"
+#             source "$full_config_path"
+#         else
+#             echo "[ERROR] 指定的配置文件不存在: $full_config_path" >&2
+#             exit 1
+#         fi
+#     else
+#         echo "INFO: 未指定环境配置文件，使用默认配置"
+#     fi
     
-    # 设置默认的DATAKIT_VERSION（如果未设置）
-    export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+#     # 设置默认的DATAKIT_VERSION（如果未设置）
+#     export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
     
-    echo "INFO: 配置加载完成"
-}
+#     echo "INFO: 配置加载完成"
+# }
 
 # 加载模块
+# TODO 所有的 source 改成 load_module
 load_module() {
     local module_name="$1"
     local module_file="$2"
@@ -108,27 +104,17 @@ load_module() {
 
 # 初始化安装器
 initialize_installer() {
-
     echo "INFO: === Datakit 安装器初始化 ==="
-    
-    # 检查必需目录
-    local required_dirs=("$INSTALLER_CORE_DIR" "$INSTALLER_CONFIG_DIR" "$INSTALLER_INSTALL_DIR" "$INSTALLER_SCENARIOS_DIR")
-    for dir in "${required_dirs[@]}"; do
-        if [[ ! -d "$dir" ]]; then
-            echo "[ERROR] 必需目录不存在: $dir" >&2
-            exit 1
-        fi
-    done
-    
+        
     # 加载核心模块
-    load_module "logging" "$INSTALLER_CORE_DIR/logging.sh"
-    load_module "validation" "$INSTALLER_CORE_DIR/validation.sh"
-    load_module "utils" "$INSTALLER_CORE_DIR/utils.sh"
-    load_module "initialize" "$INSTALLER_CORE_DIR/initialize.sh"
-    
+    load_module "logging" "$INSTALLER_SCRIPT_DIR/core/logging.sh"
+    load_module "validation" "$INSTALLER_SCRIPT_DIR/core/validation.sh"
+    load_module "utils" "$INSTALLER_SCRIPT_DIR/core/utils.sh"
+    load_module "initialize" "$INSTALLER_SCRIPT_DIR/core/initialize.sh"
+
     # 加载错误处理模块（如果存在）
-    if [[ -f "$INSTALLER_CORE_DIR/error_handler.sh" ]]; then
-        load_module "error_handler" "$INSTALLER_CORE_DIR/error_handler.sh"
+    if [[ -f "$INSTALLER_SCRIPT_DIR/core/error_handler.sh" ]]; then
+        load_module "error_handler" "$INSTALLER_SCRIPT_DIR/core/error_handler.sh"
         # 初始化错误处理器
         # TODO 有重复bug
         if command -v init_error_handler >/dev/null 2>&1; then
@@ -165,7 +151,6 @@ Datakit 安装器 v$INSTALLER_SCRIPT_VERSION
 用法: $INSTALLER_SCRIPT_NAME [选项] <命令>
 
 选项:
-    -c, --config FILE     指定环境配置文件 (可选)
     -v, --verbose         详细输出
     -d, --debug           调试模式
     -h, --help            显示此帮助信息
@@ -174,60 +159,40 @@ Datakit 安装器 v$INSTALLER_SCRIPT_VERSION
     existing-install      存量安装 - 已运行但未安装的主机
     incremental-install   增量安装 - 初始化创建镜像的主机
     version-upgrade       版本更新 - 升级Datakit版本
-    config-update         配置更新 - 仅更新配置文件
     reinstall             重装 - 完全重新安装
     setup-cron            设置定时任务 - 配置Datakit相关定时任务
     app-init              应用初始化 - 从运维平台同步业务配置
-    config-sync           配置同步 - Datakit服务控制和配置管理
+    config-update           配置同步 - Datakit服务控制和配置管理
     health-check          健康检查 - 检查Datakit健康状态并自动重启
 
 配置方式:
     1. 环境变量 (推荐):
-       export DATAKIT_VERSION=1.78.0
-       export S3_BUCKET=my-bucket
-       export S3_ACCESS_KEY=your-key
-       export S3_SECRET_KEY=your-secret
-       export DATAWAY_URL=https://dataway.example.com
-       export OPS_ADDR=http://ops.example.com:5000
+       export DATAKIT_ENV=dev
 
     2. 环境配置文件:
-       复制 $INSTALLER_CONFIG_DIR/env_config_example.sh 为 env_config.sh 并编辑
+       复制 $INSTALLER_SCRIPT_DIR/config/env_config_example.sh 为 env_config.sh 并编辑
 
 必需环境变量:
-    DATAKIT_VERSION=v1.x.x     # Datakit版本号
-    S3_BUCKET=bucket_name      # S3存储桶名称
-    S3_ACCESS_KEY=key          # S3访问密钥
-    S3_SECRET_KEY=secret       # S3秘密密钥
-    DATAWAY_URL=url            # Dataway服务地址
-    OPS_ADDR=url               # 运维平台地址
+    DATAKIT_ENV=dev          # 环境标识 (dev, test, prod等)
+    其他配置需定义在配置文件里
 
 示例:
     # 使用环境变量 (推荐)
     export DATAKIT_VERSION=1.78.0
-    export S3_BUCKET=my-bucket
-    export S3_ACCESS_KEY=your-key
-    export S3_SECRET_KEY=your-secret
-    export DATAWAY_URL=https://dataway.example.com
-    export OPS_ADDR=http://ops.example.com:5000
+
     $INSTALLER_SCRIPT_NAME existing-install
 
     # 指定版本升级
     DATAKIT_VERSION=v1.5.0 $INSTALLER_SCRIPT_NAME version-upgrade
 
-    # 使用环境配置文件
-    $INSTALLER_SCRIPT_NAME --config benjamin.sh existing-install
-
-    # 使用绝对路径的配置文件
-    $INSTALLER_SCRIPT_NAME --config /path/to/custom_config.sh existing-install
-
     # 应用初始化和配置管理
     $INSTALLER_SCRIPT_NAME app-init                    # 从运维平台同步业务配置
-    $INSTALLER_SCRIPT_NAME config-sync                 # 同步Datakit配置
+    $INSTALLER_SCRIPT_NAME config-update                 # 同步Datakit配置
     $INSTALLER_SCRIPT_NAME health-check                # 检查Datakit健康状态
 
     配置工具:
-    配置测试: $INSTALLER_CONFIG_DIR/tests/test_config.sh
-    配置查看: $INSTALLER_CONFIG_DIR/loader.sh --show
+    配置测试: $INSTALLER_SCRIPT_DIR/config/tests/test_config.sh
+    配置查看: $INSTALLER_SCRIPT_DIR/config/loader.sh --show
 
 EOF
 }
@@ -262,7 +227,7 @@ main() {
                 show_help
                 exit 0
                 ;;
-            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|config-sync|health-check)
+            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|config-update|health-check)
                 command="$1"
                 shift
                 ;;
@@ -281,10 +246,7 @@ main() {
     fi
     
     # 加载配置（自动检测环境变量或配置文件）
-    load_config "$env_config_file"
-    
-    # 设置当前命令为全局变量，供验证函数使用
-    export CURRENT_COMMAND="$command"
+    load_all_configs "$DATAKIT_ENV"
     
     # 初始化安装器
     initialize_installer
@@ -313,9 +275,6 @@ main() {
         app-init)
             execute_app_init
             ;;
-        config-sync)
-            execute_config_sync
-            ;;
         health-check)
             execute_health_check
             ;;
@@ -333,7 +292,7 @@ execute_existing_installation() {
     log_info "场景描述: 已运行但未安装的主机"
     
     # 调用scenarios目录下的存量安装脚本
-    local scenario_script="$INSTALLER_SCENARIOS_DIR/existing_installation.sh"
+    local scenario_script="$INSTALLER_SCRIPT_DIR/scenarios/existing_installation.sh"
     
     if [[ -f "$scenario_script" ]]; then
         log_info "调用存量安装场景脚本: $scenario_script"
@@ -368,7 +327,7 @@ execute_incremental_installation() {
     log_info "场景描述: 初始化创建镜像的主机"
     
     # 调用scenarios目录下的增量安装脚本
-    local scenario_script="$INSTALLER_SCENARIOS_DIR/incremental_installation.sh"
+    local scenario_script="$INSTALLER_SCRIPT_DIR/scenarios/incremental_installation.sh"
     
     if [[ -f "$scenario_script" ]]; then
         log_info "调用增量安装场景脚本: $scenario_script"
@@ -389,7 +348,7 @@ execute_version_upgrade() {
     log_info "场景描述: 升级Datakit版本"
     
     # 调用scenarios目录下的版本更新脚本
-    local scenario_script="$INSTALLER_SCENARIOS_DIR/version_upgrade.sh"
+    local scenario_script="$INSTALLER_SCRIPT_DIR/scenarios/version_upgrade.sh"
     
     if [[ -f "$scenario_script" ]]; then
         log_info "调用版本更新场景脚本: $scenario_script"
@@ -404,26 +363,6 @@ execute_version_upgrade() {
     fi
 }
 
-# 配置更新场景
-execute_config_update() {
-    log_info "=== 执行配置更新场景 ==="
-    log_info "场景描述: 仅更新配置文件"
-    
-    # 调用scenarios目录下的配置更新脚本
-    local scenario_script="$INSTALLER_SCENARIOS_DIR/config_update.sh"
-    
-    if [[ -f "$scenario_script" ]]; then
-        log_info "调用配置更新场景脚本: $scenario_script"
-        
-        # 传递配置信息给场景脚本
-        export DATAKIT_CONFIG_FILE="$env_config_file"
-        
-        # 执行场景脚本
-        bash "$scenario_script"
-    else
-        handle_error "FILE_ERROR" "配置更新场景脚本不存在: $scenario_script" "CRITICAL" "true"
-    fi
-}
 
 # 重装场景
 execute_reinstall() {
@@ -431,7 +370,7 @@ execute_reinstall() {
     log_info "场景描述: 完全重新安装Datakit"
     
     # 调用scenarios目录下的重装脚本
-    local scenario_script="$INSTALLER_SCENARIOS_DIR/reinstall.sh"
+    local scenario_script="$INSTALLER_SCRIPT_DIR/scenarios/reinstall.sh"
     
     if [[ -f "$scenario_script" ]]; then
         log_info "调用重装场景脚本: $scenario_script"
@@ -452,7 +391,7 @@ execute_setup_cron() {
     log_info "场景描述: 配置Datakit相关定时任务"
     
     # 调用install目录下的定时任务设置脚本
-    local setup_cron_script="$INSTALLER_INSTALL_DIR/setup_cron.sh"
+    local setup_cron_script="$INSTALLER_SCRIPT_DIR/install/setup_cron.sh"
     
     if [[ -f "$setup_cron_script" ]]; then
         log_info "调用定时任务设置脚本: $setup_cron_script"
@@ -514,21 +453,20 @@ execute_app_init() {
 }
 
 # 配置同步场景
-execute_config_sync() {
+execute_config_update() {
     log_info "=== 执行配置同步场景 ==="
     log_info "场景描述: Datakit服务控制、全局配置修改、采集器配置管理"
     
     # 调用scripts目录下的配置更新脚本
-    local config_sync_script="$INSTALLER_SCRIPT_DIR/scripts/config_update.sh"
+    local config_update_script="$INSTALLER_SCRIPT_DIR/scripts/config_update.sh"
     
-    if [[ -f "$config_sync_script" ]]; then
-        log_info "调用配置同步脚本: $config_sync_script"
-        
+    if [[ -f "$config_update_script" ]]; then
+        log_info "调用配置同步脚本: $config_update_script"
         
         # 执行配置同步脚本
-        bash "$config_sync_script"
+        bash "$config_update_script"
     else
-        handle_error "FILE_ERROR" "配置同步脚本不存在: $config_sync_script" "CRITICAL" "true"
+        handle_error "FILE_ERROR" "配置同步脚本不存在: $config_update_script" "CRITICAL" "true"
     fi
 }
 

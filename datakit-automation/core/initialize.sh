@@ -6,16 +6,18 @@
 
 # 检查运行实例
 check_running_instance() {
-    local pid_file="${PID_FILE:-/var/run/datakit_install.pid}"
+    local pid_file="${DATAKIT_PID_FILE}"
     
     if [[ -f "$pid_file" ]]; then
         local pid=$(cat "$pid_file" 2>/dev/null || echo "")
         if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
             if command -v log_error >/dev/null 2>&1; then
                 log_error "脚本已在运行 (PID: $pid)"
+                #TODO 全局不使用 log_error 
             else
                 echo "[ERROR] 脚本已在运行 (PID: $pid)" >&2
             fi
+            # TODO 全局不要出现 exit
             exit 1
         else
             if command -v log_warning >/dev/null 2>&1; then
@@ -23,11 +25,12 @@ check_running_instance() {
             else
                 echo "[WARN] 发现过期的PID文件，清理中..."
             fi
+            # TODO 全局不要出现 rm -f
             rm -f "$pid_file"
         fi
     fi
 }
-
+# TODO 需要将新的备份逻辑合入
 # 创建备份目录
 create_backup_directory() {
     local backup_dir="${BACKUP_DIR:-/opt/datakit_backups}"
@@ -60,11 +63,7 @@ validate_system_resources_initialize() {
     local available_space=$(df -m / | awk 'NR==2 {print $4}')
     
     if [[ $available_space -lt $required_space ]]; then
-        if command -v log_warning >/dev/null 2>&1; then
-            log_warning "磁盘空间不足: ${available_space}MB < ${required_space}MB"
-        else
-            echo "[WARN] 磁盘空间不足: ${available_space}MB < ${required_space}MB"
-        fi
+        log_warning "磁盘空间不足: ${available_space}MB < ${required_space}MB"
         return 1
     fi
     
@@ -172,25 +171,13 @@ validate_required_commands() {
 
 # 脚本初始化
 initialize_script() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "开始初始化脚本..."
-    else
-        echo "[INFO] 开始初始化脚本..."
-    fi
+    log_info "开始初始化脚本..."
     
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "=== 生产级别脚本启动 ==="
-        log_info "脚本名称: $SCRIPT_NAME"
-        log_info "脚本版本: $SCRIPT_VERSION"
-        log_info "启动时间: $(date '+%Y-%m-%d %H:%M:%S')"
-        log_info "进程ID: $$"
-    else
-        echo "[INFO] === 生产级别脚本启动 ==="
-        echo "[INFO] 脚本名称: $SCRIPT_NAME"
-        echo "[INFO] 脚本版本: $SCRIPT_VERSION"
-        echo "[INFO] 启动时间: $(date '+%Y-%m-%d %H:%M:%S')"
-        echo "[INFO] 进程ID: $$"
-    fi
+    log_info "=== 生产级别脚本启动 ==="
+    log_info "脚本名称: $SCRIPT_NAME"
+    log_info "脚本版本: $SCRIPT_VERSION"
+    log_info "启动时间: $(date '+%Y-%m-%d %H:%M:%S')"
+    log_info "进程ID: $$"
     
     # 检查是否已有实例运行
     check_running_instance
@@ -200,6 +187,7 @@ initialize_script() {
     
     # 验证系统资源
     if ! validate_system_resources_initialize; then
+        # TODO 全局不使用 command -v log_error
         if command -v log_error >/dev/null 2>&1; then
             log_error "系统资源验证失败"
         else
@@ -208,6 +196,7 @@ initialize_script() {
         exit 1
     fi
     
+    # TODO 去掉配置校验参数
     # 验证配置参数
     if ! validate_config; then
         if command -v log_error >/dev/null 2>&1; then
