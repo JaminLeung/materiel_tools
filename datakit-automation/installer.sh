@@ -118,7 +118,7 @@ initialize_installer() {
         # 初始化错误处理器
         # TODO 有重复bug
         if command -v init_error_handler >/dev/null 2>&1; then
-            # init_error_handler
+            init_error_handler
             echo "错误处理器初始化完成"
         fi
     fi

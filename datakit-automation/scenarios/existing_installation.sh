@@ -15,9 +15,6 @@ readonly SCENARIO_PROJECT_ROOT="$(cd "$SCENARIO_SCRIPT_DIR/.." && pwd)"
 # 配置加载函数
 
 
-
-
-
 source "$SCENARIO_PROJECT_ROOT/core/utils.sh"
 source "$SCENARIO_PROJECT_ROOT/core/validation.sh"
 source "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
@@ -27,7 +24,6 @@ source "$SCENARIO_PROJECT_ROOT/core/utils.sh"
 
 source "$SCENARIO_PROJECT_ROOT/config/loader.sh"
 load_all_configs $ENV
-
 
 # 加载安装步骤模块
 # source "$SCENARIO_PROJECT_ROOT/install/host_info.sh"
