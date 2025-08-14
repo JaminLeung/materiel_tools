@@ -140,6 +140,7 @@ validate_system_environment() {
             log_warning "建议使用root用户运行此脚本"
         else
             echo "[WARN] 建议使用root用户运行此脚本"
+            # TODO 不是root用户，退出执行
         fi
     fi
     
@@ -148,7 +149,7 @@ validate_system_environment() {
 
 # 验证必需命令
 validate_required_commands() {
-    local required_commands=("curl" "jq" "systemctl")
+    local required_commands=("curl" "jq" "systemctl", "yj")
     local missing_commands=()
     
     for cmd in "${required_commands[@]}"; do

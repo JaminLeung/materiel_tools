@@ -11,17 +11,10 @@ set -euo pipefail
 # 获取脚本所在目录
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# 加载基础配置
-# 加载基础配置
+
 # 加载基础配置
 source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
 load_all_configs "${ENV:-test}" "config_update"
-
-# =============================================================================
-# 全局变量
-
-# =============================================================================
-CONFIG_CHANGED=false
 
 # =============================================================================
 # 加载核心模块
@@ -29,27 +22,20 @@ CONFIG_CHANGED=false
 source "$CONFIG_UPDATE_CORE_DIR/logging.sh"
 source "$CONFIG_UPDATE_CORE_DIR/utils.sh"
 source "$CONFIG_UPDATE_CORE_DIR/validation.sh"
-# config_api.sh的功能已合并到utils.sh中
 source "$CONFIG_UPDATE_CORE_DIR/health_check.sh"
 source "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
-# source "$CONFIG_UPDATE_CORE_DIR/config_file.sh"
+
+
+# =============================================================================
+# 全局变量
+# =============================================================================
+CONFIG_CHANGED=false
+
 
 # 初始化日志系统
+# TODO 整合
 init_logging
 
-# 初始化运行时目录（仅创建基础目录）
-if command -v init_runtime_dirs >/dev/null 2>&1; then
-    init_runtime_dirs
-fi
-
-# =============================================================================
-# 工具函数
-# =============================================================================
-# 注意：die函数已废弃，使用handle_error替代
-
-
-
-# 使用core模块中的get_host_ip函数
 
 # =============================================================================
 # 全局配置处理
@@ -575,6 +561,7 @@ handle_input_delete_key() {
     fi
 }
 
+# TODO 配置解析和操作行为解耦
 # =============================================================================
 # Datakit服务状态控制函数
 # =============================================================================
@@ -639,26 +626,17 @@ handle_datakit_service_control() {
 # 主函数
 # =============================================================================
 main() {
-    # 记录脚本开始
-    # record_script_start
-    
     # 重置配置变更标志
     # CONFIG_CHANGED=false
     
     log_info "开始执行 $CONFIG_UPDATE_SCRIPT_NAME v$CONFIG_UPDATE_SCRIPT_VERSION"
     
-    # 检查依赖
-    if ! validate_required_commands; then
-        handle_error "DEPENDENCY_ERROR" "依赖检查失败" "ERROR" "false"
-        return 1
-    fi
-
-
     # 获取配置
     get_host_ip || {
         handle_error "NETWORK_ERROR" "获取主机IP失败" "ERROR" "false"
         return 1
     }
+
     get_ops_config || {
         handle_error "API_ERROR" "获取运维平台配置失败" "ERROR" "false"
         return 1
@@ -680,7 +658,7 @@ main() {
     if [ "$config_enable" = "false" ]; then
         log_info "Datakit已停止，跳过配置更新，脚本执行完成"
         SCRIPT_EXIT_CODE=0
-        
+        # TODO handle_error xxxx
         return 0
     fi
     
@@ -696,6 +674,7 @@ main() {
         log_info "检测到配置变更，创建版本目录"
         
         # 创建版本目录
+        # TODO runtime_dirs 统一配置
         if command -v init_runtime_dirs >/dev/null 2>&1; then
             init_runtime_dirs "$RUNTIME_ROOT" "true"
         fi

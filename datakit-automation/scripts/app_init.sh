@@ -2,8 +2,6 @@
 
 # Datakit业务配置同步脚本 - 生产版本
 # 功能：从运维平台获取业务可观测配置，同步到Datakit采集器
-# 版本：2.0.0
-# 作者：Datakit运维团队
 
 set -euo pipefail
 
@@ -278,8 +276,6 @@ handle_config_diff() {
         mkdir -p "$prev_dir"
         log_info "创建前一次存储目录: $prev_dir"
     fi
-    
-
     
     # 如果前一次存储目录存在同名文件，检查差异
     if [ -f "$prev_file" ]; then
@@ -665,6 +661,7 @@ process_services() {
 main() {
     log_info "开始执行 $APP_INIT_SCRIPT_NAME v$APP_INIT_SCRIPT_VERSION"
     
+    # TODO 依赖检查合并
     # 检查依赖
     command_exists jq || {
         handle_error "DEPENDENCY_ERROR" "命令 'jq' 不存在" "ERROR" "false"
@@ -771,6 +768,7 @@ main() {
     merge_config_files
     
     # 清理和备份旧配置
+    # TODO 确认是否整合
     cleanup_old_configs
     
     # 清理旧备份目录
@@ -788,6 +786,7 @@ main() {
         log_info "检测到配置变更，创建版本目录"
         
         # 创建版本目录
+         # TODO         
         if command -v init_runtime_dirs >/dev/null 2>&1; then
             init_runtime_dirs "$RUNTIME_ROOT" "true"
         fi
@@ -818,8 +817,8 @@ main() {
 }
 
 
-
 # =============================================================================
 # 脚本入口
 # =============================================================================
 main "$@"
+
