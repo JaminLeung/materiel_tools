@@ -82,34 +82,35 @@ MOCK_SERVER_CONFIGS = {
 MOCK_METADATA_CONFIGS = {
     "data": [{
         "serviceA": {
-            "logging": [
-                {
-                    "logfiles": [
-                        "/home/app/bon-gateway-svr/logs/*access_normal.log",
-                        "/home/app/bon-gateway-svr/logs/*access_normal11111eeeeeee.log",
-                        # "/home/app/bon-gateway-svr/logs/*access_normal22222.log"
-                    ],
-                    "source": "ec2-java-logging",
-                    "service": "bon-gateway-svr",
-                    "tags": {
-                        "logType": "accewwwwws",
-                        "lang": "java",
-                        "group_name": "gateway-groupqqqqq"
-                    }
-                },
-                {
-                    "logfiles": [
-                        "/home/app/bon-gateway-svr/logs/*other_normal.log"
-                    ],
-                    "source": "ec2-java-logging",
-                    "service": "bon-gateway-svr",
-                    "tags": {
-                        "logType": "other",
-                        "lang": "java",
-                        "group_name": "gateway-groupaaaa"
-                    }
-                }
-            ],
+            "logging": [],
+            #     [
+            #     {
+            #         "logfiles": [
+            #             "/home/app/bon-gateway-svr/logs/*access_normal.log",
+            #             "/home/app/bon-gateway-svr/logs/*access_normal11111eeeeeee.log",
+            #             # "/home/app/bon-gateway-svr/logs/*access_normal22222.log"
+            #         ],
+            #         "source": "ec2-java-logging",
+            #         "service": "bon-gateway-svr",
+            #         "tags": {
+            #             "logType": "accewwwwws",
+            #             "lang": "java",
+            #             "group_name": "gateway-groupqqqqq"
+            #         }
+            #     },
+            #     {
+            #         "logfiles": [
+            #             "/home/app/bon-gateway-svr/logs/*other_normal.log"
+            #         ],
+            #         "source": "ec2-java-logging",
+            #         "service": "bon-gateway-svr",
+            #         "tags": {
+            #             "logType": "other",
+            #             "lang": "java",
+            #             "group_name": "gateway-groupaaaa"
+            #         }
+            #     }
+            # ],
             "metrics": [
                 {
                     "urls": [

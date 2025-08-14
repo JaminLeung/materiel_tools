@@ -48,11 +48,8 @@ if command -v init_runtime_dirs >/dev/null 2>&1; then
     init_runtime_dirs
 fi
 
-# 创建健康检查临时目录
-if [ ! -d "$HEALTH_CHECK_TEMP_DIR" ]; then
-    mkdir -p "$HEALTH_CHECK_TEMP_DIR"
-    log_info "创建健康检查临时目录: $HEALTH_CHECK_TEMP_DIR"
-fi
+# 删除健康检查临时目录创建逻辑（已移除）
+# 不再创建 runtime/tmp/health 目录
 
 # =============================================================================
 # 工具函数

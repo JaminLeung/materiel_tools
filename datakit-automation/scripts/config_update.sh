@@ -714,16 +714,8 @@ main() {
             fi
         fi
         
-        # 移动临时文件到版本目录
-        if [ -n "${RUNTIME_RELEASE:-}" ]; then
-            log_info "移动临时文件到版本目录: $RUNTIME_RELEASE"
-            
-            # 移动config_update的临时文件
-            if [ -d "$CONFIG_UPDATE_TEMP_DIR" ]; then
-                mv "$CONFIG_UPDATE_TEMP_DIR" "$RUNTIME_TMP_DIR/config_update" 2>/dev/null || true
-                log_info "临时文件移动完成"
-            fi
-        fi
+        # 删除临时文件到版本目录的逻辑（已移除）
+        log_info "跳过临时文件移动，直接处理配置变更"
         
         if [ "$config_enable" = "true" ]; then
             log_info "所有配置已完成，重启Datakit"

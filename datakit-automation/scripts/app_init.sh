@@ -63,8 +63,8 @@ health_diff_file_list=()
 create_directories() {
     log_info "创建必要的目录"
     
-    # 创建运行时目录
-    local dirs=("$APP_INIT_TEMP_DIR" "$APP_INIT_BACKUP_DIR" "$APP_INIT_LOGGING_TMP_DIR" "$APP_INIT_METRICS_TMP_DIR" "$APP_INIT_HEALTH_TMP_DIR" 
+    # 创建运行时目录（移除 APP_INIT_TEMP_DIR）
+    local dirs=("$APP_INIT_BACKUP_DIR" "$APP_INIT_LOGGING_TMP_DIR" "$APP_INIT_METRICS_TMP_DIR" "$APP_INIT_HEALTH_TMP_DIR" 
                 "$APP_INIT_LOGGING_PREV_DIR" "$APP_INIT_METRICS_PREV_DIR" "$APP_INIT_HEALTH_PREV_DIR"
                 "$APP_INIT_LOGGING_DIR" "$APP_INIT_METRICS_DIR" "$APP_INIT_HEALTH_DIR")
     
@@ -698,13 +698,7 @@ main() {
     get_host_ip
     HOST_IP=$(get_global_state 'HOST_IP')
     
-    # 调用utils.sh中的get_ops_config函数获取基础配置
-    if ! get_ops_config; then
-        handle_error "API_ERROR" "获取运维平台基础配置失败" "ERROR" "false"
-        return 1
-    fi
-    
-    # 获取业务配置数据（需要调用不同的API）
+    # 获取业务配置数据
     log_info "获取业务配置数据"
     local ops_token=""
     local config_py_file="${CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}"
@@ -724,9 +718,16 @@ main() {
         return 1
     fi
     
+    # 随机休眠避免并发请求
+    local random_number=$((RANDOM % 60 + 1))
+    log_info "随机休眠 $random_number 秒"
+    sleep $random_number
+
     # 调用业务配置API
     local tmp_json_file="${APP_INIT_BACKUP_DIR}/tmp.json"
     local http_code
+
+
     http_code=$(curl -s -o "$tmp_json_file" -w "%{http_code}" -X POST "$APP_INIT_OPS_API_URL" \
         -H "Authorization: Token $ops_token" \
         -H "Content-Type: application/json;charset=UTF-8" \
@@ -734,6 +735,7 @@ main() {
         --connect-timeout 10 \
         --max-time 30)
     
+    log_info "response: $(cat $tmp_json_file )"
     # 检查HTTP状态码
     if [ "$http_code" -eq 28 ]; then
         handle_error "TIMEOUT_ERROR" "请求超时，当前连接超时设置为10s，最大请求时间为30s" "ERROR" "false"
@@ -801,32 +803,8 @@ main() {
             fi
         fi
         
-        # 移动临时文件到版本目录（保留前一次文件用于下次对比）
-        if [ -n "${RUNTIME_RELEASE:-}" ]; then
-            log_info "移动临时文件到版本目录: $RUNTIME_RELEASE"
-            
-            # 创建版本目录下的临时目录
-            mkdir -p "$RUNTIME_TMP_DIR/app_init"
-            
-            # 只移动备份文件和临时配置文件，保留前一次文件
-            if [ -d "$APP_INIT_TEMP_DIR" ]; then
-                # 移动备份文件
-                if [ -d "$APP_INIT_TEMP_DIR/backup" ]; then
-                    mv "$APP_INIT_TEMP_DIR/backup" "$RUNTIME_TMP_DIR/app_init/" 2>/dev/null || true
-                    log_info "备份文件移动完成"
-                fi
-                
-                # 移动临时配置文件（log, prom, host）
-                for dir in "log" "prom" "host"; do
-                    if [ -d "$APP_INIT_TEMP_DIR/$dir" ]; then
-                        mv "$APP_INIT_TEMP_DIR/$dir" "$RUNTIME_TMP_DIR/app_init/" 2>/dev/null || true
-                        log_info "临时配置文件 $dir 移动完成"
-                    fi
-                done
-                
-                log_info "临时文件移动完成，前一次文件保留在 $RUNTIME_DIFF_ROOT"
-            fi
-        fi
+        # 删除临时文件到版本目录的逻辑（已移除）
+        log_info "跳过临时文件移动，直接处理配置变更"
         
         log_info "检测到配置变更，重启Datakit"
         restart_datakit

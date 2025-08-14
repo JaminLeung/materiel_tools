@@ -33,14 +33,14 @@ APP_INIT_HEALTH_DIR="/usr/local/datakit/conf.d/host"
 # =============================================================================
 # 运行时目录配置
 # =============================================================================
-# 临时目录始终放在 runtime/tmp 下
-APP_INIT_TEMP_DIR="${RUNTIME_TMP_ROOT}/app_init"
-APP_INIT_BACKUP_DIR="${APP_INIT_TEMP_DIR}/backup"
+# 删除临时目录配置，不再在 runtime/tmp 下创建文件
+# 备份目录直接使用锁文件目录
+APP_INIT_BACKUP_DIR="$LOCK_FILE_BASE/app_init_backup"
 
-# 临时存储目录
-APP_INIT_LOGGING_TMP_DIR="${APP_INIT_TEMP_DIR}/log"
-APP_INIT_METRICS_TMP_DIR="${APP_INIT_TEMP_DIR}/prom"
-APP_INIT_HEALTH_TMP_DIR="${APP_INIT_TEMP_DIR}/host"
+# 临时存储目录（使用系统临时目录）
+APP_INIT_LOGGING_TMP_DIR="/tmp/app_init/log"
+APP_INIT_METRICS_TMP_DIR="/tmp/app_init/prom"
+APP_INIT_HEALTH_TMP_DIR="/tmp/app_init/host"
 # 前一次存储目录（放在 runtime/diff 下，独立于版本）
 APP_INIT_LOGGING_PREV_DIR="${RUNTIME_DIFF_ROOT}/app_init/log_prev"
 APP_INIT_METRICS_PREV_DIR="${RUNTIME_DIFF_ROOT}/app_init/prom_prev"
