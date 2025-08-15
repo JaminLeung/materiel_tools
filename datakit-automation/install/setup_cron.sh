@@ -64,7 +64,7 @@ EOF
     fi
     
     # 清理临时文件
-    # TODO 所有脚本禁用 rm -f
+    # TODO 所有脚本禁用 rm -f  luke
     rm -f "$current_crontab" "$new_crontab"
     
     # 重新加载cron配置

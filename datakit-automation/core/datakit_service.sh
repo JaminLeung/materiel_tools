@@ -32,6 +32,7 @@ check_installation_status() {
         handle_error "SERVICE_ERROR" "Datakit配置文件已存在，跳过安装" "ERROR" "true"
     fi
         
+    # TODO log_info  重复  luke
     log_info "Datakit未安装，可以继续安装"
     log_info "Datakit未安装，可以继续安装"
     return 0
