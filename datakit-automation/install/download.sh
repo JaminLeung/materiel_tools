@@ -38,7 +38,6 @@ download_packages() {
     fi
     
     log_info "安装包下载完成"
-    log_info "安装包下载完成"
     return 0
 }
 

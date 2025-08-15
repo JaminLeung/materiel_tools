@@ -34,7 +34,6 @@ check_installation_status() {
         
     # TODO log_info  重复  luke
     log_info "Datakit未安装，可以继续安装"
-    log_info "Datakit未安装，可以继续安装"
     return 0
 }
 
