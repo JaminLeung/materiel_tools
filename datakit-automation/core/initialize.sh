@@ -116,8 +116,7 @@ validate_config() {
 validate_system_environment() {
     # 检查是否为root用户
     if [[ $EUID -ne 0 ]]; then
-        log_warning "建议使用root用户运行此脚本"
-        # TODO 不是root用户，退出执行  luke
+        handle_error "SYSTEM_ERROR" "非root用户运行，跳过步骤" "ERROR" "true"
     fi
     
     return 0
