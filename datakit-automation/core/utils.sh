@@ -1506,3 +1506,66 @@ cleanup_task_lock() {
     
     return 1
 }
+
+# 安全的文件删除函数
+safe_remove() {
+    local file="$1"
+    local description="${2:-文件}"
+    
+    # 检查文件是否存在
+    if [[ ! -e "$file" ]]; then
+        log_info "$description不存在，无需删除: $file"
+        return 0
+    fi
+    
+    # 检查文件路径安全性（防止删除系统重要文件）
+    if [[ "$file" == "/" ]] || [[ "$file" == "/etc" ]] || [[ "$file" == "/usr" ]] || [[ "$file" == "/var" ]] || [[ "$file" == "/home" ]]; then
+        log_error "拒绝删除系统重要目录: $file"
+        return 1
+    fi
+    
+    # 检查文件路径是否包含危险模式
+    if [[ "$file" == *".."* ]] || [[ "$file" == *"/*"* ]]; then
+        log_error "拒绝删除包含危险路径的文件: $file"
+        return 1
+    fi
+    
+    # 使用 unlink 替代 rm -f（更安全）
+    if unlink "$file" 2>/dev/null; then
+        log_info "成功删除$description: $file"
+        return 0
+    else
+        log_warning "删除$description失败: $file"
+        return 1
+    fi
+}
+
+# 安全的临时文件清理函数
+safe_cleanup_temp() {
+    local temp_file="$1"
+    local description="${2:-临时文件}"
+    
+    if [[ -n "$temp_file" ]] && [[ -e "$temp_file" ]]; then
+        safe_remove "$temp_file" "$description"
+    fi
+}
+
+# 安全的PID文件清理函数
+safe_cleanup_pid() {
+    local pid_file="$1"
+    
+    if [[ -n "$pid_file" ]] && [[ -e "$pid_file" ]]; then
+        # 验证PID文件内容
+        local pid=$(cat "$pid_file" 2>/dev/null || echo "")
+        if [[ -n "$pid" ]] && [[ "$pid" =~ ^[0-9]+$ ]]; then
+            # 检查进程是否还在运行
+            if ! kill -0 "$pid" 2>/dev/null; then
+                safe_remove "$pid_file" "过期的PID文件"
+            else
+                log_info "PID文件对应的进程仍在运行，保留PID文件: $pid_file"
+            fi
+        else
+            safe_remove "$pid_file" "无效的PID文件"
+        fi
+    fi
+}
