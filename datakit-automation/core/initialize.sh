@@ -13,11 +13,11 @@ check_running_instance() {
         if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
             if command -v log_error >/dev/null 2>&1; then
                 log_error "脚本已在运行 (PID: $pid)"
-                #TODO 全局不使用 log_error 
+                #TODO 全局不使用 log_error luke
             else
                 echo "[ERROR] 脚本已在运行 (PID: $pid)" >&2
             fi
-            # TODO 全局不要出现 exit
+            # TODO 全局不要出现 exit 
             exit 1
         else
             if command -v log_warning >/dev/null 2>&1; then
@@ -25,7 +25,7 @@ check_running_instance() {
             else
                 echo "[WARN] 发现过期的PID文件，清理中..."
             fi
-            # TODO 全局不要出现 rm -f
+            # TODO 全局不要出现 rm -f luke
             rm -f "$pid_file"
         fi
     fi
@@ -140,7 +140,7 @@ validate_system_environment() {
             log_warning "建议使用root用户运行此脚本"
         else
             echo "[WARN] 建议使用root用户运行此脚本"
-            # TODO 不是root用户，退出执行
+            # TODO 不是root用户，退出执行  luke
         fi
     fi
     
@@ -188,7 +188,7 @@ initialize_script() {
     
     # 验证系统资源
     if ! validate_system_resources_initialize; then
-        # TODO 全局不使用 command -v log_error
+        # TODO 全局不使用 command -v log_error  luke
         if command -v log_error >/dev/null 2>&1; then
             log_error "系统资源验证失败"
         else

@@ -36,7 +36,7 @@ configure_and_verify() {
             # /var/datakit/backup/20151001/
             # 保留最近 30 个版本
 
-        # TODO 备份统一处理
+        # TODO 备份统一处理, 和初始化里的合并
         # 备份失败的配置文件
         mv "$datakit_conf" "$datakit_conf.backup.$Date.failed"
 
