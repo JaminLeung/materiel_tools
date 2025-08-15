@@ -67,7 +67,7 @@ check_lock() {
             return 1
         else
             record_error "SERVICE_ERROR" "发现僵尸锁文件，清理并继续执行" "WARNING"
-            rm -f "$HEALTH_CHECK_LOCK_FILE"
+            safe_remove "$HEALTH_CHECK_LOCK_FILE" "僵尸锁文件"
         fi
     fi
     return 0
@@ -79,7 +79,7 @@ create_lock() {
 }
 
 remove_lock() {
-    rm -f "$HEALTH_CHECK_LOCK_FILE"
+    safe_remove "$HEALTH_CHECK_LOCK_FILE" "锁文件"
     log_info "清理锁文件"
 }
 
@@ -100,7 +100,7 @@ set_failure_count() {
 }
 
 reset_failure_count() {
-    rm -f "$HEALTH_CHECK_FAILURE_COUNT_FILE"
+    safe_remove "$HEALTH_CHECK_FAILURE_COUNT_FILE" "失败计数文件"
 }
 
 # =============================================================================

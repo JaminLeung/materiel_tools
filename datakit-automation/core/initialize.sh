@@ -17,8 +17,7 @@ check_running_instance() {
             exit 1
         else
             log_warning "发现过期的PID文件，清理中..."
-            # TODO 全局不要出现 rm -f luke
-            rm -f "$pid_file"
+            safe_cleanup_pid "$pid_file"
         fi
     fi
 }
@@ -159,7 +158,6 @@ initialize_script() {
     
     # 验证系统资源
     if ! validate_system_resources_initialize; then
-        # TODO 全局不使用 command -v log_error  luke
         log_error "系统资源验证失败"
         exit 1
     fi
