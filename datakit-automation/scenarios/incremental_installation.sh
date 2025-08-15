@@ -61,13 +61,8 @@ source "$MODULES_DIR/core/utils.sh"
 
 # 增量安装场景
 execute_incremental_installation() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "=== 执行增量安装场景 ==="
-        log_info "场景描述: 初始化创建镜像的主机"
-    else
-        echo "[INFO] === 执行增量安装场景 ==="
-        echo "[INFO] 场景描述: 初始化创建镜像的主机"
-    fi
+    log_info "=== 执行增量安装场景 ==="
+    log_info "场景描述: 初始化创建镜像的主机"
     
     # 步骤1: 验证环境
     validate_environment
@@ -87,20 +82,12 @@ execute_incremental_installation() {
     # 步骤6: 健康检查
     perform_health_check
     
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "增量安装完成"
-    else
-        echo "[SUCCESS] 增量安装完成"
-    fi
+    log_info "增量安装完成"
 }
 
 # 配置管理函数
 update_datakit_config() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "更新Datakit配置..."
-    else
-        echo "[INFO] 更新Datakit配置..."
-    fi
+    log_info "更新Datakit配置..."
     
     # 这里调用配置模块的函数
     if command -v configure_datakit >/dev/null 2>&1; then
@@ -111,11 +98,7 @@ update_datakit_config() {
 }
 
 restart_datakit_service() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "重启Datakit服务..."
-    else
-        echo "[INFO] 重启Datakit服务..."
-    fi
+    log_info "重启Datakit服务..."
     
     systemctl restart datakit
     sleep 3
@@ -123,11 +106,7 @@ restart_datakit_service() {
 
 # 验证函数
 verify_configuration() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "验证配置..."
-    else
-        echo "[INFO] 验证配置..."
-    fi
+    log_info "验证配置..."
     
     # 检查配置文件语法
     if [[ -f "/usr/local/datakit/datakit" ]]; then

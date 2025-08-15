@@ -11,20 +11,12 @@ check_running_instance() {
     if [[ -f "$pid_file" ]]; then
         local pid=$(cat "$pid_file" 2>/dev/null || echo "")
         if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            if command -v log_error >/dev/null 2>&1; then
-                log_error "脚本已在运行 (PID: $pid)"
-                #TODO 全局不使用 log_error luke
-            else
-                echo "[ERROR] 脚本已在运行 (PID: $pid)" >&2
-            fi
+            log_error "脚本已在运行 (PID: $pid)"
+            # TODO 全局不使用 log_error luke
             # TODO 全局不要出现 exit 
             exit 1
         else
-            if command -v log_warning >/dev/null 2>&1; then
-                log_warning "发现过期的PID文件，清理中..."
-            else
-                echo "[WARN] 发现过期的PID文件，清理中..."
-            fi
+            log_warning "发现过期的PID文件，清理中..."
             # TODO 全局不要出现 rm -f luke
             rm -f "$pid_file"
         fi
@@ -36,23 +28,15 @@ create_backup_directory() {
     local backup_dir="${BACKUP_DIR:-/opt/datakit_backups}"
     mkdir -p "$backup_dir"
     
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "备份目录: $backup_dir"
-    else
-        echo "[INFO] 备份目录: $backup_dir"
-    fi
+    log_info "备份目录: $backup_dir"
 }
 
 # 检查当前操作权限，如果不是root，则跳过步骤，如果是则继续执行
 check_current_user_permission() {
     if [[ $EUID -ne 0 ]]; then
-        if command -v log_warning >/dev/null 2>&1; then
-            log_warning "非root用户运行，跳过步骤"
-        else
-            echo "[WARN] 非root用户运行，跳过步骤" >&2
-            # 跳过步骤
-            return 1
-        fi
+        log_warning "非root用户运行，跳过步骤"
+        # 跳过步骤
+        return 1
     fi
 }
 
@@ -121,11 +105,7 @@ validate_config() {
     done
     
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
-        if command -v log_error >/dev/null 2>&1; then
-            log_error "缺少必需的环境变量: ${missing_vars[*]}"
-        else
-            echo "[ERROR] 缺少必需的环境变量: ${missing_vars[*]}" >&2
-        fi
+        log_error "缺少必需的环境变量: ${missing_vars[*]}"
         return 1
     fi
     
@@ -136,12 +116,8 @@ validate_config() {
 validate_system_environment() {
     # 检查是否为root用户
     if [[ $EUID -ne 0 ]]; then
-        if command -v log_warning >/dev/null 2>&1; then
-            log_warning "建议使用root用户运行此脚本"
-        else
-            echo "[WARN] 建议使用root用户运行此脚本"
-            # TODO 不是root用户，退出执行  luke
-        fi
+        log_warning "建议使用root用户运行此脚本"
+        # TODO 不是root用户，退出执行  luke
     fi
     
     return 0
@@ -159,11 +135,7 @@ validate_required_commands() {
     done
     
     if [[ ${#missing_commands[@]} -gt 0 ]]; then
-        if command -v log_error >/dev/null 2>&1; then
-            log_error "缺少必需的命令: ${missing_commands[*]}"
-        else
-            echo "[ERROR] 缺少必需的命令: ${missing_commands[*]}" >&2
-        fi
+        log_error "缺少必需的命令: ${missing_commands[*]}"
         return 1
     fi
     
@@ -189,48 +161,28 @@ initialize_script() {
     # 验证系统资源
     if ! validate_system_resources_initialize; then
         # TODO 全局不使用 command -v log_error  luke
-        if command -v log_error >/dev/null 2>&1; then
-            log_error "系统资源验证失败"
-        else
-            echo "[ERROR] 系统资源验证失败" >&2
-        fi
+        log_error "系统资源验证失败"
         exit 1
     fi
     
     # TODO 去掉配置校验参数
     # 验证配置参数
     if ! validate_config; then
-        if command -v log_error >/dev/null 2>&1; then
-            log_error "配置验证失败"
-        else
-            echo "[ERROR] 配置验证失败" >&2
-        fi
+        log_error "配置验证失败"
         exit 1
     fi
     
     # 验证系统环境
     if ! validate_system_environment; then
-        if command -v log_error >/dev/null 2>&1; then
-            log_error "系统环境验证失败"
-        else
-            echo "[ERROR] 系统环境验证失败" >&2
-        fi
+        log_error "系统环境验证失败"
         exit 1
     fi
     
     # 验证必需命令
     if ! validate_required_commands; then
-        if command -v log_error >/dev/null 2>&1; then
-            log_error "必需命令验证失败"
-        else
-            echo "[ERROR] 必需命令验证失败" >&2
-        fi
+        log_error "必需命令验证失败"
         exit 1
     fi
     
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "脚本初始化完成"
-    else
-        echo "[SUCCESS] 脚本初始化完成"
-    fi
+    log_info "脚本初始化完成"
 } 

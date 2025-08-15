@@ -61,24 +61,14 @@ source "$MODULES_DIR/core/utils.sh"
 
 # 版本更新场景
 execute_version_upgrade() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "=== 执行版本更新场景 ==="
-        log_info "场景描述: 升级Datakit版本"
-    else
-        echo "[INFO] === 执行版本更新场景 ==="
-        echo "[INFO] 场景描述: 升级Datakit版本"
-    fi
+    log_info "=== 执行版本更新场景 ==="
+    log_info "场景描述: 升级Datakit版本"
     
     local current_version=$(get_datakit_version)
     local target_version="${CONFIG[DATAKIT_VERSION]:-}"
     
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "当前版本: $current_version"
-        log_info "目标版本: $target_version"
-    else
-        echo "[INFO] 当前版本: $current_version"
-        echo "[INFO] 目标版本: $target_version"
-    fi
+    log_info "当前版本: $current_version"
+    log_info "目标版本: $target_version"
     
     # 步骤1: 验证环境
     validate_environment
@@ -107,11 +97,7 @@ execute_version_upgrade() {
     # 步骤9: 健康检查
     perform_health_check
     
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "版本更新完成"
-    else
-        echo "[SUCCESS] 版本更新完成"
-    fi
+    log_info "版本更新完成"
 }
 
 # 获取当前Datakit版本
@@ -125,11 +111,7 @@ get_datakit_version() {
 
 # 服务管理函数
 stop_datakit_service() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "停止Datakit服务..."
-    else
-        echo "[INFO] 停止Datakit服务..."
-    fi
+    log_info "停止Datakit服务..."
     
     if systemctl is-active --quiet datakit 2>/dev/null; then
         systemctl stop datakit
@@ -138,11 +120,7 @@ stop_datakit_service() {
 }
 
 start_datakit_service() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "启动Datakit服务..."
-    else
-        echo "[INFO] 启动Datakit服务..."
-    fi
+    log_info "启动Datakit服务..."
     
     systemctl start datakit
     sleep 3
@@ -150,11 +128,7 @@ start_datakit_service() {
 
 # 配置管理函数
 update_datakit_config() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "更新Datakit配置..."
-    else
-        echo "[INFO] 更新Datakit配置..."
-    fi
+    log_info "更新Datakit配置..."
     
     # 这里调用配置模块的函数
     if command -v configure_datakit >/dev/null 2>&1; then
@@ -166,11 +140,7 @@ update_datakit_config() {
 
 # 升级安装函数
 upgrade_datakit() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "升级Datakit..."
-    else
-        echo "[INFO] 升级Datakit..."
-    fi
+    log_info "升级Datakit..."
     
     # 备份当前版本
     if [[ -f "/usr/local/datakit/datakit" ]]; then
@@ -187,21 +157,13 @@ upgrade_datakit() {
 
 # 验证函数
 verify_upgrade() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "验证升级..."
-    else
-        echo "[INFO] 验证升级..."
-    fi
+    log_info "验证升级..."
     
     local new_version=$(get_datakit_version)
     local target_version="${CONFIG[DATAKIT_VERSION]:-}"
     
     if [[ "$new_version" == "$target_version" ]]; then
-        if command -v log_info >/dev/null 2>&1; then
-            log_info "版本升级成功: $new_version"
-        else
-            echo "[SUCCESS] 版本升级成功: $new_version"
-        fi
+        log_info "版本升级成功: $new_version"
     else
         echo "[ERROR] 版本升级失败，当前版本: $new_version，目标版本: $target_version" >&2
         return 1

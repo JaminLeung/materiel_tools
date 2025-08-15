@@ -61,13 +61,8 @@ source "$MODULES_DIR/core/utils.sh"
 
 # 重装场景
 execute_reinstall() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "=== 执行重装场景 ==="
-        log_info "场景描述: 完全重新安装Datakit"
-    else
-        echo "[INFO] === 执行重装场景 ==="
-        echo "[INFO] 场景描述: 完全重新安装Datakit"
-    fi
+    log_info "=== 执行重装场景 ==="
+    log_info "场景描述: 完全重新安装Datakit"
     
     # 步骤1: 验证环境
     validate_environment
@@ -96,20 +91,12 @@ execute_reinstall() {
     # 步骤9: 健康检查
     perform_health_check
     
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "重装完成"
-    else
-        echo "[SUCCESS] 重装完成"
-    fi
+    log_info "重装完成"
 }
 
 # 备份函数
 create_full_backup() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "创建完整备份..."
-    else
-        echo "[INFO] 创建完整备份..."
-    fi
+    log_info "创建完整备份..."
     
     if command -v create_backup >/dev/null 2>&1; then
         create_backup "/usr/local/datakit" "datakit_full"
@@ -120,11 +107,7 @@ create_full_backup() {
 
 # 卸载和清理函数
 uninstall_datakit() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "卸载Datakit..."
-    else
-        echo "[INFO] 卸载Datakit..."
-    fi
+    log_info "卸载Datakit..."
     
     # 停止服务
     if systemctl is-active --quiet datakit 2>/dev/null; then
@@ -146,11 +129,7 @@ uninstall_datakit() {
 }
 
 cleanup_datakit_files() {
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "清理Datakit文件..."
-    else
-        echo "[INFO] 清理Datakit文件..."
-    fi
+    log_info "清理Datakit文件..."
     
     # 删除安装目录
     if [[ -d "/usr/local/datakit" ]]; then
