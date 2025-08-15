@@ -11,10 +11,7 @@ check_running_instance() {
     if [[ -f "$pid_file" ]]; then
         local pid=$(cat "$pid_file" 2>/dev/null || echo "")
         if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            log_error "脚本已在运行 (PID: $pid)"
-            # TODO 全局不使用 log_error luke
-            # TODO 全局不要出现 exit 
-            exit 1
+            handle_error "SYSTEM_ERROR" "脚本已在运行 (PID: $pid)" "ERROR" "true"
         else
             log_warning "发现过期的PID文件，清理中..."
             safe_cleanup_pid "$pid_file"
@@ -104,7 +101,7 @@ validate_config() {
     done
     
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
-        log_error "缺少必需的环境变量: ${missing_vars[*]}"
+        handle_error "SYSTEM_ERROR" "缺少必需的环境变量: ${missing_vars[*]}" "ERROR" "false"
         return 1
     fi
     
@@ -133,7 +130,7 @@ validate_required_commands() {
     done
     
     if [[ ${#missing_commands[@]} -gt 0 ]]; then
-        log_error "缺少必需的命令: ${missing_commands[*]}"
+        handle_error "SYSTEM_ERROR" "缺少必需的命令: ${missing_commands[*]}" "ERROR" "false"
         return 1
     fi
     
