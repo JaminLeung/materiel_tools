@@ -97,7 +97,7 @@ set_install_status() {
     INSTALL_STATUS="$1"
     if [ -n "$2" ]; then
         INSTALL_ERROR="$2"
-        log_error "安装状态: $INSTALL_STATUS, 错误: $INSTALL_ERROR"
+        handle_error "INSTALL_ERROR" "安装状态: $INSTALL_STATUS, 错误: $INSTALL_ERROR" "ERROR" "false"
     else
         log_info "安装状态: $INSTALL_STATUS"
     fi
@@ -127,7 +127,7 @@ finish_script() {
     
     log_info "脚本执行完成，退出码: $SCRIPT_EXIT_CODE"
     if [[ -n "$SCRIPT_ERROR_MESSAGE" ]]; then
-        log_error "错误信息: $SCRIPT_ERROR_MESSAGE"
+        handle_error "SCRIPT_ERROR" "脚本执行完成，退出码: $SCRIPT_EXIT_CODE, 错误信息: $SCRIPT_ERROR_MESSAGE" "ERROR" "false"
     fi
 }
 
