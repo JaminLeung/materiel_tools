@@ -167,7 +167,6 @@ configure_datakit_main_config() {
     fi
     
     log_info "Datakit主配置文件配置完成"
-    log_info "Datakit主配置文件配置完成"
     return 0
 }
 
@@ -318,7 +317,6 @@ EOF
   keep_exist_metric_name = true
 EOF
 
-    log_info "采集器配置完成"
     log_info "采集器配置完成"
     return 0
 }

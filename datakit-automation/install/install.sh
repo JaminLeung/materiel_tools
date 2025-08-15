@@ -138,7 +138,6 @@ EOF
     while [ $check_count -lt $max_checks ]; do
         if systemctl is-active --quiet node_exporter; then
             log_info "Node Exporter安装成功"
-            log_info "Node Exporter安装成功"
             return 0
         else
             check_count=$((check_count + 1))
@@ -177,7 +176,6 @@ install_datakit() {
     
     # 执行离线安装
     log_info "执行Datakit离线安装..."
-    log_info "执行Datakit离线安装..."
     
     if ! ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$dataway_url" --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64.tar.gz,data.tar.gz"; then
         handle_error "DEPENDENCY_ERROR" "Datakit安装失败" "ERROR" "false"
@@ -200,7 +198,6 @@ install_datakit() {
     
     while [ $check_count -lt $max_checks ]; do
         if systemctl is-active --quiet datakit; then
-            log_info "Datakit启动成功"
             log_info "Datakit启动成功"
             return 0
         fi
