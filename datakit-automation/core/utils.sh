@@ -114,11 +114,7 @@ init_runtime_dirs() {
     for dir in "${dirs[@]}"; do
         if [ ! -d "$dir" ]; then
             mkdir -p "$dir"
-            if command -v log_info >/dev/null 2>&1; then
-                log_info "创建运行时目录: $dir"
-            else
-                echo "INFO: 创建运行时目录: $dir"
-            fi
+            log_info "创建运行时目录: $dir"
         fi
     done
     
@@ -144,11 +140,7 @@ init_runtime_dirs() {
         for dir in "${release_dirs[@]}"; do
             if [ ! -d "$dir" ]; then
                 mkdir -p "$dir"
-                if command -v log_info >/dev/null 2>&1; then
-                    log_info "创建版本目录: $dir"
-                else
-                    echo "INFO: 创建版本目录: $dir"
-                fi
+                log_info "创建版本目录: $dir"
             fi
         done
         
@@ -162,11 +154,7 @@ init_runtime_dirs() {
         export RUNTIME_CONF_DIR="$runtime_release/conf"
         export RUNTIME_TMP_DIR="$runtime_release/tmp"
         
-        if command -v log_info >/dev/null 2>&1; then
-            log_info "版本目录创建完成: $runtime_release"
-        else
-            echo "INFO: 版本目录创建完成: $runtime_release"
-        fi
+        log_info "版本目录创建完成: $runtime_release"
     fi
     
     # 设置基础目录权限
@@ -175,11 +163,7 @@ init_runtime_dirs() {
     chmod 755 "$RUNTIME_TMP_ROOT" 2>/dev/null || true
     chmod 755 "$RUNTIME_DIFF_ROOT" 2>/dev/null || true
     
-    if command -v log_info >/dev/null 2>&1; then
-        log_info "运行时目录初始化完成: $runtime_root"
-    else
-        echo "INFO: 运行时目录初始化完成: $runtime_root"
-    fi
+    log_info "运行时目录初始化完成: $runtime_root"
 }
 
 # 错误上下文管理函数

@@ -136,11 +136,7 @@ initialize_installer() {
     # 执行初始化脚本
     initialize_script
     
-    if command -v log_info >/dev/null 2>&1; then
-        echo "INFO: 安装器初始化完成"
-    else
-        echo "[SUCCESS] 安装器初始化完成"
-    fi
+    log_info "安装器初始化完成"
 }
 
 # 显示帮助信息
