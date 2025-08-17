@@ -11,19 +11,19 @@ set -euo pipefail
 # 获取脚本所在目录
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-
 # 加载基础配置
-source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
+load_module "loader" "$SCRIPT_DIR/../config/loader.sh"
 load_all_configs "${ENV:-test}" "config_update"
 
 # =============================================================================
 # 加载核心模块
 # =============================================================================
-source "$CONFIG_UPDATE_CORE_DIR/logging.sh"
-source "$CONFIG_UPDATE_CORE_DIR/utils.sh"
-source "$CONFIG_UPDATE_CORE_DIR/validation.sh"
-source "$CONFIG_UPDATE_CORE_DIR/health_check.sh"
-source "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
+
+load_module "utils" "$CONFIG_UPDATE_CORE_DIR/utils.sh"
+load_module "validation" "$CONFIG_UPDATE_CORE_DIR/validation.sh"
+load_module "health_check" "$CONFIG_UPDATE_CORE_DIR/health_check.sh"
+load_module "datakit_service" "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
+
 
 
 # =============================================================================
@@ -34,7 +34,7 @@ CONFIG_CHANGED=false
 
 # 初始化日志系统
 # TODO 整合
-init_logging
+# init_logging 将在main函数中调用，传入脚本类型参数
 
 
 # =============================================================================
@@ -625,6 +625,9 @@ handle_datakit_service_control() {
 # 主函数
 # =============================================================================
 main() {
+    # 初始化日志系统（传入脚本类型）
+    init_logging "config_update"
+    
     # 重置配置变更标志
     # CONFIG_CHANGED=false
     
@@ -655,10 +658,7 @@ main() {
     
     # 如果enable=false，直接退出脚本
     if [ "$config_enable" = "false" ]; then
-        log_info "Datakit已停止，跳过配置更新，脚本执行完成"
-        SCRIPT_EXIT_CODE=0
-        # TODO handle_error xxxx
-        return 0
+        handle_error "SUCCESS" "Datakit已停止，跳过配置更新，脚本执行完成" "INFO" "true"
     fi
     
     # 处理所有配置修改（不重启）
@@ -670,25 +670,33 @@ main() {
     # 所有配置完成后，统一重启Datakit（仅在enable=true且Datakit运行时）
 
     if [ "$CONFIG_CHANGED" = "true" ]; then
+        set_global_state "CONFIG_CHANGED" "true"
         log_info "检测到配置变更，创建版本目录"
         
         # 创建版本目录
-        # TODO runtime_dirs 统一配置
-        if command -v init_runtime_dirs >/dev/null 2>&1; then
-            init_runtime_dirs "$RUNTIME_ROOT" "true"
+        if command -v init_runtime_environment >/dev/null 2>&1; then
+            init_runtime_environment "true" "config_update"
+        else
+            # 兼容性处理：如果新函数不可用，使用旧函数
+            if command -v init_runtime_dirs >/dev/null 2>&1; then
+                init_runtime_dirs "$RUNTIME_ROOT" "true"
+            fi
         fi
+        RUNTIME_CONF_DIR=$(get_global_state "RUNTIME_CONF_DIR")
+
         
         # 备份当前Datakit配置目录到版本目录
-        if [ -n "${RUNTIME_RELEASE:-}" ] && [ -d "/usr/local/datakit/conf.d" ]; then
+        if  [ -d "/usr/local/datakit/conf.d" ]; then
             log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
             
             # 备份整个conf.d目录
-            if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/datakit_conf.d" 2>/dev/null; then
+            if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/conf.d" 2>/dev/null; then
                 log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
             else
-                record_error "BACKUP_ERROR" "Datakit配置目录备份失败" "WARNING"
+                record_error "BACKUP_ERROR" "Datakit配置目录备份失败,/usr/local/datakit/conf.d 不存在" "WARNING"
             fi
-        fi
+
+        fi     
         
         # 删除临时文件到版本目录的逻辑（已移除）
         log_info "跳过临时文件移动，直接处理配置变更"
@@ -712,7 +720,6 @@ main() {
     fi
     
     # 记录脚本结束
-    SCRIPT_EXIT_CODE=0
     
 }
 

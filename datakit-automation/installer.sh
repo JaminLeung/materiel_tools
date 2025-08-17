@@ -11,9 +11,26 @@ readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
 readonly INSTALLER_SCRIPT_VERSION="2.0.0"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# 声明全局状态变量
 
-# TODO 定时任务修改 ENV 
-DAT=AKIT_ENV= "${DATAKIT_ENV:-dev}"
+declare -A GLOBAL_STATE
+
+# 设置全局状态
+set_global_state() {
+    local key="$1"
+    local value="$2"
+    GLOBAL_STATE["$key"]="$value"
+}
+
+# 获取全局状态
+get_global_state() {
+    local key="$1"
+    echo "${GLOBAL_STATE[$key]:-}"
+}
+
+# TODO[done] 定时任务修改 ENV 
+DATAKIT_ENV="${DATAKIT_ENV:-dev}"
+
 
 
 # # 加载配置
@@ -88,7 +105,7 @@ DAT=AKIT_ENV= "${DATAKIT_ENV:-dev}"
 # }
 
 # 加载模块
-# TODO 所有的 source 改成 load_module
+# TODO[DONE] 所有的 source 改成 load_module
 load_module() {
     local module_name="$1"
     local module_file="$2"
@@ -101,6 +118,7 @@ load_module() {
         exit 1
     fi
 }
+load_module "loader" "$INSTALLER_SCRIPT_DIR/config/loader.sh"
 
 # 初始化安装器
 initialize_installer() {
@@ -108,29 +126,23 @@ initialize_installer() {
         
     # 加载核心模块
     load_module "logging" "$INSTALLER_SCRIPT_DIR/core/logging.sh"
+    load_module "error_handler" "$INSTALLER_SCRIPT_DIR/core/error_handler.sh"
     load_module "validation" "$INSTALLER_SCRIPT_DIR/core/validation.sh"
     load_module "utils" "$INSTALLER_SCRIPT_DIR/core/utils.sh"
     load_module "initialize" "$INSTALLER_SCRIPT_DIR/core/initialize.sh"
-
-    # 加载错误处理模块（如果存在）
-    if [[ -f "$INSTALLER_SCRIPT_DIR/core/error_handler.sh" ]]; then
-        load_module "error_handler" "$INSTALLER_SCRIPT_DIR/core/error_handler.sh"
-        # 初始化错误处理器
-        # TODO 有重复bug
-        if command -v init_error_handler >/dev/null 2>&1; then
-            init_error_handler
-            echo "错误处理器初始化完成"
-        fi
-    fi
-    
     # 安装模块已由scenarios脚本处理，此处不再加载旧模块
-    # 初始化运行时目录（仅创建基础目录，不创建版本目录）
-    if command -v init_runtime_dirs >/dev/null 2>&1; then
-        init_runtime_dirs
+    # 初始化运行时环境（仅创建基础目录，不创建版本目录）
+    if command -v init_runtime_environment >/dev/null 2>&1; then
+        init_runtime_environment
     else
-        echo "INFO: 初始化运行时目录"
-        # 如果函数不可用，手动创建基本目录
-        mkdir -p "$RUNTIME_ROOT" "$RUNTIME_LOG_DIR" 2>/dev/null || true
+        # 兼容性处理：如果新函数不可用，使用旧函数
+        if command -v init_runtime_dirs >/dev/null 2>&1; then
+            init_runtime_dirs
+        else
+            echo "INFO: 初始化运行时目录"
+            # 如果函数不可用，手动创建基本目录
+            mkdir -p "$RUNTIME_ROOT" "$RUNTIME_LOG_DIR" 2>/dev/null || true
+        fi
     fi
     
     # 执行初始化脚本
@@ -197,7 +209,10 @@ EOF
 main() {
     local env_config_file=""
     local command=""
-    
+
+    set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
+
+
     # 解析命令行参数
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -241,12 +256,22 @@ main() {
         exit 0
     fi
     
+    export CURRENT_COMMAND="$command"
+
+    load_module "loader" "$INSTALLER_SCRIPT_DIR/config/loader.sh"
     # 加载配置（自动检测环境变量或配置文件）
     load_all_configs "$DATAKIT_ENV"
+    # echo "env_config_file: $env_config_file"
+    # load_config "$env_config_file"
     
     # 初始化安装器
     initialize_installer
 
+    # 初始化错误处理器
+    init_error_handler
+
+    # 设置当前时间在GLOBAL_STATE中
+    # set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
     # 执行命令
     # 添加定时任务场景命令
     case "$command" in
@@ -258,25 +283,30 @@ main() {
             ;;
         version-upgrade)
             execute_version_upgrade
+            
             ;;
         config-update)
             execute_config_update
+            
             ;;
         reinstall)
             execute_reinstall
+            
             ;;
         setup-cron)
             execute_setup_cron
+            
             ;;
         app-init)
             execute_app_init
+
             ;;
         health-check)
             execute_health_check
             ;;
         *)
             echo "[ERROR] 未知命令: $command" >&2
-            exit 1
+            handle_error "COMMAND_ERROR" "未知命令: $command" "CRITICAL" "true"
             ;;
     esac
 }
@@ -293,25 +323,13 @@ execute_existing_installation() {
     if [[ -f "$scenario_script" ]]; then
         log_info "调用存量安装场景脚本: $scenario_script"
         
-        # TODO 统一从配置文件里获取
+        # TODO[DONE] 统一从配置文件里获取
         # 传递配置信息给场景脚本
-        export DATAKIT_CONFIG_FILE="$env_config_file"
-        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
-        
-        # 导出所有关键配置变量
-        # 不设置环境变量方式跑起来
-        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
-        export OPS_ADDR="${OPS_ADDR:-}"
-        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
-        export DATAWAY_URL="${DATAWAY_URL:-}"
-        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
-        export S3_BUCKET="${S3_BUCKET:-}"
-        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
-        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
-        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
         
         # 执行场景脚本
-        bash "$scenario_script"
+        source "$scenario_script"
+
+        execute_existing_installation
     else
         handle_error "FILE_ERROR" "存量安装场景脚本不存在: $scenario_script" "CRITICAL" "true"
     fi
@@ -332,7 +350,7 @@ execute_incremental_installation() {
         export DATAKIT_CONFIG_FILE="$env_config_file"
         
         # 执行场景脚本
-        bash "$scenario_script"
+        source "$scenario_script"
     else
         handle_error "FILE_ERROR" "增量安装场景脚本不存在: $scenario_script" "CRITICAL" "true"
     fi
@@ -353,7 +371,7 @@ execute_version_upgrade() {
         export DATAKIT_CONFIG_FILE="$env_config_file"
         
         # 执行场景脚本
-        bash "$scenario_script"
+        source "$scenario_script"
     else
         handle_error "FILE_ERROR" "版本更新场景脚本不存在: $scenario_script" "CRITICAL" "true"
     fi
@@ -375,7 +393,7 @@ execute_reinstall() {
         export DATAKIT_CONFIG_FILE="$env_config_file"
         
         # 执行场景脚本
-        bash "$scenario_script"
+        source "$scenario_script"
     else
         handle_error "FILE_ERROR" "重装场景脚本不存在: $scenario_script" "CRITICAL" "true"
     fi
@@ -393,22 +411,9 @@ execute_setup_cron() {
         log_info "调用定时任务设置脚本: $setup_cron_script"
         
         # 传递配置信息给脚本
-        export DATAKIT_CONFIG_FILE="$env_config_file"
-        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
-        
-        # 导出所有关键配置变量
-        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
-        export OPS_ADDR="${OPS_ADDR:-}"
-        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
-        export DATAWAY_URL="${DATAWAY_URL:-}"
-        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
-        export S3_BUCKET="${S3_BUCKET:-}"
-        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
-        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
-        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
         
         # 执行定时任务设置脚本
-        bash "$setup_cron_script"
+        source "$setup_cron_script"
     else
         handle_error "FILE_ERROR" "定时任务设置脚本不存在: $setup_cron_script" "CRITICAL" "true"
     fi
@@ -427,22 +432,8 @@ execute_app_init() {
         log_info "调用应用初始化脚本: $app_init_script"
         
         # 传递配置信息给脚本
-        export DATAKIT_CONFIG_FILE="$env_config_file"
-        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
-        
-        # 导出所有关键配置变量
-        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
-        export OPS_ADDR="${OPS_ADDR:-}"
-        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
-        export DATAWAY_URL="${DATAWAY_URL:-}"
-        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
-        export S3_BUCKET="${S3_BUCKET:-}"
-        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
-        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
-        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
-        
         # 执行应用初始化脚本
-        bash "$app_init_script"
+        source "$app_init_script"
     else
         handle_error "FILE_ERROR" "应用初始化脚本不存在: $app_init_script" "CRITICAL" "true"
     fi
@@ -460,7 +451,7 @@ execute_config_update() {
         log_info "调用配置同步脚本: $config_update_script"
         
         # 执行配置同步脚本
-        bash "$config_update_script"
+        source "$config_update_script"
     else
         handle_error "FILE_ERROR" "配置同步脚本不存在: $config_update_script" "CRITICAL" "true"
     fi
@@ -478,22 +469,9 @@ execute_health_check() {
         log_info "调用健康检查脚本: $health_check_script"
         
         # 传递配置信息给脚本
-        export DATAKIT_CONFIG_FILE="$env_config_file"
-        export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
-        
-        # 导出所有关键配置变量
-        export CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-}"
-        export OPS_ADDR="${OPS_ADDR:-}"
-        export DATAWAY_LOG_URL="${DATAWAY_LOG_URL:-}"
-        export DATAWAY_URL="${DATAWAY_URL:-}"
-        export CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-}"
-        export S3_BUCKET="${S3_BUCKET:-}"
-        export S3_ACCESS_KEY="${S3_ACCESS_KEY:-}"
-        export S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
-        export DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-}"
         
         # 执行健康检查脚本
-        bash "$health_check_script"
+        source "$health_check_script"
     else
         handle_error "FILE_ERROR" "健康检查脚本不存在: $health_check_script" "CRITICAL" "true"
     fi

@@ -63,7 +63,8 @@ load_base_config() {
         log_info "已加载基础配置: $base_config_file"
         return 0
     else
-        handle_error "SYSTEM_ERROR" "基础配置文件不存在，跳过步骤" "ERROR" "true"
+        log_error "基础配置文件不存在: $base_config_file"
+        return 1
     fi
 }
 
@@ -85,7 +86,8 @@ load_state_config() {
         
         return 0
     else
-        handle_error "SYSTEM_ERROR" "状态配置文件不存在，跳过步骤" "ERROR" "true"
+        log_error "状态配置文件不存在: $state_config_file"
+        return 1
     fi
 }
 
@@ -193,13 +195,13 @@ validate_config() {
     done
     
     if [[ ${#missing_vars[@]} -gt 0 ]]; then
-        handle_error "SYSTEM_ERROR" "缺少必需的配置变量: ${missing_vars[*]}" "ERROR" "false"
+        log_error "缺少必需的配置变量: ${missing_vars[*]}"
         return 1
     fi
     
     # 检查状态配置
     if ! declare -F init_state >/dev/null; then
-        handle_error "SYSTEM_ERROR" "状态管理函数未找到，跳过步骤" "ERROR" "false"
+        log_error "状态管理函数未找到"
         return 1
     fi
     
@@ -336,12 +338,14 @@ main() {
     
     # 加载所有配置
     if ! load_all_configs "$env_name" "$script_name"; then
-        handle_error "SYSTEM_ERROR" "配置加载失败，跳过步骤" "ERROR" "true"
+        log_error "配置加载失败"
+        exit 1
     fi
     
     # 验证配置
     if ! validate_config; then
-        handle_error "SYSTEM_ERROR" "配置验证失败，跳过步骤" "ERROR" "true"
+        log_error "配置验证失败"
+        exit 1
     fi
     
     # 显示当前配置

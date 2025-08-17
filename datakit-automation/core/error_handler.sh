@@ -148,6 +148,90 @@ handle_error_signal() {
     exit 1
 }
 
+backup_log_files_to_release() {
+    log_info "备份日志文件到版本目录..."
+    
+    # 备份日志文件到版本目录
+    CONFIG_CHANGED=$(get_global_state "CONFIG_CHANGED")
+    RELEASE_ID=$(get_global_state "RELEASE_ID")
+    RUNTIME_DIR=$(get_global_state "RUNTIME_DIR")
+
+    if [ "$CONFIG_CHANGED" = "true" ]; then
+        SOURCE_LOG_FILE=$RUNTIME_DIR/log/current/$RELEASE_ID.log
+        TARGET_LOG_FILE=$RUNTIME_DIR/releases/$RELEASE_ID/log/$RELEASE_ID.log
+        log_info "配置变更，备份日志文件到版本目录"
+        log_info "源日志文件: $SOURCE_LOG_FILE"
+        log_info "目标日志文件: $TARGET_LOG_FILE"
+        cp -r $SOURCE_LOG_FILE $TARGET_LOG_FILE 2>/dev/null
+        log_info "备份日志文件到版本目录完成"
+    else
+        log_info "配置未变更，不备份日志文件到版本目录"
+    fi
+}
+
+
+# 辅助函数：上传批次日志到Dataway
+upload_batch_to_dataway() {
+    local batch_content="$1"
+    local dataway_host="$2"
+    local dataway_token="$3"
+    local timeout="$4"
+    local release_id="$5"
+    
+    # 构建上报数据结构
+    local batch_data="["
+    local first_line=true
+    
+    while IFS= read -r line; do
+        if [ -n "$line" ]; then
+            if [ "$first_line" = true ]; then
+                first_line=false
+            else
+                batch_data="$batch_data,"
+            fi
+            
+            # 解析JSON日志行，提取关键信息
+            local timestamp=$(echo "$line" | jq -r '.timestamp // empty' 2>/dev/null || echo "$(date -Iseconds)")
+            local level=$(echo "$line" | jq -r '.level // "info"' 2>/dev/null || echo "info")
+            local message=$(echo "$line" | jq -r '.message // empty' 2>/dev/null || echo "$line")
+            local script_name=$(echo "$line" | jq -r '.script_name // empty' 2>/dev/null || echo "unknown")
+            
+            # 构建单条日志记录
+            local log_record=$(cat <<EOF
+{
+    "measurement": "datakit_host",
+    "tags": {
+        "level": "$level",
+        "host_ip": "$(get_global_state 'HOST_IP')",
+        "env": "$(get_global_state 'ENV')",
+        "workspace": "$(get_global_state 'WORKSPACE')",
+        "script_name": "$script_name",
+        "release_id": "$release_id"
+    },
+    "time": "$timestamp",
+    "fields": {
+        "message": "$message"
+    }
+}
+EOF
+)
+            batch_data="$batch_data$log_record"
+        fi
+    done <<< "$batch_content"
+    
+    batch_data="$batch_data]"
+    
+    # 上报到Dataway
+    if curl -s --max-time "$timeout" -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
+        -H "Content-Type: application/json" \
+        -d "$batch_data" >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+
 # 退出清理
 cleanup_on_exit() {
     log_info "开始执行退出清理..."
@@ -156,7 +240,8 @@ cleanup_on_exit() {
     local cleanup_steps=(
         "cleanup_temp_files:清理临时文件"
         "cleanup_log_files:清理日志文件"
-        # TODO dataway 统一读取日志文件上报
+        "backup_log_files_to_release:备份日志文件到版本目录"
+        "upload_log_to_dataway:上传日志到Dataway"
     )
     
     local success_count=0

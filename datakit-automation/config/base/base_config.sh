@@ -29,12 +29,12 @@ fi
 PROJECT_ROOT="$(cd "$BASE_CONFIG_DIR/../.." && pwd)"
 MODULES_DIR="$PROJECT_ROOT/modules"
 CONFIG_DIR="$PROJECT_ROOT/config"
-SCENARIO_DIR="$PROJECT_ROOT/scenario"
-LOGS_DIR="$PROJECT_ROOT/logs"
 RUNTIME_DIR="$PROJECT_ROOT/runtime"
 WORKSPACE=default
 ENV=test
 
+
+set_global_state "RUNTIME_DIR" "$RUNTIME_DIR"
 # =============================================================================
 # 安装路径配置（可被环境配置覆盖）
 # =============================================================================
@@ -48,7 +48,32 @@ DATAKIT_PID_FILE="/var/run/datakit_install.pid"
 # =============================================================================
 # 日志配置
 # =============================================================================
+RELEASE_ID="$(get_global_state "RELEASE_ID")"
+DATAKIT_LOG_FILE=$RUNTIME_DIR/log/current/$RELEASE_ID.log
+LOG_FILE="${DATAKIT_LOG_FILE:-/var/log/datakit_install.log}"
 LOG_LEVEL="${LOG_LEVEL:-1}"
+LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-3}"
+LOG_MAX_FILES_PER_SCRIPT="${LOG_MAX_FILES_PER_SCRIPT:-10}"
+
+# =============================================================================
+# Dataway日志上报配置
+# =============================================================================
+ENABLE_DATAWAY_LOG_REPORT="${ENABLE_DATAWAY_LOG_REPORT:-true}"
+DATAWAY_LOG_BATCH_SIZE="${DATAWAY_LOG_BATCH_SIZE:-10}"
+DATAWAY_LOG_TIMEOUT="${DATAWAY_LOG_TIMEOUT:-30}"
+
+# =============================================================================
+# Runtime目录配置
+# =============================================================================
+RUNTIME_ROOT="${RUNTIME_ROOT:-$PROJECT_ROOT/runtime}"
+RUNTIME_LOG_DIR="${RUNTIME_LOG_DIR:-$RUNTIME_ROOT/log}"
+RUNTIME_LOG_CURRENT_DIR="${RUNTIME_LOG_CURRENT_DIR:-$RUNTIME_LOG_DIR/current}"
+RUNTIME_LOG_ARCHIVE_DIR="${RUNTIME_LOG_ARCHIVE_DIR:-$RUNTIME_LOG_DIR/archive}"
+RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_ROOT/releases}"
+
+# Runtime清理配置
+RUNTIME_MAX_RELEASES="${RUNTIME_MAX_RELEASES:-10}"
+
 
 # =============================================================================
 # 外部脚本配置
@@ -56,36 +81,11 @@ LOG_LEVEL="${LOG_LEVEL:-1}"
 CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}"
 
 # =============================================================================
-# 运行时目录配置
-# =============================================================================
-# 运行时根目录
-RUNTIME_ROOT="${RUNTIME_ROOT:-$RUNTIME_DIR}"
-# 日志目录（独立于版本，始终存在）
-RUNTIME_LOG_DIR="${RUNTIME_LOG_DIR:-$RUNTIME_ROOT/log}"
-# 临时目录（独立于版本，始终存在）
-RUNTIME_TMP_ROOT="${RUNTIME_TMP_ROOT:-$RUNTIME_ROOT/tmp}"
-# 对比文件目录（独立于版本，始终存在）
-RUNTIME_DIFF_ROOT="${RUNTIME_DIFF_ROOT:-$RUNTIME_ROOT/diff}"
-# 版本目录（仅在需要时创建）
-RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_ROOT/releases}"
-# 当前发布版本目录（基于时间戳，仅在需要时创建）
-RUNTIME_RELEASE="${RUNTIME_RELEASE:-}"
-
-# 运行时子目录（仅在创建版本时使用）
-RUNTIME_BACKUP_DIR="${RUNTIME_BACKUP_DIR:-}"
-RUNTIME_CONF_DIR="${RUNTIME_CONF_DIR:-}"
-RUNTIME_TMP_DIR="${RUNTIME_TMP_DIR:-}"
-
-# =============================================================================
-# 日志配置（需要在运行时目录配置之后）
-# =============================================================================
-LOG_FILE="${DATAKIT_LOG_FILE:-${RUNTIME_LOG_DIR}/installer.log}"
-
-# =============================================================================
 # 通用配置
 # =============================================================================
 # 备份配置
 BACKUP_RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-7}"
+BACKUP_MAX_FILES="${BACKUP_MAX_FILES:-10}"
 BACKUP_TIMESTAMP_FORMAT="%Y%m%d_%H%M%S"
 
 # 错误处理配置

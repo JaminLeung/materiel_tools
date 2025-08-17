@@ -61,7 +61,7 @@ init_state() {
     SCRIPT_LOCK_ACQUIRED="false"
     
     # 设置基础环境信息
-    ENV="${ENV:-test}"
+    ENV="${DATAKIT_ENV:-dev}"
     WORKSPACE="${WORKSPACE:-default}"
     
     # 获取主机IP（如果可能）
@@ -97,7 +97,7 @@ set_install_status() {
     INSTALL_STATUS="$1"
     if [ -n "$2" ]; then
         INSTALL_ERROR="$2"
-        handle_error "INSTALL_ERROR" "安装状态: $INSTALL_STATUS, 错误: $INSTALL_ERROR" "ERROR" "false"
+        log_error "安装状态: $INSTALL_STATUS, 错误: $INSTALL_ERROR"
     else
         log_info "安装状态: $INSTALL_STATUS"
     fi
@@ -127,7 +127,7 @@ finish_script() {
     
     log_info "脚本执行完成，退出码: $SCRIPT_EXIT_CODE"
     if [[ -n "$SCRIPT_ERROR_MESSAGE" ]]; then
-        handle_error "SCRIPT_ERROR" "脚本执行完成，退出码: $SCRIPT_EXIT_CODE, 错误信息: $SCRIPT_ERROR_MESSAGE" "ERROR" "false"
+        log_error "错误信息: $SCRIPT_ERROR_MESSAGE"
     fi
 }
 
@@ -136,7 +136,7 @@ get_state_summary() {
     cat << EOF
 状态摘要:
   主机IP: $HOST_IP
-  环境: $ENV
+  环境: $DATAKIT_ENV
   工作空间: $WORKSPACE
   当前步骤: $SCRIPT_CURRENT_STEP
   开始时间: $SCRIPT_START_TIME

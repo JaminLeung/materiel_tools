@@ -11,28 +11,20 @@ set -e
 readonly SCENARIO_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCENARIO_PROJECT_ROOT="$(cd "$SCENARIO_SCRIPT_DIR/.." && pwd)"
 
-# TODO 所有环境变量导入使用 loader.sh
+# TODO[DONE] 所有环境变量导入使用 loader.sh
 # 配置加载函数
+load_module "loader" "$SCENARIO_PROJECT_ROOT/config/loader.sh"
 
-
-source "$SCENARIO_PROJECT_ROOT/core/utils.sh"
-source "$SCENARIO_PROJECT_ROOT/core/validation.sh"
-source "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
+load_module "utils" "$SCENARIO_PROJECT_ROOT/core/utils.sh"
+load_module "validation" "$SCENARIO_PROJECT_ROOT/core/validation.sh"
+load_module "datakit_service" "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
 # config_api.sh的功能已合并到utils.sh中
-source "$SCENARIO_PROJECT_ROOT/core/utils.sh"
 
-
-source "$SCENARIO_PROJECT_ROOT/config/loader.sh"
-load_all_configs $ENV
-
-# 加载安装步骤模块
-# source "$SCENARIO_PROJECT_ROOT/install/host_info.sh"
-# source "$SCENARIO_PROJECT_ROOT/install/status_check.sh"
-source "$SCENARIO_PROJECT_ROOT/install/download.sh"
-source "$SCENARIO_PROJECT_ROOT/install/install.sh"
-source "$SCENARIO_PROJECT_ROOT/install/configure.sh"
-source "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
-# source "$SCENARIO_PROJECT_ROOT/install/verify.sh"
+load_module "download" "$SCENARIO_PROJECT_ROOT/install/download.sh"
+load_module "install" "$SCENARIO_PROJECT_ROOT/install/install.sh"
+load_module "configure" "$SCENARIO_PROJECT_ROOT/install/configure.sh"
+load_module "setup_cron" "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
+# load_module "verify" "$SCENARIO_PROJECT_ROOT/install/verify.sh"
 
 
 # 存量安装场景主函数
@@ -149,14 +141,14 @@ execute_existing_installation() {
 # 脚本入口点
 #=================================================
 # 如果直接运行此脚本（而不是被其他脚本source），则执行安装流程
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     
-    log_info "总执行时间: ${duration}秒"
-    log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
+#     log_info "总执行时间: ${duration}秒"
+#     log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
     
-    # 初始化错误处理器
-    init_error_handler
+#     # 初始化错误处理器
+#     init_error_handler
     
-    # 执行存量安装场景
-    execute_existing_installation
-fi 
+#     # 执行存量安装场景
+#     execute_existing_installation
+# fi 

@@ -87,7 +87,7 @@ download_bundle_file() {
             return 0
         else
             record_error "VALIDATION_ERROR" "本地包MD5校验失败，将重新下载" "WARNING"
-            safe_remove "./$bundle_name" "MD5校验失败的本地包"
+            rm -f "./$bundle_name"
         fi
     fi
     

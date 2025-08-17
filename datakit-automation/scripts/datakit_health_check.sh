@@ -12,10 +12,10 @@ set -euo pipefail
 # =============================================================================
 # 获取脚本所在目录
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
+# TODO
 # 加载基础配置
-source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
-load_all_configs "${ENV:-test}" "health_check"
+load_module "loader" "$SCRIPT_DIR/../config/loader.sh"
+load_all_configs "${DATAKIT_ENV:-test}" "health_check"
 
 # 定义核心模块目录（如果配置文件中没有定义）
 if [ -z "${CONFIG_UPDATE_CORE_DIR:-}" ]; then
@@ -35,53 +35,29 @@ FAILURE_COUNT=0
 # =============================================================================
 # 加载核心模块
 # =============================================================================
-source "$CONFIG_UPDATE_CORE_DIR/logging.sh"
-source "$CONFIG_UPDATE_CORE_DIR/utils.sh"
-source "$CONFIG_UPDATE_CORE_DIR/validation.sh"
-source "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
+load_module "logging" "$CONFIG_UPDATE_CORE_DIR/logging.sh"
+load_module "utils" "$CONFIG_UPDATE_CORE_DIR/utils.sh"
+load_module "validation" "$CONFIG_UPDATE_CORE_DIR/validation.sh"
+load_module "datakit_service" "$CONFIG_UPDATE_CORE_DIR/datakit_service.sh"
 
 # 初始化日志系统
-init_logging
+# init_logging 将在main函数中调用，传入脚本类型参数
 
-# 初始化运行时目录（仅创建基础目录）
-if command -v init_runtime_dirs >/dev/null 2>&1; then
-    init_runtime_dirs
+# 初始化运行时环境（仅创建基础目录）
+if command -v init_runtime_environment >/dev/null 2>&1; then
+    init_runtime_environment
+else
+    # 兼容性处理：如果新函数不可用，使用旧函数
+    if command -v init_runtime_dirs >/dev/null 2>&1; then
+        init_runtime_dirs
+    fi
 fi
-
-# 删除健康检查临时目录创建逻辑（已移除）
-# 不再创建 runtime/tmp/health 目录
 
 # =============================================================================
 # 工具函数
 # =============================================================================
 # 注意：die函数已废弃，使用handle_error替代
 
-# =============================================================================
-# 锁机制函数
-# =============================================================================
-check_lock() {
-    if [ -f "$HEALTH_CHECK_LOCK_FILE" ]; then
-        local pid=$(cat "$HEALTH_CHECK_LOCK_FILE" 2>/dev/null)
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            record_error "SERVICE_ERROR" "上一个健康检查任务(PID: $pid)还在运行，跳过本次执行" "WARNING"
-            return 1
-        else
-            record_error "SERVICE_ERROR" "发现僵尸锁文件，清理并继续执行" "WARNING"
-            safe_remove "$HEALTH_CHECK_LOCK_FILE" "僵尸锁文件"
-        fi
-    fi
-    return 0
-}
-
-create_lock() {
-    echo $$ > "$HEALTH_CHECK_LOCK_FILE"
-    log_info "创建锁文件: $HEALTH_CHECK_LOCK_FILE"
-}
-
-remove_lock() {
-    safe_remove "$HEALTH_CHECK_LOCK_FILE" "锁文件"
-    log_info "清理锁文件"
-}
 
 # =============================================================================
 # 失败计数管理
@@ -100,7 +76,7 @@ set_failure_count() {
 }
 
 reset_failure_count() {
-    safe_remove "$HEALTH_CHECK_FAILURE_COUNT_FILE" "失败计数文件"
+    rm -f "$HEALTH_CHECK_FAILURE_COUNT_FILE"
 }
 
 # =============================================================================
@@ -131,13 +107,6 @@ check_datakit_health() {
 perform_health_check() {
     log_info "开始Datakit健康检查"
     
-    # 检查锁文件
-    if ! check_lock; then
-        return 0
-    fi
-    
-    # 创建锁文件
-    create_lock
     
     # 执行健康检查
     if check_datakit_health; then
@@ -157,8 +126,8 @@ perform_health_check() {
         fi
     fi
     
-    # 清理锁文件
-    remove_lock
+    # # 清理锁文件
+    # remove_lock
     log_info "Datakit健康检查完成"
 }
 
@@ -198,7 +167,7 @@ show_status() {
 cleanup() {
     log_info "清理资源"
     remove_lock
-    exit 0
+    handle_error "SUCCESS" "清理资源完成" "INFO" "false"
 }
 
 trap cleanup SIGTERM SIGINT
@@ -207,6 +176,9 @@ trap cleanup SIGTERM SIGINT
 # 主函数
 # =============================================================================
 main() {
+    # 初始化日志系统（传入脚本类型）
+    init_logging "health_check"
+    
     log_info "开始执行 $HEALTH_CHECK_SCRIPT_NAME v$HEALTH_CHECK_SCRIPT_VERSION"
     
     # 检查依赖

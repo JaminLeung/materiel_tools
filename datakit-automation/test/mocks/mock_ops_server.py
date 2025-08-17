@@ -53,7 +53,7 @@ MOCK_SERVER_CONFIGS = {
                     "enable": True
                 },
                 {
-                    "key": "global_host_tags.sssss",
+                    "key": "global_host_tags.sssssaaaabbbaccc",
                     "value": "info",
                     "enable": True
                 }
@@ -63,13 +63,13 @@ MOCK_SERVER_CONFIGS = {
                     "input_name": "ddtrace",
                     "input_path": "/usr/local/datakit/conf.d/ddtrace/ddtrace.conf",
                     "key": "inputs.ddtrace[0].customer_tags",
-                    "value": ["sink_project", "custom_dd_tag"],
+                    "value": ["sink_project", "custom_dd_tagaaasaa"],
                     "enable": True
                 },
                 {
                     "input_name": "ddtrace",
                     "input_path": "/usr/local/datakit/conf.d/ddtrace/ddtrace.conf",
-                    "key": "inputs.ddtrace[0].customer_tagstttaaaaa1111bbbcccc",
+                    "key": "inputs.ddtrace[0].customer_tagstttaaaaa111aaaa1bbbcccbbbbsc",
                     "value": ["sink_project", "custom_dd_tagaaaa"],
                     "enable": True
                 }
@@ -82,39 +82,39 @@ MOCK_SERVER_CONFIGS = {
 MOCK_METADATA_CONFIGS = {
     "data": [{
         "serviceA": {
-            "logging": [],
-            #     [
-            #     {
-            #         "logfiles": [
-            #             "/home/app/bon-gateway-svr/logs/*access_normal.log",
-            #             "/home/app/bon-gateway-svr/logs/*access_normal11111eeeeeee.log",
-            #             # "/home/app/bon-gateway-svr/logs/*access_normal22222.log"
-            #         ],
-            #         "source": "ec2-java-logging",
-            #         "service": "bon-gateway-svr",
-            #         "tags": {
-            #             "logType": "accewwwwws",
-            #             "lang": "java",
-            #             "group_name": "gateway-groupqqqqq"
-            #         }
-            #     },
-            #     {
-            #         "logfiles": [
-            #             "/home/app/bon-gateway-svr/logs/*other_normal.log"
-            #         ],
-            #         "source": "ec2-java-logging",
-            #         "service": "bon-gateway-svr",
-            #         "tags": {
-            #             "logType": "other",
-            #             "lang": "java",
-            #             "group_name": "gateway-groupaaaa"
-            #         }
-            #     }
-            # ],
+            "logging": 
+                [
+                {
+                    "logfiles": [
+                        "/home/app/bon-gateway-svr/logs/*access_normal.logaaaccccdda",
+                        "/home/app/bon-gateway-svr/logs/*access_normal11111eeddddeeddeeeeddddaaeaecccddds.logaaaaaccccbbbbbaaacccuuuvvvvaaaaa",
+                        # "/home/app/bon-gateway-svr/logs/*access_normal22222.log"
+                    ],
+                    "source": "ec2-java-logging",
+                    "service": "bon-gateway-svr",
+                    "tags": {
+                        "logType": "accewwwwwsaaaaaaaaad",
+                        "lang": "java1111",
+                        "group_name": "gateway-22222333aa"
+                    }
+                },
+                # {
+                #     "logfiles": [
+                #         "/home/app/bon-gateway-svr/logs/*other_normal.log"
+                #     ],
+                #     "source": "ec2-java-logging",
+                #     "service": "bon-gateway-svr",
+                #     "tags": {
+                #         "logType": "other",
+                #         "lang": "java",
+                #         "group_name": "gateway-groupaaaa"
+                #     }
+                # }
+            ],
             "metrics": [
                 {
                     "urls": [
-                        "http://172.31.16.4:9100/metricsaaaabbbb"
+                        "http://172.31.16.4:9100/metricsaaaabbbaabcccc"
                     ],
                     "source": "ec2-java-metrics",
                     "measurement_name": "bon-gateway-svr",
@@ -127,11 +127,11 @@ MOCK_METADATA_CONFIGS = {
             ],
             "health": [
                 {
-                    "http_urls": ["http://172.31.16.4:8080/healthnnnn"],
+                    "http_urls": ["http://172.31.16.4:8080/healthnnnndddssss"],
                     "expect_status": 200,
                     "tags": {
                         "service": "bon-gateway-svr",
-                        "group_name": "gateway-grouaaaaaaaap",
+                        "group_name": "gateway-grouaaaaaaaapooooo",
                         # "group_name1111": "gateway-group1111"
                     }
                 }

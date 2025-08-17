@@ -34,7 +34,7 @@ setup_cron_jobs() {
     cat > "$new_crontab" << EOF
 
 # config-sync - 每15分钟执行一次
-*/15 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh config-sync"
+*/15 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh config-update"
 
 # health-check - 每5分钟执行一次
 */5 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh health-check"
@@ -64,8 +64,8 @@ EOF
     fi
     
     # 清理临时文件
-    safe_cleanup_temp "$current_crontab" "临时crontab文件"
-    safe_cleanup_temp "$new_crontab" "临时crontab文件"
+    # TODO 所有脚本禁用 rm -f  luke
+    rm -f "$current_crontab" "$new_crontab"
     
     # 重新加载cron配置
     systemctl reload crond 2>/dev/null || systemctl reload cron 2>/dev/null || true
