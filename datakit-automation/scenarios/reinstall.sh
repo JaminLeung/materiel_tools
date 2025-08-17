@@ -121,7 +121,7 @@ uninstall_datakit() {
     
     # 删除服务文件
     if [[ -f "/etc/systemd/system/datakit.service" ]]; then
-        safe_remove "/etc/systemd/system/datakit.service" "Datakit服务文件"
+        rm -f /etc/systemd/system/datakit.service
     fi
     
     # 重新加载systemd

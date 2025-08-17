@@ -14,7 +14,7 @@ fi
 # =============================================================================
 CONFIG_UPDATE_SCRIPT_NAME="datakit_config_update"
 CONFIG_UPDATE_SCRIPT_VERSION="2.0.0"
-CONFIG_UPDATE_LOG_FILE="${RUNTIME_LOG_DIR}/config_update.log"
+# 日志文件路径将在运行时动态生成，不在这里预定义
 
 # =============================================================================
 # 路径配置

@@ -16,7 +16,7 @@ fi
 # =============================================================================
 CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-http://localhost:5000/api/v2/cmdb/observation-agent}"
 CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
-readonly CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}" 
+CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}" 
 
 # =============================================================================
 # 健康检查配置
@@ -44,6 +44,6 @@ DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
 OPS_ADDR="${OPS_ADDR:-http://172.31.16.4:5000}"
 
 # Dataway配置
-DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com11111?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
+DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
 
 

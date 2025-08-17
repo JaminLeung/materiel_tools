@@ -14,7 +14,7 @@ fi
 # =============================================================================
 APP_INIT_SCRIPT_NAME="datakit_app_init"
 APP_INIT_SCRIPT_VERSION="2.0.0"
-APP_INIT_LOG_FILE="${RUNTIME_LOG_DIR}/app_init.log"
+# 日志文件路径将在运行时动态生成，不在这里预定义
 
 # =============================================================================
 # 运维平台配置
@@ -33,18 +33,11 @@ APP_INIT_HEALTH_DIR="/usr/local/datakit/conf.d/host"
 # =============================================================================
 # 运行时目录配置
 # =============================================================================
-# 删除临时目录配置，不再在 runtime/tmp 下创建文件
-# 备份目录直接使用锁文件目录
-APP_INIT_BACKUP_DIR="$LOCK_FILE_BASE/app_init_backup"
+# 删除临时目录配置，在 runtime/tmp 下创建文件
+APP_INIT_BACKUP_DIR="$RUNTIME_DIR/tmp/app_init"
 
-# 临时存储目录（使用系统临时目录）
-APP_INIT_LOGGING_TMP_DIR="/tmp/app_init/log"
-APP_INIT_METRICS_TMP_DIR="/tmp/app_init/prom"
-APP_INIT_HEALTH_TMP_DIR="/tmp/app_init/host"
-# 前一次存储目录（放在 runtime/diff 下，独立于版本）
-APP_INIT_LOGGING_PREV_DIR="${RUNTIME_DIFF_ROOT}/app_init/log_prev"
-APP_INIT_METRICS_PREV_DIR="${RUNTIME_DIFF_ROOT}/app_init/prom_prev"
-APP_INIT_HEALTH_PREV_DIR="${RUNTIME_DIFF_ROOT}/app_init/host_prev"
+# 移除临时和对比目录配置，不再需要文件级对比
+# 配置项级直接对比不再依赖这些目录
 
 # =============================================================================
 # 模板文件路径

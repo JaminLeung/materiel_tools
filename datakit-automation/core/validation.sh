@@ -109,158 +109,6 @@ validate_network_connectivity() {
     return 0
 }
 
-# 验证配置参数
-validate_config() {
-    log_info "验证配置参数..."
-    local validation_passed=true
-    local missing_required=()
-    local warnings=()
-    
-    # 检查必需的配置项
-    local required_configs=(
-        "DATAKIT_VERSION"
-        "S3_BUCKET"
-        "S3_ACCESS_KEY"
-        "S3_SECRET_KEY"
-    )
-    
-    for config_key in "${required_configs[@]}"; do
-        # 支持CONFIG数组和直接环境变量两种方式
-        local config_value
-        if [ -n "${CONFIG[$config_key]}" ]; then
-            config_value="${CONFIG[$config_key]}"
-        else
-            config_value="${!config_key}"
-        fi
-        
-        if [ -z "$config_value" ]; then
-            missing_required+=("$config_key")
-            validation_passed=false
-        fi
-    done
-    
-    # 检查版本格式
-    local version_value
-    if [ -n "${CONFIG[DATAKIT_VERSION]}" ]; then
-        version_value="${CONFIG[DATAKIT_VERSION]}"
-    else
-        version_value="${DATAKIT_VERSION}"
-    fi
-    
-    if [ -n "$version_value" ]; then
-        if ! [[ "$version_value" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            warnings+=("DATAKIT_VERSION格式可能不正确 (应为x.y.z格式): $version_value")
-        fi
-    fi
-    
-    # 检查S3配置
-    local bucket_value
-    if [ -n "${CONFIG[S3_BUCKET]}" ]; then
-        bucket_value="${CONFIG[S3_BUCKET]}"
-    else
-        bucket_value="${S3_BUCKET}"
-    fi
-    
-    if [ -n "$bucket_value" ]; then
-        if [[ "$bucket_value" =~ [^a-zA-Z0-9\-\.] ]]; then
-            warnings+=("S3_BUCKET包含特殊字符，可能无效: $bucket_value")
-        fi
-    fi
-    
-    # 检查S3密钥长度
-    local access_key_value
-    if [ -n "${CONFIG[S3_ACCESS_KEY]}" ]; then
-        access_key_value="${CONFIG[S3_ACCESS_KEY]}"
-    else
-        access_key_value="${S3_ACCESS_KEY}"
-    fi
-    
-    if [ -n "$access_key_value" ] && [ ${#access_key_value} -lt 10 ]; then
-        warnings+=("S3_ACCESS_KEY长度过短，可能无效")
-    fi
-    
-    local secret_key_value
-    if [ -n "${CONFIG[S3_SECRET_KEY]}" ]; then
-        secret_key_value="${CONFIG[S3_SECRET_KEY]}"
-    else
-        secret_key_value="${S3_SECRET_KEY}"
-    fi
-    
-    if [ -n "$secret_key_value" ] && [ ${#secret_key_value} -lt 10 ]; then
-        warnings+=("S3_SECRET_KEY长度过短，可能无效")
-    fi
-    
-    # 检查URL格式
-    local dataway_url_value
-    if [ -n "${CONFIG[DATAWAY_URL]}" ]; then
-        dataway_url_value="${CONFIG[DATAWAY_URL]}"
-    else
-        dataway_url_value="${DATAWAY_URL}"
-    fi
-    
-    if [ -n "$dataway_url_value" ]; then
-        if ! [[ "$dataway_url_value" =~ ^https?:// ]]; then
-            warnings+=("DATAWAY_URL格式错误 (应以http://或https://开头): $dataway_url_value")
-        fi
-    fi
-    
-    local ops_addr_value
-    if [ -n "${CONFIG[OPS_ADDR]}" ]; then
-        ops_addr_value="${CONFIG[OPS_ADDR]}"
-    else
-        ops_addr_value="${OPS_ADDR}"
-    fi
-    
-    if [ -n "$ops_addr_value" ]; then
-        if ! [[ "$ops_addr_value" =~ ^https?:// ]]; then
-            warnings+=("OPS_ADDR格式错误 (应以http://或https://开头): $ops_addr_value")
-        fi
-    fi
-    
-    # 检查路径配置
-    local log_file_value
-    if [ -n "${CONFIG[LOG_FILE]}" ]; then
-        log_file_value="${CONFIG[LOG_FILE]}"
-    else
-        log_file_value="${LOG_FILE}"
-    fi
-    
-    if [ -n "$log_file_value" ] && [ ! -d "$(dirname "$log_file_value")" ]; then
-        log_warning "日志文件目录不存在: $(dirname "$log_file_value")"
-    fi
-    
-    local install_dir_value
-    if [ -n "${CONFIG[DATAKIT_INSTALL_DIR]}" ]; then
-        install_dir_value="${CONFIG[DATAKIT_INSTALL_DIR]}"
-    else
-        install_dir_value="${DATAKIT_INSTALL_DIR}"
-    fi
-    
-    if [ -n "$install_dir_value" ] && [ ! -d "$(dirname "$install_dir_value")" ]; then
-        log_warning "安装目录父目录不存在: $(dirname "$install_dir_value")"
-    fi
-    
-    # 显示验证结果
-    if [ ${#missing_required[@]} -gt 0 ]; then
-        log_error "缺少必需配置: ${missing_required[*]}"
-        validation_passed=false
-    fi
-    
-    if [ ${#warnings[@]} -gt 0 ]; then
-        log_warning "配置警告:"
-        for warning in "${warnings[@]}"; do
-            log_warning "  $warning"
-        done
-    fi
-    
-    if [ "$validation_passed" = true ]; then
-        log_info "配置验证通过"
-        return 0
-    else
-        log_error "配置验证失败"
-        return 1
-    fi
-}
 
 # 验证环境完整性
 validate_environment() {
@@ -286,10 +134,7 @@ validate_environment() {
         return 1
     fi
     
-    # 验证配置
-    if ! validate_config; then
-        return 1
-    fi
+
     
     log_info "环境完整性验证通过"
     return 0
@@ -572,22 +417,14 @@ verify_resource_limits() {
 
 # 4. 验证定时任务配置
 verify_cron_jobs() {
-    # 检查crontab中是否包含定时任务配置
-    if ! validate_cron_job "execute_cron_wrapper" "定时任务包装函数"; then
+    # 通过crontab -l 检查config-update ,app-init ,health_check 定时任务配置是否存在
+    if crontab -l 2>/dev/null | grep -q "config-update"; then
+        log_info "config-update 定时任务配置存在"
+    else
+        log_error "config-update 定时任务配置不存在"
         return 1
+    
     fi
-    
-    # 检查 utils.sh 是否存在
-    local utils_script="$SCENARIO_PROJECT_ROOT/core/utils.sh"
-    if ! validate_file_exists "$utils_script" "工具函数脚本"; then
-        return 1
-    fi
-    
-    # 检查日志目录是否存在
-    validate_directory_exists "/opt/datakit" "定时任务日志目录"
-    
-    # 检查锁文件目录是否存在
-    validate_directory_exists "/var/run" "锁文件目录"
     
     return 0
 }

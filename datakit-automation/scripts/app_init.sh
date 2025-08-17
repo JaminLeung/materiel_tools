@@ -11,19 +11,20 @@ set -euo pipefail
 # 获取脚本所在目录
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly CORE_DIR="$SCRIPT_DIR/../core"
-
 # TODO 项目全局不使用 echo   luke
 # 加载基础配置
-source "$SCRIPT_DIR/../config/loader.sh" 2>/dev/null || echo "警告: 无法加载loader.sh" >&2
+
+load_module "loader" "$SCRIPT_DIR/../config/loader.sh"
 load_all_configs "${ENV:-test}" "app_init"
 
 # 设置日志文件路径（从配置文件中加载）
-export LOG_FILE="$APP_INIT_LOG_FILE"
+# 日志文件路径将在init_logging函数中动态生成
+# export LOG_FILE="$APP_INIT_LOG_FILE"
 
 # 加载核心模块
-source "$CORE_DIR/logging.sh" 2>/dev/null || echo "警告: 无法加载logging.sh" >&2
-source "$CORE_DIR/utils.sh" 2>/dev/null || echo "警告: 无法加载utils.sh" >&2
-source "$CORE_DIR/datakit_service.sh" 2>/dev/null || echo "警告: 无法加载datakit_service.sh" >&2
+load_module "logging" "$CORE_DIR/logging.sh"
+load_module "utils" "$CORE_DIR/utils.sh"
+load_module "datakit_service" "$CORE_DIR/datakit_service.sh"
 
 # =============================================================================
 # 配置变量（从base_config.sh加载）
@@ -40,18 +41,11 @@ HOST_IP=""
 OPS_TOKEN=""
 CONFIG_CHANGED=false
 
-# 计数器 记录diff 差异
-diff_count=0
-diff_count_logging=0
-diff_count_metrics=0
-diff_count_health=0
-
-# 日志差异文件列表
-logging_diff_file_list=()
-# 指标差异文件列表
-metrics_diff_file_list=()
-# 健康检查差异文件列表
-health_diff_file_list=()
+# 配置变更计数器
+config_change_count=0
+config_change_logging=0
+config_change_metrics=0
+config_change_health=0
 
 # =============================================================================
 # 工具函数
@@ -62,15 +56,12 @@ health_diff_file_list=()
 create_directories() {
     log_info "创建必要的目录"
     
-    # 创建运行时目录（移除 APP_INIT_TEMP_DIR）
-    local dirs=("$APP_INIT_BACKUP_DIR" "$APP_INIT_LOGGING_TMP_DIR" "$APP_INIT_METRICS_TMP_DIR" "$APP_INIT_HEALTH_TMP_DIR" 
-                "$APP_INIT_LOGGING_PREV_DIR" "$APP_INIT_METRICS_PREV_DIR" "$APP_INIT_HEALTH_PREV_DIR"
-                "$APP_INIT_LOGGING_DIR" "$APP_INIT_METRICS_DIR" "$APP_INIT_HEALTH_DIR")
+    # 创建应用特定的目录（移除不必要的临时和对比目录）
+    local dirs=("$APP_INIT_BACKUP_DIR" "$APP_INIT_LOGGING_DIR" "$APP_INIT_METRICS_DIR" "$APP_INIT_HEALTH_DIR")
     
     for dir in "${dirs[@]}"; do
         if [ ! -d "$dir" ]; then
-            mkdir -p "$dir"
-            log_info "创建目录: $dir"
+            safe_execute "mkdir -p '$dir'" "创建目录: $dir"
         fi
     done
     
@@ -92,31 +83,153 @@ read_toml_config() {
         return 1
     }
     
-    check_command yj
+
     yj -t < "$toml_file" 2>/dev/null || {
         handle_error "FILE_ERROR" "TOML文件读取失败: $toml_file" "ERROR" "false"
         return 1
     }
 }
 
-update_toml_config() {
-    local toml_file="$1"
-    local json_data="$2"
+# =============================================================================
+# 配置项映射定义
+# =============================================================================
+# 配置项比较路径映射
+declare -A COMPARE_PATHS=(
+    ["logging.tags"]=".inputs.logging[0].tags"
+    ["logging.logfiles"]=".inputs.logging[0].logfiles"
+    ["logging.source"]=".inputs.logging[0].source"
+    ["metrics.urls"]=".inputs.prom[0].urls"
+    ["metrics.interval"]=".inputs.prom[0].interval"
+    ["metrics.tags"]=".inputs.prom[0].tags"
+    ["health.url"]=".inputs.host_healthcheck[0].http[0].url"
+    ["health.interval"]=".inputs.host_healthcheck[0].interval"
+    ["health.tags"]=".inputs.host_healthcheck[0].tags"
+)
+
+# =============================================================================
+# 配置项级处理函数
+# =============================================================================
+process_config_item() {
+    local service_name="$1"
+    local config_type="$2"
+    local config_data="$3"
+    local target_file="$4"
     
-    # 备份原文件到备份目录
-    local filename=$(basename "$toml_file")
-    local backup_file="${APP_INIT_BACKUP_DIR}/${filename}.backup.$(date +%Y%m%d_%H%M%S)"
-    cp "$toml_file" "$backup_file"
-    log_info "备份配置文件: $filename -> $(basename "$backup_file")"
+    log_info "处理配置项: $service_name - $config_type"
     
-    # 更新配置文件
-    echo "$json_data" | yj -jt > "$toml_file" 2>/dev/null || {
-        handle_error "FILE_ERROR" "配置文件更新失败: $toml_file" "ERROR" "false"
-        return 1
-    }
+    # 读取运行中配置
+    local current_config
+    if [ -f "$target_file" ]; then
+        current_config=$(read_toml_config "$target_file") || {
+            record_error "VALIDATION_ERROR" "读取运行中配置文件失败: $target_file" "ERROR"
+            return 1
+        }
+    else
+        # 如果文件不存在，创建基础结构
+        case "$config_type" in
+            "logging")
+                current_config='{"inputs":{"logging":[{}]}}'
+                ;;
+            "metrics")
+                current_config='{"inputs":{"prom":[{}]}}'
+                ;;
+            "health")
+                current_config='{"inputs":{"host_healthcheck":[{"http":[{}]}]}}'
+                ;;
+        esac
+    fi
     
-    log_info "配置文件更新成功: $toml_file"
-    return 0
+    # 配置项级比较和更新
+    local has_changes=false
+    local updated_config="$current_config"
+    
+    # 根据配置类型选择比较路径
+    local compare_paths=()
+    case "$config_type" in
+        "logging")
+            compare_paths=(".inputs.logging[0].tags" ".inputs.logging[0].logfiles" ".inputs.logging[0].source")
+            ;;
+        "metrics")
+            compare_paths=(".inputs.prom[0].urls" ".inputs.prom[0].interval" ".inputs.prom[0].tags")
+            ;;
+        "health")
+            compare_paths=(".inputs.host_healthcheck[0].http[0].url" ".inputs.host_healthcheck[0].interval" ".inputs.host_healthcheck[0].tags")
+            ;;
+    esac
+    
+    # 逐项比较和更新
+    for path in "${compare_paths[@]}"; do
+        local new_value current_value
+        new_value=$(get_json_path_value "$config_data" "$path" 2>/dev/null || echo "")
+        current_value=$(get_json_path_value "$updated_config" "$path" 2>/dev/null || echo "")
+        
+        if [ "$new_value" != "$current_value" ] && [ -n "$new_value" ]; then
+            log_info "发现配置差异: $path"
+            log_info "  当前值: $current_value"
+            log_info "  新值: $new_value"
+            
+            # 更新配置（使用改进的逻辑处理复杂JSON对象）
+            local temp_updated
+            if [[ "$new_value" =~ ^\{.*\}$ ]] || [[ "$new_value" =~ ^\[.*\]$ ]]; then
+                # 对于复杂对象，使用临时变量
+                local temp_file=$(mktemp)
+                echo "$new_value" > "$temp_file"
+                temp_updated=$(echo "$updated_config" | jq --argjson val "$(cat "$temp_file")" "$path = \$val" 2>/dev/null)
+                rm -f "$temp_file"
+            else
+                # 对于简单值，使用原有逻辑
+                if [[ "$new_value" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+                    temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
+                elif [[ "$new_value" =~ ^(true|false)$ ]]; then
+                    temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
+                else
+                    temp_updated=$(echo "$updated_config" | jq "$path = \"$new_value\"" 2>/dev/null)
+                fi
+            fi
+            
+            if [ $? -eq 0 ] && [ -n "$temp_updated" ]; then
+                updated_config="$temp_updated"
+            else
+                record_error "CONFIG_ERROR" "配置更新失败: $path" "ERROR"
+                continue
+            fi
+            has_changes=true
+        fi
+    done
+    
+    # 如果有变更，更新文件
+    if [ "$has_changes" = true ]; then
+        # 确保目标目录存在
+        local target_dir=$(dirname "$target_file")
+        if [ ! -d "$target_dir" ]; then
+            mkdir -p "$target_dir"
+        fi
+        
+        # 直接写入JSON，然后转换为TOML
+        echo "$updated_config" | yj -jt > "$target_file" || {
+            record_error "CONFIG_ERROR" "配置文件更新失败: $target_file" "ERROR"
+            return 1
+        }
+        
+        log_info "配置更新成功: $target_file"
+        CONFIG_CHANGED=true
+        
+        # 增加配置变更计数器
+        case "$config_type" in
+            "logging")
+                config_change_logging=$((config_change_logging + 1))
+                ;;
+            "metrics")
+                config_change_metrics=$((config_change_metrics + 1))
+                ;;
+            "health")
+                config_change_health=$((config_change_health + 1))
+                ;;
+        esac
+        config_change_count=$((config_change_count + 1))
+    else
+        log_info "配置无差异，跳过更新: $target_file"
+    fi
 }
 
 # =============================================================================
@@ -154,21 +267,11 @@ process_logging() {
             continue
         fi
         
-        # 转换为TOML格式
-        local logging_content_toml
-        logging_content_toml=$(echo "$logging_content" | yj -jt 2>/dev/null)
+        # 构建目标文件路径
+        local target_file="${APP_INIT_LOGGING_DIR}/${service_name}_${log_type}_auto.conf"
         
-        if [ $? -ne 0 ]; then
-            record_error "VALIDATION_ERROR" "日志配置TOML转换失败" "ERROR"
-            continue
-        fi
-        
-        # 生成临时配置文件
-        local tmp_file="${APP_INIT_LOGGING_TMP_DIR}/${service_name}_${log_type}_auto.conf"
-        echo "$logging_content_toml" > "$tmp_file"
-        
-        # 检查差异并处理
-        handle_config_diff "$tmp_file" "${APP_INIT_LOGGING_PREV_DIR}/${service_name}_${log_type}_auto.conf" "logging"
+        # 直接处理配置项
+        process_config_item "$service_name" "logging" "$logging_content" "$target_file"
     done
 }
 
@@ -198,21 +301,16 @@ process_metrics() {
         local metrics_content
         metrics_content=$(echo "{\"inputs\": {\"prom\": [$metrics]}}" | jq -r ".")
         
-        # 转换为TOML格式
-        local metrics_content_toml
-        metrics_content_toml=$(echo "$metrics_content" | yj -jt 2>/dev/null)
-        
-        if [ $? -ne 0 ]; then
-            record_error "VALIDATION_ERROR" "指标配置TOML转换失败" "ERROR"
+        if ! echo "$metrics_content" | jq empty 2>/dev/null; then
+            record_error "VALIDATION_ERROR" "指标配置内容不是有效的JSON格式" "ERROR"
             continue
         fi
         
-        # 生成临时配置文件
-        local tmp_file="${APP_INIT_METRICS_TMP_DIR}/${service_name}_metrics_auto.conf"
-        echo "$metrics_content_toml" > "$tmp_file"
+        # 构建目标文件路径
+        local target_file="${APP_INIT_METRICS_DIR}/${service_name}_metrics_auto.conf"
         
-        # 检查差异并处理
-        handle_config_diff "$tmp_file" "${APP_INIT_METRICS_PREV_DIR}/${service_name}_metrics_auto.conf" "metrics"
+        # 直接处理配置项
+        process_config_item "$service_name" "metrics" "$metrics_content" "$target_file"
     done
 }
 
@@ -244,247 +342,17 @@ process_health() {
             jq -r '.inputs.host_healthcheck[0].tags = .inputs.host_healthcheck[0].http[0].tags' | \
             jq -r '.inputs.host_healthcheck[0].http[0].method = "GET"')
         
-        # 转换为TOML格式
-        local health_content_toml
-        health_content_toml=$(echo "$health_content" | yj -jt 2>/dev/null)
-        
-        if [ $? -ne 0 ]; then
-            record_error "VALIDATION_ERROR" "健康检查配置TOML转换失败" "ERROR"
+        if ! echo "$health_content" | jq empty 2>/dev/null; then
+            record_error "VALIDATION_ERROR" "健康检查配置内容不是有效的JSON格式" "ERROR"
             continue
         fi
         
-        # 生成临时配置文件
-        local tmp_file="${APP_INIT_HEALTH_TMP_DIR}/${service_name}_health_auto.conf"
-        echo "$health_content_toml" > "$tmp_file"
+        # 构建目标文件路径
+        local target_file="${APP_INIT_HEALTH_DIR}/${service_name}_health_auto.conf"
         
-        # 检查差异并处理
-        handle_config_diff "$tmp_file" "${APP_INIT_HEALTH_PREV_DIR}/${service_name}_health_auto.conf" "health"
+        # 直接处理配置项
+        process_config_item "$service_name" "health" "$health_content" "$target_file"
     done
-}
-
-# =============================================================================
-# 配置差异处理
-# =============================================================================
-handle_config_diff() {
-    local tmp_file="$1"
-    local prev_file="$2"
-    local config_type="$3"
-    
-    # 确保前一次存储目录存在
-    local prev_dir=$(dirname "$prev_file")
-    if [ ! -d "$prev_dir" ]; then
-        mkdir -p "$prev_dir"
-        log_info "创建前一次存储目录: $prev_dir"
-    fi
-    
-    # 如果前一次存储目录存在同名文件，检查差异
-    if [ -f "$prev_file" ]; then
-        log_info "对比配置文件: $tmp_file vs $prev_file"
-        local diff_result
-        diff_result=$(diff "$tmp_file" "$prev_file" 2>/dev/null || echo "")
-        
-        if [ -n "$diff_result" ]; then
-            log_info "发现配置差异: $tmp_file"
-            
-            # 更新前一次存储目录
-            cp "$tmp_file" "$prev_file"
-            
-            # 增加计数器
-            case "$config_type" in
-                "logging")
-                    diff_count_logging=$((diff_count_logging + 1))
-                    logging_diff_file_list+=("$tmp_file")
-                    ;;
-                "metrics")
-                    diff_count_metrics=$((diff_count_metrics + 1))
-                    metrics_diff_file_list+=("$tmp_file")
-                    ;;
-                "health")
-                    diff_count_health=$((diff_count_health + 1))
-                    health_diff_file_list+=("$tmp_file")
-                    ;;
-            esac
-            diff_count=$((diff_count + 1))
-            CONFIG_CHANGED=true
-        else
-            log_info "配置无差异，跳过处理"
-        fi
-    else
-        # 首次处理，直接复制
-        log_info "首次处理配置: $tmp_file -> $prev_file"
-        cp "$tmp_file" "$prev_file"
-        
-        # 增加计数器
-        case "$config_type" in
-            "logging")
-                diff_count_logging=$((diff_count_logging + 1))
-                logging_diff_file_list+=("$tmp_file")
-                ;;
-            "metrics")
-                diff_count_metrics=$((diff_count_metrics + 1))
-                metrics_diff_file_list+=("$tmp_file")
-                ;;
-            "health")
-                diff_count_health=$((diff_count_health + 1))
-                health_diff_file_list+=("$tmp_file")
-                ;;
-        esac
-        diff_count=$((diff_count + 1))
-        CONFIG_CHANGED=true
-    fi
-}
-
-# =============================================================================
-# 配置文件合并
-# =============================================================================
-merge_config_files() {
-    log_info "开始合并配置文件"
-    
-    # 合并日志配置
-    if [ ${#logging_diff_file_list[@]} -gt 0 ]; then
-        log_info "合并日志配置文件"
-        for file in "${logging_diff_file_list[@]}"; do
-            merge_logging_config "$file"
-        done
-    fi
-    
-    # 合并指标配置
-    if [ ${#metrics_diff_file_list[@]} -gt 0 ]; then
-        log_info "合并指标配置文件"
-        for file in "${metrics_diff_file_list[@]}"; do
-            merge_metrics_config "$file"
-        done
-    fi
-    
-    # 合并健康检查配置
-    if [ ${#health_diff_file_list[@]} -gt 0 ]; then
-        log_info "合并健康检查配置文件"
-        for file in "${health_diff_file_list[@]}"; do
-            merge_health_config "$file"
-        done
-    fi
-    
-    log_info "配置文件合并完成"
-}
-
-merge_logging_config() {
-    local source="$1"
-    local file=$(basename "$source")
-    local datakit_file="${APP_INIT_LOGGING_DIR}/${file}"
-    
-    log_info "合并日志配置: $file"
-    
-    if [ -f "$datakit_file" ]; then
-        # 检查差异
-        local diff_result
-        diff_result=$(diff "$source" "$datakit_file" 2>/dev/null || echo "")
-        
-        if [ -n "$diff_result" ]; then
-            log_info "合并日志配置到: $datakit_file"
-            
-            # 解析并合并JSON
-            local source_json datakit_json merged_json
-            source_json=$(cat "$source" | yj -tj 2>/dev/null)
-            datakit_json=$(cat "$datakit_file" | yj -tj 2>/dev/null)
-            
-            if [ $? -eq 0 ]; then
-                merged_json=$(echo "$datakit_json" "$source_json" | jq -s '.[0].inputs.logging[0] * .[1].inputs.logging[0]' 2>/dev/null)
-                
-                if [ $? -eq 0 ]; then
-                    echo "{\"inputs\":{\"logging\":[$merged_json]}}" | yj -jt > "$datakit_file"
-                    log_info "日志配置合并成功"
-                else
-                    record_error "CONFIG_ERROR" "日志配置合并失败" "ERROR"
-                fi
-            else
-                record_error "VALIDATION_ERROR" "JSON解析失败" "ERROR"
-            fi
-        fi
-    else
-        # 直接复制
-        cp "$source" "$datakit_file"
-        log_info "日志配置复制成功"
-    fi
-}
-
-merge_metrics_config() {
-    local source="$1"
-    local file=$(basename "$source")
-    local datakit_file="${APP_INIT_METRICS_DIR}/${file}"
-    
-    log_info "合并指标配置: $file"
-    
-    if [ -f "$datakit_file" ]; then
-        # 检查差异
-        local diff_result
-        diff_result=$(diff "$source" "$datakit_file" 2>/dev/null || echo "")
-        
-        if [ -n "$diff_result" ]; then
-            log_info "合并指标配置到: $datakit_file"
-            
-            # 解析并合并JSON
-            local source_json datakit_json merged_json
-            source_json=$(cat "$source" | yj -tj 2>/dev/null)
-            datakit_json=$(cat "$datakit_file" | yj -tj 2>/dev/null)
-            
-            if [ $? -eq 0 ]; then
-                merged_json=$(echo "$datakit_json" "$source_json" | jq -s '.[0].inputs.prom[0] * .[1].inputs.prom[0]' 2>/dev/null)
-                
-                if [ $? -eq 0 ]; then
-                    echo "{\"inputs\":{\"prom\":[$merged_json]}}" | yj -jt > "$datakit_file"
-                    log_info "指标配置合并成功"
-                else
-                    record_error "CONFIG_ERROR" "指标配置合并失败" "ERROR"
-                fi
-            else
-                record_error "VALIDATION_ERROR" "JSON解析失败" "ERROR"
-            fi
-        fi
-    else
-        # 直接复制
-        cp "$source" "$datakit_file"
-        log_info "指标配置复制成功"
-    fi
-}
-
-merge_health_config() {
-    local source="$1"
-    local file=$(basename "$source")
-    local datakit_file="${APP_INIT_HEALTH_DIR}/${file}"
-    
-    log_info "合并健康检查配置: $file"
-    
-    if [ -f "$datakit_file" ]; then
-        # 检查差异
-        local diff_result
-        diff_result=$(diff "$source" "$datakit_file" 2>/dev/null || echo "")
-        
-        if [ -n "$diff_result" ]; then
-            log_info "合并健康检查配置到: $datakit_file"
-            
-            # 解析并合并JSON
-            local source_json datakit_json merged_json
-            source_json=$(cat "$source" | yj -tj 2>/dev/null)
-            datakit_json=$(cat "$datakit_file" | yj -tj 2>/dev/null)
-            
-            if [ $? -eq 0 ]; then
-                merged_json=$(echo "$datakit_json" "$source_json" | jq -s '.[0].inputs.host_healthcheck[0] * .[1].inputs.host_healthcheck[0]' 2>/dev/null)
-                
-                if [ $? -eq 0 ]; then
-                    echo "{\"inputs\":{\"host_healthcheck\":[$merged_json]}}" | yj -jt > "$datakit_file"
-                    log_info "健康检查配置合并成功"
-                else
-                    record_error "CONFIG_ERROR" "健康检查配置合并失败" "ERROR"
-                fi
-            else
-                record_error "VALIDATION_ERROR" "JSON解析失败" "ERROR"
-            fi
-        fi
-    else
-        # 直接复制
-        cp "$source" "$datakit_file"
-        log_info "健康检查配置复制成功"
-    fi
 }
 
 # =============================================================================
@@ -493,46 +361,79 @@ merge_health_config() {
 cleanup_old_configs() {
     log_info "开始清理和备份旧配置文件"
     
-    # 获取当前服务列表
-    local current_services=()
-    local services
-    
     # 读取JSON数据并解析
-    local tmp_json_file="${APP_INIT_BACKUP_DIR}/tmp.json"
+    local services
+    local tmp_json_file="$RUNTIME_DIR/tmp/app_init/tmp.json"
     if jq -e '.data' "$tmp_json_file" >/dev/null 2>&1; then
         services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || return 1
     else
         services=$(cat "$tmp_json_file" 2>/dev/null) || return 1
     fi
     
-    # 提取服务名称
+    # 构建运维平台配置的完整映射
+    declare -A ops_logging_configs    # 格式: service_logtype -> true
+    declare -A ops_metrics_configs    # 格式: service -> true
+    declare -A ops_health_configs     # 格式: service -> true
+    
+    # 解析每个服务的配置
     for service in $services; do
         local service_name
         service_name=$(echo "$service" | jq -r 'keys[0]' 2>/dev/null)
-        if [ -n "$service_name" ] && [ "$service_name" != "null" ]; then
-            current_services+=("$service_name")
+        
+        if [ -z "$service_name" ] || [ "$service_name" = "null" ]; then
+            continue
+        fi
+        
+        log_info "解析服务配置: $service_name"
+        
+        # 解析日志配置
+        local logging_count
+        logging_count=$(echo "$service" | jq -r ".\"$service_name\".logging | length" 2>/dev/null || echo "0")
+        for i in $(seq 0 $((logging_count - 1))); do
+            local logging
+            logging=$(echo "$service" | jq -r ".\"$service_name\".logging[$i]" 2>/dev/null)
+            if [ "$logging" != "null" ] && [ -n "$logging" ]; then
+                local log_type
+                log_type=$(echo "$logging" | jq -r ".tags.logType" 2>/dev/null || echo "default")
+                local config_key="${service_name}_${log_type}"
+                ops_logging_configs["$config_key"]=true
+                log_info "  日志配置: $config_key"
+            fi
+        done
+        
+        # 解析指标配置
+        local metrics_count
+        metrics_count=$(echo "$service" | jq -r ".\"$service_name\".metrics | length" 2>/dev/null || echo "0")
+        if [ "$metrics_count" -gt 0 ]; then
+            ops_metrics_configs["$service_name"]=true
+            log_info "  指标配置: $service_name"
+        fi
+        
+        # 解析健康检查配置
+        local health_count
+        health_count=$(echo "$service" | jq -r ".\"$service_name\".health | length" 2>/dev/null || echo "0")
+        if [ "$health_count" -gt 0 ]; then
+            ops_health_configs["$service_name"]=true
+            log_info "  健康检查配置: $service_name"
         fi
     done
     
-    log_info "当前服务列表: ${current_services[*]}"
-    
     # 清理日志配置
-    cleanup_config_directory "$APP_INIT_LOGGING_DIR" "logging" "${current_services[@]}"
+    cleanup_config_directory "$APP_INIT_LOGGING_DIR" "logging" ops_logging_configs
     
     # 清理指标配置
-    cleanup_config_directory "$APP_INIT_METRICS_DIR" "metrics" "${current_services[@]}"
+    cleanup_config_directory "$APP_INIT_METRICS_DIR" "metrics" ops_metrics_configs
     
     # 清理健康检查配置
-    cleanup_config_directory "$APP_INIT_HEALTH_DIR" "health" "${current_services[@]}"
+    cleanup_config_directory "$APP_INIT_HEALTH_DIR" "health" ops_health_configs
     
-    log_info "配置文件清理和备份完成"
+    log_info "配置文件清理完成"
 }
 
 cleanup_config_directory() {
     local config_dir="$1"
     local config_type="$2"
-    shift 2
-    local current_services=("$@")
+    local -n ops_configs="$3"  # 使用引用传递关联数组
     
     if [ ! -d "$config_dir" ]; then
         log_info "$config_type 配置目录不存在: $config_dir"
@@ -541,6 +442,16 @@ cleanup_config_directory() {
     
     log_info "清理 $config_type 配置目录: $config_dir"
     
+    # 确保版本目录存在
+    local version_tmp_dir=""
+    if [ -n "${RUNTIME_RELEASE:-}" ]; then
+        version_tmp_dir="$RUNTIME_RELEASE/tmp"
+        mkdir -p "$version_tmp_dir"
+    else
+        # 如果没有版本目录，使用备份目录
+        version_tmp_dir="$APP_INIT_BACKUP_DIR"
+    fi
+    
     # 遍历目录中的配置文件
     for config_file in "$config_dir"/*.conf; do
         if [ ! -f "$config_file" ]; then
@@ -548,63 +459,84 @@ cleanup_config_directory() {
         fi
         
         local filename=$(basename "$config_file")
-        local service_name
-        local should_backup=false
+        local config_key=""
+        local should_check=false
         
-        # 根据配置类型检查文件格式并提取服务名称
+        # 根据配置类型检查文件格式并提取配置键
         case "$config_type" in
             "logging")
-                # 格式: xxx_*_auto.conf (任何以服务名开头并以_auto.conf结尾的文件)
-                if [[ "$filename" =~ ^[^_]+_.*_auto\.conf$ ]]; then
-                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_.*_auto\.conf$/\1/p')
-                    should_backup=true
+                # 格式: xxx_*_auto.conf -> 提取 service_logtype
+                if [[ "$filename" =~ .*_auto\.conf$ ]]; then
+                    # 使用sed提取服务名和日志类型
+                    local service_name=$(echo "$filename" | sed 's/^\(.*\)_\([^_]*\)_auto\.conf$/\1/')
+                    local log_type=$(echo "$filename" | sed 's/^.*_\([^_]*\)_auto\.conf$/\1/')
+                    if [ -n "$service_name" ] && [ -n "$log_type" ] && [ "$service_name" != "$filename" ] && [ "$log_type" != "$filename" ]; then
+                        config_key="${service_name}_${log_type}"
+                        should_check=true
+                        log_info "解析日志配置: $filename -> $config_key"
+                    else
+                        log_info "跳过不符合日志格式的文件: $filename (应为 xxx_logtype_auto.conf)"
+                        continue
+                    fi
                 else
-                    log_info "跳过不符合日志格式的文件: $filename (应为 xxx_*_auto.conf)"
+                    log_info "跳过不符合日志格式的文件: $filename (应为 xxx_logtype_auto.conf)"
                     continue
                 fi
                 ;;
             "metrics")
-                # 格式: xxx_metrics_auto.conf
-                if [[ "$filename" =~ ^[^_]+_metrics_auto\.conf$ ]]; then
-                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_metrics_auto\.conf$/\1/p')
-                    should_backup=true
+                # 格式: xxx_metrics_auto.conf -> 提取 service
+                if [[ "$filename" =~ .*_metrics_auto\.conf$ ]]; then
+                    # 使用sed提取服务名
+                    local service_name=$(echo "$filename" | sed 's/^\(.*\)_metrics_auto\.conf$/\1/')
+                    if [ -n "$service_name" ] && [ "$service_name" != "$filename" ]; then
+                        config_key="$service_name"
+                        should_check=true
+                        log_info "解析指标配置: $filename -> $config_key"
+                    else
+                        log_info "跳过不符合指标格式的文件: $filename (应为 xxx_metrics_auto.conf)"
+                        continue
+                    fi
                 else
                     log_info "跳过不符合指标格式的文件: $filename (应为 xxx_metrics_auto.conf)"
                     continue
                 fi
                 ;;
             "health")
-                # 格式: xxx_health_auto.conf
-                if [[ "$filename" =~ ^[^_]+_health_auto\.conf$ ]]; then
-                    service_name=$(echo "$filename" | sed -n 's/^\([^_]*\)_health_auto\.conf$/\1/p')
-                    should_backup=true
+                # 格式: xxx_health_auto.conf -> 提取 service
+                if [[ "$filename" =~ .*_health_auto\.conf$ ]]; then
+                    # 使用sed提取服务名
+                    local service_name=$(echo "$filename" | sed 's/^\(.*\)_health_auto\.conf$/\1/')
+                    if [ -n "$service_name" ] && [ "$service_name" != "$filename" ]; then
+                        config_key="$service_name"
+                        should_check=true
+                        log_info "解析健康检查配置: $filename -> $config_key"
+                    else
+                        log_info "跳过不符合健康检查格式的文件: $filename (应为 xxx_health_auto.conf)"
+                        continue
+                    fi
+                else
+                    log_info "跳过不符合健康检查格式的文件: $filename (应为 xxx_health_auto.conf)"
+                    continue
                 fi
                 ;;
         esac
         
-        # 只有符合格式的文件才进行备份逻辑
-        if [ "$should_backup" = true ]; then
-            # 检查服务是否在当前服务列表中
-            local found=false
-            for service in "${current_services[@]}"; do
-                if [ "$service" = "$service_name" ]; then
-                    found=true
-                    break
-                fi
-            done
-            
-            if [ "$found" = false ]; then
-                # 服务不在当前列表中，备份文件到备份目录
-                local backup_file="${APP_INIT_BACKUP_DIR}/${filename}.backup_$(date +%Y%m%d_%H%M%S)"
+        # 只有符合格式的文件才进行检查
+        if [ "$should_check" = true ]; then
+            # 检查配置是否在运维平台配置中
+            if [ -z "${ops_configs[$config_key]:-}" ]; then
+                # 配置不在运维平台中，移动到版本目录
+                local backup_file="${version_tmp_dir}/${filename}.removed_$(date +%Y%m%d_%H%M%S)"
                 if mv "$config_file" "$backup_file"; then
-                    log_info "备份旧配置文件: $filename -> $(basename "$backup_file")"
+                    log_info "移除旧配置文件: $filename -> $(basename "$backup_file")"
+                    log_info "  原因: 配置 '$config_key' 不在运维平台中"
                     # 标记配置已变更，需要重启Datakit
                     CONFIG_CHANGED=true
                 else
-                    record_error "BACKUP_ERROR" "备份配置文件失败: $filename" "ERROR"
+                    record_error "BACKUP_ERROR" "移除配置文件失败: $filename" "ERROR"
                 fi
             else
-                log_info "保留当前服务配置文件: $filename"
+                log_info "保留配置文件: $filename (配置 '$config_key' 在运维平台中)"
             fi
         fi
     done
@@ -618,7 +550,7 @@ process_services() {
     
     # 读取JSON数据并解析
     local services
-    local tmp_json_file="${APP_INIT_BACKUP_DIR}/tmp.json"
+    local tmp_json_file="$RUNTIME_DIR/tmp/app_init/tmp.json"
     # 检查是否有data字段，如果没有则直接使用根对象
     if jq -e '.data' "$tmp_json_file" >/dev/null 2>&1; then
         services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || {
@@ -659,22 +591,14 @@ process_services() {
 # 主函数
 # =============================================================================
 main() {
-    log_info "开始执行 $APP_INIT_SCRIPT_NAME v$APP_INIT_SCRIPT_VERSION"
+    # 初始化日志系统（传入脚本类型）
+    RUNTIME_RELEASE=$(get_global_state "RUNTIME_RELEASE")
     
-    # TODO 依赖检查合并
-    # 检查依赖
-    command_exists jq || {
-        handle_error "DEPENDENCY_ERROR" "命令 'jq' 不存在" "ERROR" "false"
-        return 1
-    }
-    command_exists yj || {
-        handle_error "DEPENDENCY_ERROR" "命令 'yj' 不存在" "ERROR" "false"
-        return 1
-    }
-    command_exists curl || {
-        handle_error "DEPENDENCY_ERROR" "命令 'curl' 不存在" "ERROR" "false"
-        return 1
-    }
+    init_logging "app_init"
+    
+    log_info "开始执行 $APP_INIT_SCRIPT_NAME v$APP_INIT_SCRIPT_VERSION"
+    ## 
+
     
     # 校验Datakit运行状态
     log_info "校验Datakit运行状态"
@@ -684,10 +608,15 @@ main() {
     fi
     log_info "Datakit运行状态正常，继续执行业务配置同步"
     
-    # 初始化运行时目录（仅创建基础目录）
-    if command -v init_runtime_dirs >/dev/null 2>&1; then
-        init_runtime_dirs
-    fi
+    # # 初始化运行时环境（仅创建基础目录）
+    # if command -v init_runtime_environment >/dev/null 2>&1; then
+    #     init_runtime_environment
+    # else
+    #     # 兼容性处理：如果新函数不可用，使用旧函数
+    #     if command -v init_runtime_dirs >/dev/null 2>&1; then
+    #         init_runtime_dirs
+    #     fi
+    # fi
     
     # 创建必要的目录
     create_directories
@@ -720,9 +649,11 @@ main() {
     local random_number=$((RANDOM % 60 + 1))
     log_info "随机休眠 $random_number 秒"
     sleep $random_number
+    
+
 
     # 调用业务配置API
-    local tmp_json_file="${APP_INIT_BACKUP_DIR}/tmp.json"
+    local tmp_json_file="$RUNTIME_DIR/tmp/app_init/tmp.json"
     local http_code
 
 
@@ -733,7 +664,7 @@ main() {
         --connect-timeout 10 \
         --max-time 30)
     
-    log_info "response: $(cat $tmp_json_file )"
+    log_info "response: $(cat $tmp_json_file)"
     # 检查HTTP状态码
     if [ "$http_code" -eq 28 ]; then
         handle_error "TIMEOUT_ERROR" "请求超时，当前连接超时设置为10s，最大请求时间为30s" "ERROR" "false"
@@ -764,44 +695,64 @@ main() {
     # 处理服务配置
     process_services
     
-    # 合并配置文件
-    merge_config_files
-    
     # 清理和备份旧配置
     # TODO 确认是否整合
     cleanup_old_configs
     
-    # 清理旧备份目录
-    cleanup_old_backup_dirs "$RUNTIME_ROOT" "$APP_INIT_BACKUP_KEEP_DAYS"
+    # 清理旧Runtime版本目录
+    if command -v cleanup_old_runtime_releases >/dev/null 2>&1; then
+        cleanup_old_runtime_releases "$APP_INIT_BACKUP_KEEP_DAYS" "app_init"
+    elif command -v cleanup_old_backups >/dev/null 2>&1; then
+        cleanup_old_backups "$RUNTIME_ROOT" "$APP_INIT_BACKUP_KEEP_DAYS" "app_init"
+    else
+        # 兼容性处理：如果新函数不可用，使用旧函数
+        if command -v cleanup_old_backup_dirs >/dev/null 2>&1; then
+            cleanup_old_backup_dirs "$RUNTIME_ROOT" "$APP_INIT_BACKUP_KEEP_DAYS"
+        fi
+    fi
     
-    # 输出统计信息
-    log_info "配置差异统计:"
-    log_info "  总差异数: $diff_count"
-    log_info "  日志差异数: $diff_count_logging"
-    log_info "  指标差异数: $diff_count_metrics"
-    log_info "  健康检查差异数: $diff_count_health"
+    # 输出配置变更统计信息
+    log_info "配置变更统计:"
+    log_info "  总变更数: $config_change_count"
+    log_info "  日志变更数: $config_change_logging"
+    log_info "  指标变更数: $config_change_metrics"
+    log_info "  健康检查变更数: $config_change_health"
     
     # 如果有配置变更，创建版本目录并重启Datakit
     if [ "$CONFIG_CHANGED" = true ]; then
+        set_global_state "CONFIG_CHANGED" "true"
         log_info "检测到配置变更，创建版本目录"
         
         # 创建版本目录
-         # TODO         
-        if command -v init_runtime_dirs >/dev/null 2>&1; then
-            init_runtime_dirs "$RUNTIME_ROOT" "true"
+        if command -v init_runtime_environment >/dev/null 2>&1; then
+            init_runtime_environment "true" "app_init"
+        else
+            # 兼容性处理：如果新函数不可用，使用旧函数
+            if command -v init_runtime_dirs >/dev/null 2>&1; then
+                init_runtime_dirs "$RUNTIME_ROOT" "true"
+            fi
         fi
+
+        RUNTIME_CONF_DIR=$(get_global_state "RUNTIME_CONF_DIR")
         
-        # 备份当前Datakit配置目录到版本目录
-        if [ -n "${RUNTIME_RELEASE:-}" ] && [ -d "/usr/local/datakit/conf.d" ]; then
+        if  [ -d "/usr/local/datakit/conf.d" ]; then
             log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
             
             # 备份整个conf.d目录
-            if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/datakit_conf.d" 2>/dev/null; then
+            if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/conf.d" 2>/dev/null; then
                 log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
             else
-                record_error "BACKUP_ERROR" "Datakit配置目录备份失败" "WARNING"
+                record_error "BACKUP_ERROR" "Datakit配置目录备份失败,/usr/local/datakit/conf.d 不存在" "WARNING"
+            fi
+
+            # 复制tmp_json_file 到版本目录
+            if cp -r "$tmp_json_file" "$RUNTIME_DIR/releases/$RELEASE_ID/backup/app_init/tmp.json" 2>/dev/null; then
+                log_info "tmp.json 备份完成: $RUNTIME_DIR/releases/$RELEASE_ID/backup/app_init/tmp.json"
+            else
+                record_error "BACKUP_ERROR" "tmp.json 备份失败" "WARNING"
             fi
         fi
+
         
         # 删除临时文件到版本目录的逻辑（已移除）
         log_info "跳过临时文件移动，直接处理配置变更"

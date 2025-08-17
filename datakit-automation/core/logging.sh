@@ -41,12 +41,13 @@ generate_structured_log() {
     local pid=$$
     local script_name="${SCRIPT_NAME:-$(basename "$0")}"
     local script_version="${SCRIPT_VERSION:-unknown}"
+    local release_id="${RELEASE_ID:-unknown}"
     local hostname=$(hostname 2>/dev/null || echo "unknown")
     local user=$(whoami 2>/dev/null || echo "unknown")
 
     # 日志格式修改成一行，方便数据上报
     local json_log=$(cat <<EOF
-{"timestamp": "$timestamp","level": "$level","message": "$message","pid": $pid,"script_name": "$script_name","script_version": "$script_version","hostname": "$hostname","user": "$user","context": "$context","extra_fields": "$extra_fields"}
+{"timestamp": "$timestamp","level": "$level","message": "$message","pid": $pid,"script_name": "$script_name","script_version": "$script_version","release_id": "$release_id","hostname": "$hostname","user": "$user","context": "$context","extra_fields": "$extra_fields"}
 EOF
 )
     echo "$json_log"
@@ -108,54 +109,99 @@ log_success() { log_message "SUCCESS" "$1" "${2:-}" "${3:-}"; }
 
 # 日志系统初始化
 init_logging() {
+    local script_type="${1:-unknown}"
     local log_file="${LOG_FILE}"
-    local log_dir=$(dirname "$log_file")
-
-
+    
+    # 如果LOG_FILE已经设置且包含执行时间戳，说明已经初始化过
+    if [[ "$LOG_FILE" =~ .*_[0-9]{8}_[0-9]{6}\.log$ ]]; then
+        log_info "日志系统已初始化，跳过重复初始化" "logging_init"
+        return 0
+    fi
+    
+    # 生成执行起始时间
+    local execution_start_time=$(get_execution_start_time "$script_type")
+    
+    # 如果LOG_FILE是相对路径或未设置，使用默认路径
+    if [[ -z "$log_file" ]] || [[ "$log_file" != /* ]]; then
+        # 确保RUNTIME_LOG_CURRENT_DIR已定义
+        if [[ -z "${RUNTIME_LOG_CURRENT_DIR:-}" ]]; then
+            RUNTIME_LOG_CURRENT_DIR="${RUNTIME_LOG_DIR:-/tmp}/current"
+        fi
+        log_file="$RUNTIME_LOG_CURRENT_DIR/$script_type/${execution_start_time}.log"
+    fi
+    
     # 创建日志目录
+    local log_dir=$(dirname "$log_file")
     if [[ ! -d "$log_dir" ]]; then
-        mkdir -p "$log_dir" 2>/dev/null || {
-            echo "警告：无法创建日志目录 $log_dir，将输出到标准输出" >&2
-            LOG_FILE="/dev/null"
+        mkdir -p "$log_dir" || {
+            log_error "无法创建日志目录: $log_dir" "logging_init"
             return 1
         }
     fi
-
-    # 创建日志文件
-    touch "$log_file" 2>/dev/null || {
-        echo "警告：无法创建日志文件 $log_file，将输出到标准输出" >&2
-        LOG_FILE="/dev/null"
+    
+    # # 设置日志文件路径
+    # export LOG_FILE="$log_file"
+    # export SCRIPT_EXECUTION_START_TIME="$execution_start_time"
+    
+    # # 创建软链接到latest.log
+    # local latest_link="$log_dir/latest.log"
+    # if [[ -L "$latest_link" ]]; then
+    #     rm -f "$latest_link"
+    # fi
+    # ln -sf "$(basename "$log_file")" "$latest_link" 2>/dev/null || true
+    
+    # 初始化日志文件
+    touch "$log_file" || {
+        log_error "无法创建日志文件: $log_file" "logging_init"
         return 1
     }
-
-    # 设置文件权限
-    chmod 644 "$log_file" 2>/dev/null || true
-
-    # 记录初始化信息
-    local init_message=$(generate_structured_log "INFO" "日志系统初始化完成" "logging_init" ", \"log_file\": \"$log_file\"")
-    echo "$init_message" >> "$log_file"
-
+    
+    log_info "日志系统初始化完成: $log_file" "logging_init"
     return 0
+}
+
+# 生成执行ID（基于执行起始时间）
+generate_execution_id() {
+    local script_type="$1"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local pid=$$
+    echo "${script_type}_${timestamp}_${pid}"
+}
+
+# 获取脚本执行起始时间
+get_execution_start_time() {
+    local script_type="$1"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    echo "${script_type}_${timestamp}"
 }
 
 # 清理历史日志文件
 cleanup_old_logs() {
     local log_dir=$(dirname "$LOG_FILE")
     local base_name=$(basename "$LOG_FILE" | cut -d. -f1)
-    local retention_days="${LOG_RETENTION_DAYS:-30}"
+    local retention_days="${LOG_RETENTION_DAYS:-3}"
 
     log_info "开始清理 $retention_days 天前的日志文件" "log_cleanup"
 
-    # 查找并删除过期的日志文件
+    # 确保安全删除目录存在
+    if command -v init_safe_delete_dir >/dev/null 2>&1; then
+        init_safe_delete_dir
+    else
+        log_warning "安全删除函数不可用，跳过日志清理" "log_cleanup"
+        return 1
+    fi
+
+    # 查找并安全删除过期的日志文件
     local deleted_count=0
     while IFS= read -r -d '' file; do
         if [[ -f "$file" ]]; then
-            rm -f "$file"
-            deleted_count=$((deleted_count + 1))
+            if safe_delete "$file" "清理过期日志文件"; then
+                deleted_count=$((deleted_count + 1))
+            fi
         fi
     done < <(find "$log_dir" -name "${base_name}.*" -type f -mtime +$retention_days -print0 2>/dev/null)
 
-    log_info "清理完成，删除了 $deleted_count 个过期日志文件" "log_cleanup"
+    log_info "清理完成，安全删除了 $deleted_count 个过期日志文件" "log_cleanup"
 }
 
 

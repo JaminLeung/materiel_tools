@@ -8,68 +8,158 @@
 
 # 获取脚本所在目录
 CORE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Source外部脚本
-source "$CORE_SCRIPT_DIR/logging.sh" 2>/dev/null || echo "警告: 无法加载logging.sh" >&2
-source "$CORE_SCRIPT_DIR/error_handler.sh" 2>/dev/null || echo "警告: 无法加载error_handler.sh" >&2
-source "$CORE_SCRIPT_DIR/initialize.sh" 2>/dev/null || echo "警告: 无法加载initialize.sh" >&2
-
-# 声明全局状态变量
-declare -A GLOBAL_STATE
-
-# Dataway日志上报函数
-dataway_log() {
-    local level="$1"
-    local message="$2"
+load_module() {
+    local module_name="$1"
+    local module_file="$2"
     
-    # 构建上报数据结构
-    local log_data=$(cat <<EOF
-[{
-    "measurement": "datakit_host",
-    "tags": {
-        "level": "$level",
-        "host_ip": "$(get_global_state 'HOST_IP')",
-        "env": "$(get_global_state 'ENV')",
-        "workspace": "$(get_global_state 'WORKSPACE')"
-    },
-    "time": $(date +%s%N),
-    "fields": {
-        "message": "$message"
-    }
-}]
-EOF
-)
+    if [[ -f "$module_file" ]]; then
+        source "$module_file"
+        echo "INFO: 加载模块: $module_name"
+    else
+        echo "[ERROR] 模块文件不存在: $module_file" >&2
+        exit 1
+    fi
+}
+# Source外部脚本
+load_module "logging" "$CORE_SCRIPT_DIR/logging.sh"
+load_module "error_handler" "$CORE_SCRIPT_DIR/error_handler.sh"
+load_module "initialize" "$CORE_SCRIPT_DIR/initialize.sh"
 
-    # 上报到Dataway
 
-    # dataway_host 是从 DATAWAY_URL 中提取的
+
+# Dataway批量日志上报函数
+dataway_log_batch() {
+    local level="$1"
+    local messages="$2"  # 多行消息，每行一条
+    local release_id="${3:-}"
+    
+    # 检查是否有消息需要上报
+    if [ -z "$messages" ]; then
+        log_warning "没有消息需要上报到Dataway"
+        return 0
+    fi
+    
+    # 获取Dataway配置
     local dataway_host=$(echo $DATAWAY_URL | awk -F'?' '{print $1}')
     local dataway_token=$(echo $DATAWAY_URL | awk -F'token=' '{print $2}')
     
-    # log_info "log_data: $log_data"
-
-    if [ -n "$dataway_host" ]; then
-        # log_info "执行命令：curl -s -X POST $dataway_host/v1/write/logging?token=$dataway_token&precision=ns -H 'Content-Type: application/json' -d '$log_data'"
-
-        
-        curl -s -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
-            -H "Content-Type: application/json" \
-            -d "$log_data" >/dev/null 2>&1 || true
+    if [ -z "$dataway_host" ] || [ -z "$dataway_token" ]; then
+        log_warning "Dataway配置不完整，跳过批量上报"
+        return 1
     fi
     
-    # 同时记录到本地日志
-    case "$level" in
-        "info")
-            log_info "$message"
-            ;;
-        "error")
-            log_error "$message"
-            ;;
-        *)
-            log_info "$message"
-            ;;
-    esac
+    # 获取批量大小配置
+    local batch_size="${DATAWAY_LOG_BATCH_SIZE:-100}"
+    local timeout="${DATAWAY_LOG_TIMEOUT:-30}"
+    
+    # 将消息按行分割并分批处理
+    local message_array=()
+    local line_count=0
+    
+    while IFS= read -r message; do
+        if [ -n "$message" ]; then
+            message_array+=("$message")
+            line_count=$((line_count + 1))
+        fi
+    done <<< "$messages"
+    
+    if [ $line_count -eq 0 ]; then
+        log_warning "没有有效消息需要上报"
+        return 0
+    fi
+    
+    log_info "开始分批上报 $line_count 条日志到Dataway (批次大小: $batch_size)"
+    
+    # 分批处理
+    local batch_count=0
+    local success_count=0
+    local fail_count=0
+    
+    for ((i=0; i<line_count; i+=batch_size)); do
+        batch_count=$((batch_count + 1))
+        local end_index=$((i + batch_size - 1))
+        if [ $end_index -ge $line_count ]; then
+            end_index=$((line_count - 1))
+        fi
+        
+        # 构建当前批次的数据
+        local batch_data="["
+        local first=true
+        local current_batch_size=0
+        
+        for ((j=i; j<=end_index; j++)); do
+            local message="${message_array[j]}"
+            if [ -n "$message" ]; then
+                # 转义JSON特殊字符
+                local escaped_message=$(echo "$message" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g')
+                
+                if [ "$first" = true ]; then
+                    first=false
+                else
+                    batch_data="$batch_data,"
+                fi
+                
+                # 构建标签
+                local tags="\"level\": \"$level\", \"host_ip\": \"$(get_global_state 'HOST_IP')\", \"env\": \"$(get_global_state 'ENV')\", \"workspace\": \"$(get_global_state 'WORKSPACE')\""
+                if [ -n "$release_id" ]; then
+                    tags="$tags, \"release_id\": \"$release_id\""
+                fi
+                
+                batch_data="$batch_data"$(cat <<EOF
+{
+    "measurement": "datakit_host",
+    "tags": {
+        $tags
+    },
+    "time": $(date +%s%N),
+    "fields": {
+        "message": "$escaped_message"
+    }
 }
+EOF
+)
+                current_batch_size=$((current_batch_size + 1))
+            fi
+        done
+        
+        batch_data="$batch_data]"
+        
+        # 上报当前批次
+        log_info "上报批次 $batch_count: $current_batch_size 条消息"
+        # debug
+        echo "curl -s --max-time "$timeout" -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
+            -H "Content-Type: application/json" \
+            -d "$batch_data""
+
+
+        if curl -s --max-time "$timeout" -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
+            -H "Content-Type: application/json" \
+            -d "$batch_data" >/dev/null 2>&1; then
+            success_count=$((success_count + current_batch_size))
+            log_info "批次 $batch_count 上报成功: $current_batch_size 条消息"
+        else
+            fail_count=$((fail_count + current_batch_size))
+            log_warning "批次 $batch_count 上报失败: $current_batch_size 条消息"
+        fi
+        
+        # 批次间短暂延迟，避免过于频繁的请求
+        if [ $batch_count -lt $(((line_count + batch_size - 1) / batch_size)) ]; then
+            sleep 0.1
+        fi
+    done
+    
+    # 输出上报结果统计
+    if [ $fail_count -eq 0 ]; then
+        log_info "批量日志上报完成: 成功 $success_count 条，失败 $fail_count 条"
+        return 0
+    else
+        log_warning "批量日志上报部分失败: 成功 $success_count 条，失败 $fail_count 条"
+        return 1
+    fi
+}
+
+
+
 
 # 检查命令是否存在
 command_exists() {
@@ -98,72 +188,19 @@ port_listening() {
     ss -tlnp 2>/dev/null | grep -q ":$port "
 }
 
-# 初始化运行时目录
+# 废弃：初始化运行时目录（已迁移到initialize.sh）
 init_runtime_dirs() {
-    local runtime_root="${1:-$RUNTIME_ROOT}"
-    local create_release="${2:-false}"
+    log_warning "init_runtime_dirs 函数已废弃，请使用 initialize.sh 中的 init_runtime_environment"
     
-    # 创建基础运行时目录结构
-    local dirs=(
-        "$runtime_root"
-        "$RUNTIME_LOG_DIR"
-        "$RUNTIME_TMP_ROOT"
-        "$RUNTIME_DIFF_ROOT"
-    )
-    
-    for dir in "${dirs[@]}"; do
-        if [ ! -d "$dir" ]; then
-            mkdir -p "$dir"
-            log_info "创建运行时目录: $dir"
-        fi
-    done
-    
-    # 如果需要创建版本目录
-    if [ "$create_release" = "true" ]; then
-        local runtime_release="$RUNTIME_RELEASES_DIR/$(date +%Y%m%d_%H%M%S)"
-        
-        # 创建版本目录结构
-        local release_dirs=(
-            "$RUNTIME_RELEASES_DIR"
-            "$runtime_release"
-            "$runtime_release/backup"
-            "$runtime_release/conf"
-            "$runtime_release/tmp"
-            "$runtime_release/backup/app_init"
-            "$runtime_release/backup/config_update"
-            "$runtime_release/backup/health"
-            "$runtime_release/tmp/app_init"
-            "$runtime_release/tmp/config_update"
-            "$runtime_release/tmp/health"
-        )
-        
-        for dir in "${release_dirs[@]}"; do
-            if [ ! -d "$dir" ]; then
-                mkdir -p "$dir"
-                log_info "创建版本目录: $dir"
-            fi
-        done
-        
-        # 设置版本目录权限
-        chmod 755 "$RUNTIME_RELEASES_DIR" 2>/dev/null || true
-        chmod 755 "$runtime_release" 2>/dev/null || true
-        
-        # 导出版本目录变量供其他脚本使用
-        export RUNTIME_RELEASE="$runtime_release"
-        export RUNTIME_BACKUP_DIR="$runtime_release/backup"
-        export RUNTIME_CONF_DIR="$runtime_release/conf"
-        export RUNTIME_TMP_DIR="$runtime_release/tmp"
-        
-        log_info "版本目录创建完成: $runtime_release"
+    # 检查是否已加载initialize模块
+    if command -v init_runtime_environment >/dev/null 2>&1; then
+        local runtime_root="${1:-$RUNTIME_ROOT}"
+        local create_release="${2:-false}"
+        init_runtime_environment "$create_release"
+    else
+        log_error "initialize模块未加载，无法使用新的runtime管理函数"
+        return 1
     fi
-    
-    # 设置基础目录权限
-    chmod 755 "$runtime_root" 2>/dev/null || true
-    chmod 755 "$RUNTIME_LOG_DIR" 2>/dev/null || true
-    chmod 755 "$RUNTIME_TMP_ROOT" 2>/dev/null || true
-    chmod 755 "$RUNTIME_DIFF_ROOT" 2>/dev/null || true
-    
-    log_info "运行时目录初始化完成: $runtime_root"
 }
 
 # 错误上下文管理函数
@@ -285,33 +322,6 @@ retry_safe_execute() {
     return 1
 }
 
-# 创建备份
-create_backup() {
-    local source_path="$1"
-    local backup_name="$2"
-    
-    if [[ ! -e "$source_path" ]]; then
-        record_error "FILE_ERROR" "备份源不存在: $source_path" "WARNING"
-        return 0
-    fi
-    
-    local timestamp=$(date +%Y%m%d_%H%M%S)
-    local backup_path="$BACKUP_DIR/${backup_name}_${timestamp}"
-    
-    log_info "创建备份: $source_path -> $backup_path"
-    
-    if cp -r "$source_path" "$backup_path"; then
-        SCRIPT_STATE["BACKUP_CREATED"]="true"
-        log_info "备份创建成功: $backup_path"
-        
-        # 清理旧备份
-        cleanup_old_backups "$backup_name"
-        return 0
-    else
-        handle_error "BACKUP_ERROR" "备份创建失败: $source_path" "ERROR" "false"
-        return 1
-    fi
-}
 
 # 清理旧备份
 cleanup_old_backups() {
@@ -586,18 +596,7 @@ get_host_info() {
 
 }
 
-# 设置全局状态
-set_global_state() {
-    local key="$1"
-    local value="$2"
-    GLOBAL_STATE["$key"]="$value"
-}
 
-# 获取全局状态
-get_global_state() {
-    local key="$1"
-    echo "${GLOBAL_STATE[$key]:-}"
-}
 
 # # 检查全局状态是否完整
 # check_global_state() {
@@ -619,49 +618,7 @@ get_global_state() {
 #     return 0
 # } 
 
-# =============================================================================
-# 清理旧备份目录
-# =============================================================================
-cleanup_old_backup_dirs() {
-    local backup_base_dir="$1"
-    local keep_days="${2:-7}"
-    
-    log_info "清理旧备份目录"
-    
-    local current_date=$(date +%Y%m%d)
-    
-    if [ -d "$backup_base_dir" ]; then
-        find "$backup_base_dir" -maxdepth 1 -type d -name "20*" | while read -r dir; do
-            local dir_date=$(basename "$dir")
-            
-            # 检查目录日期是否超过保留天数
-            if [ "$dir_date" != "$current_date" ]; then
-                local days_diff=0
-                if command_exists dateutils.ddiff; then
-                    days_diff=$(dateutils.ddiff "$dir_date" "$current_date" 2>/dev/null || echo "999")
-                else
-                    # 简单的日期比较（假设日期格式为YYYYMMDD）
-                    local dir_year=${dir_date:0:4}
-                    local dir_month=${dir_date:4:2}
-                    local dir_day=${dir_date:6:2}
-                    local current_year=${current_date:0:4}
-                    local current_month=${current_date:4:2}
-                    local current_day=${current_date:6:2}
-                    
-                    # 简单的天数计算（近似值）
-                    days_diff=$(( (current_year - dir_year) * 365 + (current_month - dir_month) * 30 + (current_day - dir_day) ))
-                fi
-                
-                if [ "$days_diff" -gt "$keep_days" ]; then
-                    log_info "删除旧备份目录: $dir_date (已保留 $days_diff 天)"
-                    rm -rf "$dir"
-                fi
-            fi
-        done
-    fi
-    
-    log_info "旧备份目录清理完成"
-}
+
 
 # =============================================================================
 # S3下载工具函数（从install_utils整合）
@@ -1135,437 +1092,145 @@ set_json_path_value() {
     return 1
 }
 
-# =============================================================================
-# 配置管理函数
-# =============================================================================
-
-# 设置默认配置文件路径
-set_default_config_file() {
-    local config_file="$1"
-    DEFAULT_CONFIG_FILE="$config_file"
-}
-
-# 加载配置文件
-load_config_file() {
-    local config_file="${1:-$DEFAULT_CONFIG_FILE}"
+# dataway 统一读取runtime/log/current/release_id.log 日志文件上报
+upload_log_to_dataway() {
+    log_info "上传日志文件到dataway..."
     
-    if [ -z "$config_file" ]; then
-        handle_error "CONFIG_ERROR" "未指定配置文件路径" "ERROR" "false"
+    # 获取运维平台配置
+    get_ops_config
+
+    # 获取必要的全局状态变量
+    local release_id=$(get_global_state "RELEASE_ID")
+    local runtime_dir=$(get_global_state "RUNTIME_DIR")
+    
+    if [ -z "$release_id" ]; then
+        log_warning "RELEASE_ID 未设置，跳过日志上报"
         return 1
     fi
     
-    if [ ! -f "$config_file" ]; then
-        handle_error "CONFIG_ERROR" "配置文件不存在: $config_file" "ERROR" "false"
+    if [ -z "$runtime_dir" ]; then
+        log_warning "RUNTIME_DIR 未设置，跳过日志上报"
         return 1
     fi
     
-    log_info "加载配置文件: $config_file"
+    # 构建日志文件路径
+    local log_file="$runtime_dir/log/current/$release_id.log"
     
-    # 清空现有配置
-    CONFIG_VALUES=()
-    
-    # 读取TOML配置文件并转换为JSON
-    local json_config
-    json_config=$(yj -t < "$config_file" 2>/dev/null) || {
-        handle_error "CONFIG_ERROR" "配置文件格式错误: $config_file" "ERROR" "false"
-        return 1
-    }
-    
-    # 解析配置项并存储到关联数组中
-    local sections
-    sections=$(echo "$json_config" | jq -r 'keys[]' 2>/dev/null)
-    
-    for section in $sections; do
-        local section_data
-        section_data=$(echo "$json_config" | jq -r ".[\"$section\"]" 2>/dev/null)
-        
-        if [ "$section_data" != "null" ]; then
-            local keys
-            keys=$(echo "$section_data" | jq -r 'keys[]' 2>/dev/null)
-            
-            for key in $keys; do
-                local value
-                value=$(echo "$section_data" | jq -r ".[\"$key\"]" 2>/dev/null)
-                CONFIG_VALUES["${section}_${key}"]="$value"
-                log_debug "加载配置: ${section}_${key} = $value"
-            done
-        fi
-    done
-    
-    log_info "配置文件加载完成: $config_file"
-    return 0
-}
-
-# 获取配置值
-get_config_value() {
-    local key="$1"
-    local default_value="${2:-}"
-    
-    if [ -z "$key" ]; then
-        handle_error "CONFIG_ERROR" "配置键不能为空" "ERROR" "false"
+    if [ ! -f "$log_file" ]; then
+        log_warning "日志文件不存在: $log_file"
         return 1
     fi
     
-    local value="${CONFIG_VALUES[$key]:-}"
-    
-    if [ -z "$value" ]; then
-        if [ -n "$default_value" ]; then
-            log_debug "配置键 '$key' 未找到，使用默认值: $default_value"
-            echo "$default_value"
-            return 0
-        else
-            handle_error "CONFIG_ERROR" "配置键 '$key' 未找到且无默认值" "ERROR" "false"
-            return 1
-        fi
-    fi
-    
-    echo "$value"
-    return 0
-}
-
-# 设置配置值
-set_config_value() {
-    local key="$1"
-    local value="$2"
-    
-    if [ -z "$key" ]; then
-        handle_error "CONFIG_ERROR" "配置键不能为空" "ERROR" "false"
+    # 检查Dataway配置
+    local dataway_url=$(get_global_state "DATAWAY_FULL_URL")
+    if [ -z "$dataway_url" ]; then
+        log_warning "DATAWAY_FULL_URL 未设置，跳过日志上报"
         return 1
     fi
     
-    CONFIG_VALUES["$key"]="$value"
-    log_debug "设置配置: $key = $value"
-    return 0
-}
-
-# 检查配置键是否存在
-has_config_key() {
-    local key="$1"
-    
-    if [ -z "$key" ]; then
-        return 1
-    fi
-    
-    [ -n "${CONFIG_VALUES[$key]:-}" ]
-}
-
-# 列出所有配置键
-list_config_keys() {
-    local pattern="${1:-*}"
-    
-    for key in "${!CONFIG_VALUES[@]}"; do
-        if [[ "$key" == $pattern ]]; then
-            echo "$key"
-        fi
-    done
-}
-
-# 导出配置为环境变量
-export_config_as_env() {
-    local prefix="${1:-CONFIG_}"
-    
-    for key in "${!CONFIG_VALUES[@]}"; do
-        local env_key="${prefix}${key^^}"
-        export "$env_key"="${CONFIG_VALUES[$key]}"
-        log_debug "导出环境变量: $env_key = ${CONFIG_VALUES[$key]}"
-    done
-    
-    log_info "配置已导出为环境变量 (前缀: $prefix)"
-}
-
-# 验证必需配置项
-validate_required_config() {
-    local required_keys=("$@")
-    local missing_keys=()
-    
-    for key in "${required_keys[@]}"; do
-        if ! has_config_key "$key"; then
-            missing_keys+=("$key")
-        fi
-    done
-    
-    if [ ${#missing_keys[@]} -gt 0 ]; then
-        handle_error "CONFIG_ERROR" "缺少必需的配置项: ${missing_keys[*]}" "ERROR" "false"
-        return 1
-    fi
-    
-    log_info "所有必需配置项验证通过"
-    return 0
-}
-
-# 生成配置模板
-generate_config_template() {
-    local output_file="$1"
-    local template_content="$2"
-    
-    if [ -z "$output_file" ]; then
-        handle_error "CONFIG_ERROR" "输出文件路径不能为空" "ERROR" "false"
-        return 1
-    fi
-    
-    if [ -z "$template_content" ]; then
-        handle_error "CONFIG_ERROR" "模板内容不能为空" "ERROR" "false"
-        return 1
-    fi
-    
-    # 创建目录
-    local dir=$(dirname "$output_file")
-    if [ ! -d "$dir" ]; then
-        mkdir -p "$dir" || {
-            handle_error "FILE_ERROR" "创建目录失败: $dir" "ERROR" "false"
-            return 1
-        }
-    fi
-    
-    # 写入模板文件
-    echo "$template_content" > "$output_file" || {
-        handle_error "FILE_ERROR" "写入模板文件失败: $output_file" "ERROR" "false"
-        return 1
-    }
-    
-    log_info "配置模板已生成: $output_file"
-    return 0
-} 
-
-# =============================================================================
-# 定时任务包装函数（从 cron_wrapper.sh 合并）
-# =============================================================================
-
-# 执行定时任务包装
-# 参数: $1 - 任务类型 (config_update|health_check|app_init)
-#       $2 - 脚本路径
-execute_cron_wrapper() {
-    local task_type="$1"
-    local script_path="$2"
-    
-    # 验证参数
-    if [ -z "$task_type" ]; then
-        handle_error "CONFIG_ERROR" "缺少任务类型参数" "ERROR" "false"
-        return 1
-    fi
-    
-    if [ -z "$script_path" ]; then
-        handle_error "CONFIG_ERROR" "缺少脚本路径参数" "ERROR" "false"
-        return 1
-    fi
-    
-    # 根据任务类型设置配置
-    local lock_file=""
-    local log_file=""
-    local task_name=""
-    
-    case "$task_type" in
-        "config_update")
-            lock_file="${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
-            log_file="${CONFIG_UPDATE_LOG_FILE:-/opt/datakit/config_update.log}"
-            task_name="${CONFIG_UPDATE_TASK_NAME:-config_update.sh}"
-            ;;
-        "health_check")
-            lock_file="${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
-            log_file="${HEALTH_CHECK_LOG_FILE:-/opt/datakit/health_check.log}"
-            task_name="${HEALTH_CHECK_TASK_NAME:-datakit_health_check.sh}"
-            ;;
-        "app_init")
-            lock_file="${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
-            log_file="${APP_INIT_LOG_FILE:-/opt/datakit/app_init.log}"
-            task_name="${APP_INIT_TASK_NAME:-app_init.sh}"
-            ;;
-        *)
-            handle_error "CONFIG_ERROR" "未知的任务类型: $task_type" "ERROR" "false"
-            return 1
-            ;;
-    esac
-    
-    # 确保日志目录存在
-    local log_dir=$(dirname "$log_file")
-    mkdir -p "$log_dir" 2>/dev/null || true
-    
-    # 清空日志文件，只保留最新内容
-    > "$log_file" 2>/dev/null || true
-    
-    # 记录执行开始
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - 开始执行$task_name" > "$log_file"
-    
-    # 检查锁文件
-    if [ -f "$lock_file" ]; then
-        # 读取锁文件中的PID
-        local pid=$(cat "$lock_file" 2>/dev/null)
-        
-        # 检查进程是否还在运行
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - 上一个$task_name任务(PID: $pid)还在运行，跳过本次执行" 
-            return 0
-        else
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - 发现僵尸锁文件，清理并继续执行"
-            rm -f "$lock_file"
-        fi
-    fi
-    
-    # 执行实际脚本（脚本内部会处理锁机制）
-    if [ -f "$script_path" ]; then
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - 执行脚本: $script_path"
-        if bash "$script_path" 2>&1; then
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - $task_name执行成功"
-            return 0
-        else
-            echo "$(date '+%Y-%m-%d %H:%M:%S') - $task_name执行失败"
-            return 1
-        fi
-    else
-        echo "$(date '+%Y-%m-%d %H:%M:%S') - 脚本文件不存在: $script_path"
-        return 1
-    fi
-}
-
-# 获取任务配置信息
-# 参数: $1 - 任务类型
-# 返回: 锁文件路径、日志文件路径、任务名称
-get_task_config() {
-    local task_type="$1"
-    
-    case "$task_type" in
-        "config_update")
-            echo "${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
-            echo "${CONFIG_UPDATE_LOG_FILE:-/opt/datakit/config_update.log}"
-            echo "${CONFIG_UPDATE_TASK_NAME:-config_update.sh}"
-            ;;
-        "health_check")
-            echo "${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
-            echo "${HEALTH_CHECK_LOG_FILE:-/opt/datakit/health_check.log}"
-            echo "${HEALTH_CHECK_TASK_NAME:-datakit_health_check.sh}"
-            ;;
-        "app_init")
-            echo "${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
-            echo "${APP_INIT_LOG_FILE:-/opt/datakit/app_init.log}"
-            echo "${APP_INIT_TASK_NAME:-app_init.sh}"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-# 检查任务是否正在运行
-# 参数: $1 - 任务类型
-# 返回: 0 - 正在运行, 1 - 未运行
-is_task_running() {
-    local task_type="$1"
-    local lock_file=""
-    
-    case "$task_type" in
-        "config_update")
-            lock_file="${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
-            ;;
-        "health_check")
-            lock_file="${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
-            ;;
-        "app_init")
-            lock_file="${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-    
-    if [ -f "$lock_file" ]; then
-        local pid=$(cat "$lock_file" 2>/dev/null)
-        if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-            return 0  # 正在运行
-        fi
-    fi
-    
-    return 1  # 未运行
-}
-
-# 清理任务锁文件
-# 参数: $1 - 任务类型
-cleanup_task_lock() {
-    local task_type="$1"
-    local lock_file=""
-    
-    case "$task_type" in
-        "config_update")
-            lock_file="${CONFIG_UPDATE_LOCK_FILE:-/var/run/config_update.lock}"
-            ;;
-        "health_check")
-            lock_file="${HEALTH_CHECK_LOCK_FILE:-/var/run/datakit_health_check.lock}"
-            ;;
-        "app_init")
-            lock_file="${APP_INIT_LOCK_FILE:-/var/run/app_init.lock}"
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-    
-    if [ -f "$lock_file" ]; then
-        rm -f "$lock_file"
-        log_info "已清理任务锁文件: $lock_file"
+    # 检查是否启用Dataway日志上报
+    local enable_report="${ENABLE_DATAWAY_LOG_REPORT:-true}"
+    if [ "$enable_report" != "true" ]; then
+        log_info "Dataway日志上报已禁用，跳过上报"
         return 0
     fi
     
-    return 1
-}
-
-# 安全的文件删除函数
-safe_remove() {
-    local file="$1"
-    local description="${2:-文件}"
+    log_info "开始读取日志文件: $log_file"
     
-    # 检查文件是否存在
-    if [[ ! -e "$file" ]]; then
-        log_info "$description不存在，无需删除: $file"
-        return 0
-    fi
+    # 读取日志文件内容
+    local log_content=""
+    local line_count=0
     
-    # 检查文件路径安全性（防止删除系统重要文件）
-    if [[ "$file" == "/" ]] || [[ "$file" == "/etc" ]] || [[ "$file" == "/usr" ]] || [[ "$file" == "/var" ]] || [[ "$file" == "/home" ]]; then
-        log_error "拒绝删除系统重要目录: $file"
-        return 1
-    fi
-    
-    # 检查文件路径是否包含危险模式
-    if [[ "$file" == *".."* ]] || [[ "$file" == *"/*"* ]]; then
-        log_error "拒绝删除包含危险路径的文件: $file"
-        return 1
-    fi
-    
-    # 使用 unlink 替代 rm -f（更安全）
-    if unlink "$file" 2>/dev/null; then
-        log_info "成功删除$description: $file"
-        return 0
-    else
-        log_warning "删除$description失败: $file"
-        return 1
-    fi
-}
-
-# 安全的临时文件清理函数
-safe_cleanup_temp() {
-    local temp_file="$1"
-    local description="${2:-临时文件}"
-    
-    if [[ -n "$temp_file" ]] && [[ -e "$temp_file" ]]; then
-        safe_remove "$temp_file" "$description"
-    fi
-}
-
-# 安全的PID文件清理函数
-safe_cleanup_pid() {
-    local pid_file="$1"
-    
-    if [[ -n "$pid_file" ]] && [[ -e "$pid_file" ]]; then
-        # 验证PID文件内容
-        local pid=$(cat "$pid_file" 2>/dev/null || echo "")
-        if [[ -n "$pid" ]] && [[ "$pid" =~ ^[0-9]+$ ]]; then
-            # 检查进程是否还在运行
-            if ! kill -0 "$pid" 2>/dev/null; then
-                safe_remove "$pid_file" "过期的PID文件"
-            else
-                log_info "PID文件对应的进程仍在运行，保留PID文件: $pid_file"
+    if [ -f "$log_file" ]; then
+        # 读取文件内容，过滤空行
+        while IFS= read -r line; do
+            if [ -n "$line" ]; then
+                log_content="$log_content$line"$'\n'
+                line_count=$((line_count + 1))
             fi
+        done < "$log_file"
+    fi
+    
+    if [ -z "$log_content" ]; then
+        log_warning "日志文件为空，跳过上报"
+        return 1
+    fi
+    
+    log_info "读取到 $line_count 行日志内容"
+    
+    # 检查是否有批量上报函数可用
+    if command -v dataway_log_batch >/dev/null 2>&1; then
+        log_info "使用批量上报功能"
+        if dataway_log_batch "info" "$log_content" "$release_id"; then
+            log_info "日志批量上报成功: $release_id"
+            return 0
         else
-            safe_remove "$pid_file" "无效的PID文件"
+            log_warning "日志批量上报失败: $release_id"
+            return 1
+        fi
+    else
+        log_info "批量上报函数不可用，使用单条上报"
+        
+        # 获取Dataway配置
+        local dataway_host=$(echo "$dataway_url" | awk -F'?' '{print $1}')
+        local dataway_token=$(echo "$dataway_url" | awk -F'token=' '{print $2}')
+        
+        if [ -z "$dataway_host" ] || [ -z "$dataway_token" ]; then
+            log_warning "Dataway配置不完整，跳过上报"
+            return 1
+        fi
+        
+        # 逐行上报日志
+        local success_count=0
+        local fail_count=0
+        local batch_size="${DATAWAY_LOG_BATCH_SIZE:-10}"
+        local timeout="${DATAWAY_LOG_TIMEOUT:-30}"
+        local current_batch=""
+        local batch_count=0
+        
+        while IFS= read -r line; do
+            if [ -n "$line" ]; then
+                current_batch="$current_batch$line"$'\n'
+                batch_count=$((batch_count + 1))
+                
+                # 达到批次大小时上报
+                if [ $batch_count -ge $batch_size ]; then
+                    if upload_batch_to_dataway "$current_batch" "$dataway_host" "$dataway_token" "$timeout" "$release_id"; then
+                        success_count=$((success_count + batch_count))
+                        log_info "批次上报成功: $batch_count 条"
+                    else
+                        fail_count=$((fail_count + batch_count))
+                        log_warning "批次上报失败: $batch_count 条"
+                    fi
+                    
+                    # 重置批次
+                    current_batch=""
+                    batch_count=0
+                    
+                    # 批次间短暂延迟
+                    sleep 0.1
+                fi
+            fi
+        done <<< "$log_content"
+        
+        # 上报剩余内容
+        if [ -n "$current_batch" ]; then
+            if upload_batch_to_dataway "$current_batch" "$dataway_host" "$dataway_token" "$timeout" "$release_id"; then
+                success_count=$((success_count + batch_count))
+                log_info "最后批次上报成功: $batch_count 条"
+            else
+                fail_count=$((fail_count + batch_count))
+                log_warning "最后批次上报失败: $batch_count 条"
+            fi
+        fi
+        
+        # 输出上报结果
+        if [ $fail_count -eq 0 ]; then
+            log_info "日志上报完成: 成功 $success_count 条，失败 $fail_count 条"
+            return 0
+        else
+            log_warning "日志上报部分失败: 成功 $success_count 条，失败 $fail_count 条"
+            return 1
         fi
     fi
 }
