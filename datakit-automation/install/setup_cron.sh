@@ -34,13 +34,13 @@ setup_cron_jobs() {
     cat > "$new_crontab" << EOF
 
 # config-sync - 每15分钟执行一次
-*/15 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh config-update"
+*/16 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh config-update"
 
 # health-check - 每5分钟执行一次
-*/5 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh health-check"
+*/6 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh health-check"
 
 # app-init - 每10分钟执行一次
-*/10 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh app-init"
+*/11 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh app-init"
 
 EOF
     
