@@ -47,7 +47,7 @@ EOF
     # 如果有原有的crontab，添加到新文件中（排除重复的任务）
     if [ -s "$current_crontab" ]; then
         log_info "保留原有crontab配置"
-        grep -v "config-sync\|health-check\|app-init" "$current_crontab" >> "$new_crontab" || true
+        grep -v "config-update\|health-check\|app-init" "$current_crontab" >> "$new_crontab" || true
     fi
     
     # 安装新的crontab

@@ -523,7 +523,7 @@ get_ops_config() {
             local workspace_token=$(echo "$response_data" | jq -r '.workspace_token // empty' 2>/dev/null)
             
             # 验证必需字段
-            if [ -n "$env" ] && [ -n "$workspace" ] && [ -n "$workspace_token" ]; then
+            if [ -n "$env" ]  && [ -n "$workspace_token" ]; then
                 # 设置基础配置到全局状态
                 local dataway_full_url="$dataway_url?token=$workspace_token"
                 set_global_state "ENV" "$env"

@@ -256,7 +256,7 @@ process_logging() {
         
         # 获取日志类型
         local log_type
-        log_type=$(echo "$logging" | jq -r ".tags.logType" 2>/dev/null || echo "default")
+        log_type=$(echo "$logging" | jq -r ".logType" 2>/dev/null || echo "default")
         
         # 构建日志配置内容
         local logging_content
@@ -394,7 +394,7 @@ cleanup_old_configs() {
             logging=$(echo "$service" | jq -r ".\"$service_name\".logging[$i]" 2>/dev/null)
             if [ "$logging" != "null" ] && [ -n "$logging" ]; then
                 local log_type
-                log_type=$(echo "$logging" | jq -r ".tags.logType" 2>/dev/null || echo "default")
+                log_type=$(echo "$logging" | jq -r ".logType" 2>/dev/null || echo "default")
                 local config_key="${service_name}_${log_type}"
                 ops_logging_configs["$config_key"]=true
                 log_info "  日志配置: $config_key"
