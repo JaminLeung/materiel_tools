@@ -147,7 +147,7 @@ main() {
     local env_config_file=""
     local command=""
     # sleep 100
-    set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
+    set_global_state "RELEASE_ID" "$(date +%s%6N)"
 
     # 解析命令行参数
     while [[ $# -gt 0 ]]; do
