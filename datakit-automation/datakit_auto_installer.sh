@@ -75,6 +75,9 @@ initialize_installer() {
         fi
     fi
     
+
+
+
     # 执行初始化脚本
     initialize_script
     
@@ -193,13 +196,7 @@ main() {
         show_help
         exit 0
     fi
-    
-    local skip_command_list=(
-        "app-init"
-        "config-update"
-    )
-
-
+    set_global_state "command" "$command"
 
     load_module "loader" "$INSTALLER_SCRIPT_DIR/config/loader.sh"
     # 加载配置（自动检测环境变量或配置文件）
@@ -214,20 +211,6 @@ main() {
     init_error_handler
 
 
-    # 如果是command_list 中的命令，则需要判断是否存在与当前进程不一样pid的datakit_auto_installer.sh进程，如果存在则退出
-    if [[ " ${skip_command_list[@]} " =~ " $command " ]]; then
-        # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
-        if [ $(pgrep -f "datakit_auto_installer.sh" | grep -v $$ | wc -l) -gt 1 ]; then
-            handle_error "COMMAND_ERROR" "命令正在执行中，请勿重复执行" "WARNING" "true"
-        fi
-
-        if [[ "$command" == "app-init" ]]; then
-            # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
-            if [ $(pgrep -f "/usr/local/datakit/datakit" | grep -v $$ | wc -l) == 0 ]; then
-                handle_error "COMMAND_ERROR" "Datakit未运行，跳过app-init执行" "WARNING" "true"
-            fi
-        fi
-    fi
     # 设置当前时间在GLOBAL_STATE中
     # set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
     # 执行命令
