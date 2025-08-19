@@ -30,16 +30,15 @@ setup_cron_jobs() {
     crontab -l 2>/dev/null > "$current_crontab" || true
     
     # 创建新的crontab内容
+    # TODO  修改一下/tmp 目录，不再/tmp 目录下存放
     local new_crontab="/tmp/new_crontab_$(date +%Y%m%d%H%M%S)"
     cat > "$new_crontab" << EOF
 
-# config-sync - 每15分钟执行一次
+
 */16 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh config-update"
 
-# health-check - 每5分钟执行一次
 */6 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh health-check"
 
-# app-init - 每10分钟执行一次
 */11 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh app-init"
 
 EOF
@@ -64,7 +63,7 @@ EOF
     fi
     
     # 清理临时文件
-    # TODO 所有脚本禁用 rm -f  luke
+    # TODO 所有脚本禁用 rm -f  benjamin
     rm -f "$current_crontab" "$new_crontab"
     
     # 重新加载cron配置
