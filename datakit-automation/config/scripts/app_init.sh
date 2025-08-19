@@ -20,7 +20,7 @@ APP_INIT_SCRIPT_VERSION="2.0.0"
 # 运维平台配置
 # =============================================================================
 APP_INIT_CONFIG_PY_FILE="$CONFIG_PY_FILE"
-APP_INIT_OPS_API_URL="${OPS_ADDR}/api/v2/cmdb/observation-metadata"
+APP_INIT_OPS_API_URL="${OPS_ADDR}/api/v2/cmdb/observation-app-metadata"
 APP_INIT_DATAWAY_URL="$DATAWAY_URL"
 
 # =============================================================================

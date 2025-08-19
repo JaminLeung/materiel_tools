@@ -8,7 +8,8 @@ set -euo pipefail
 
 # 脚本元信息
 readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
-readonly INSTALLER_SCRIPT_VERSION="2.0.0"
+readonly DATAKIT_VERSION="1.78.0"
+readonly INSTALLER_SCRIPT_VERSION="1.0.0"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 声明全局状态变量
@@ -32,77 +33,6 @@ get_global_state() {
 DATAKIT_ENV="${DATAKIT_ENV:-dev}"
 
 
-
-# # 加载配置
-# load_config() {
-#     local env_config_file="$1"
-    
-#     echo "INFO: 开始加载配置..."
-    
-#     # 1. 首先加载基础配置（config/base下的脚本）
-#     local base_config_dir="$INSTALLER_SCRIPT_DIR/config/base"
-#     if [[ -d "$base_config_dir" ]]; then
-#         echo "INFO: 加载基础配置: $base_config_dir"
-        
-#         # 先加载base_config.sh（基础配置）
-#         local base_config_file="$base_config_dir/base_config.sh"
-#         if [[ -f "$base_config_file" ]]; then
-#             echo "INFO: 加载基础配置文件: base_config.sh"
-#             source "$base_config_file"
-#         fi
-        
-#         # 再加载其他配置文件（除了base_config.sh）
-#         for config_file in "$base_config_dir"/*.sh; do
-#             if [[ -f "$config_file" && "$(basename "$config_file")" != "base_config.sh" ]]; then
-#                 echo "INFO: 加载基础配置文件: $(basename "$config_file")"
-#                 source "$config_file"
-#             fi
-#         done
-#     else
-#         echo "[ERROR] 基础配置目录不存在: $base_config_dir" >&2
-#         exit 1
-#     fi
-    
-#     # 2. 如果指定了环境配置文件，则加载它（会覆盖基础配置）
-#     if [[ -n "$env_config_file" ]]; then
-#         local full_config_path=""
-        
-#         # 检查是否是绝对路径
-#         if [[ "$env_config_file" = /* ]]; then
-#             full_config_path="$env_config_file"
-#         else
-#             # 相对路径，尝试在config目录下查找
-#             # 如果路径已经包含config，则直接使用
-#             if [[ "$env_config_file" =~ ^config/ ]]; then
-#                 full_config_path="$INSTALLER_SCRIPT_DIR/$env_config_file"
-#             else
-#                 # 首先尝试在config/env目录下查找
-#                 local env_config_path="$INSTALLER_SCRIPT_DIR/config/env/$env_config_file"
-#                 if [[ -f "$env_config_path" ]]; then
-#                     full_config_path="$env_config_path"
-#                 else
-#                     # 如果不在env目录，尝试在config根目录下查找
-#                     full_config_path="$INSTALLER_SCRIPT_DIR/config/$env_config_file"
-#                 fi
-#             fi
-#         fi
-        
-#         if [[ -f "$full_config_path" ]]; then
-#             echo "INFO: 加载环境配置文件: $full_config_path"
-#             source "$full_config_path"
-#         else
-#             echo "[ERROR] 指定的配置文件不存在: $full_config_path" >&2
-#             exit 1
-#         fi
-#     else
-#         echo "INFO: 未指定环境配置文件，使用默认配置"
-#     fi
-    
-#     # 设置默认的DATAKIT_VERSION（如果未设置）
-#     export DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
-    
-#     echo "INFO: 配置加载完成"
-# }
 
 # 加载模块
 # TODO[DONE] 所有的 source 改成 load_module
@@ -141,7 +71,7 @@ initialize_installer() {
         else
             echo "INFO: 初始化运行时目录"
             # 如果函数不可用，手动创建基本目录
-            mkdir -p "$RUNTIME_ROOT" "$RUNTIME_LOG_DIR" 2>/dev/null || true
+            mkdir -p "$RUNTIME_DIR" "$RUNTIME_LOG_DIR" 2>/dev/null || true
         fi
     fi
     
@@ -155,6 +85,7 @@ initialize_installer() {
 show_help() {
     cat << EOF
 Datakit 安装器 v$INSTALLER_SCRIPT_VERSION
+Datakit 版本 v$DATAKIT_VERSION
 
 用法: $INSTALLER_SCRIPT_NAME [选项] <命令>
 
@@ -162,6 +93,7 @@ Datakit 安装器 v$INSTALLER_SCRIPT_VERSION
     -v, --verbose         详细输出
     -d, --debug           调试模式
     -h, --help            显示此帮助信息
+    --version             查看版本 - 查看Datakit安装器版本、Datakit版本
 
 命令:
     existing-install      存量安装 - 已运行但未安装的主机
@@ -172,6 +104,7 @@ Datakit 安装器 v$INSTALLER_SCRIPT_VERSION
     app-init              应用初始化 - 从运维平台同步业务配置
     config-update           配置同步 - Datakit服务控制和配置管理
     health-check          健康检查 - 检查Datakit健康状态并自动重启
+    version               查看版本 - 查看Datakit安装器版本、Datakit版本
 
 配置方式:
     1. 环境变量 (推荐):
@@ -207,11 +140,11 @@ EOF
 
 # 主函数
 main() {
+
     local env_config_file=""
     local command=""
-
+    # sleep 100
     set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
-
 
     # 解析命令行参数
     while [[ $# -gt 0 ]]; do
@@ -238,6 +171,11 @@ main() {
                 show_help
                 exit 0
                 ;;
+            --version)
+                echo "Datakit安装器版本: $INSTALLER_SCRIPT_VERSION"
+                echo "Datakit版本: $DATAKIT_VERSION"
+                exit 0
+                ;;
             existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|config-update|health-check)
                 command="$1"
                 shift
@@ -256,7 +194,12 @@ main() {
         exit 0
     fi
     
-    export CURRENT_COMMAND="$command"
+    local skip_command_list=(
+        "app-init"
+        "config-update"
+    )
+
+
 
     load_module "loader" "$INSTALLER_SCRIPT_DIR/config/loader.sh"
     # 加载配置（自动检测环境变量或配置文件）
@@ -270,6 +213,21 @@ main() {
     # 初始化错误处理器
     init_error_handler
 
+
+    # 如果是command_list 中的命令，则需要判断是否存在与当前进程不一样pid的datakit_auto_installer.sh进程，如果存在则退出
+    if [[ " ${skip_command_list[@]} " =~ " $command " ]]; then
+        # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
+        if [ $(pgrep -f "datakit_auto_installer.sh" | grep -v $$ | wc -l) -gt 1 ]; then
+            handle_error "COMMAND_ERROR" "命令正在执行中，请勿重复执行" "WARNING" "true"
+        fi
+
+        if [[ "$command" == "app-init" ]]; then
+            # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
+            if [ $(pgrep -f "/usr/local/datakit/datakit" | grep -v $$ | wc -l) == 0 ]; then
+                handle_error "COMMAND_ERROR" "Datakit未运行，跳过app-init执行" "WARNING" "true"
+            fi
+        fi
+    fi
     # 设置当前时间在GLOBAL_STATE中
     # set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
     # 执行命令

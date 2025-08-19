@@ -1,153 +1,154 @@
 #!/bin/bash
 
 #=================================================
-# Datakit 重装场景脚本
-# 描述: 完全重新安装Datakit场景
+# Datakit 存量安装场景脚本
+# 描述: 已运行但未安装Datakit的主机安装场景
 #=================================================
 
 set -e
 
 # 脚本目录
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly MODULES_DIR="$SCRIPT_DIR/../modules"
-readonly CONFIG_DIR="$SCRIPT_DIR/../config"
+readonly SCENARIO_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCENARIO_PROJECT_ROOT="$(cd "$SCENARIO_SCRIPT_DIR/.." && pwd)"
 
+# TODO[DONE] 所有环境变量导入使用 loader.sh
 # 配置加载函数
-load_scenario_config() {
-    # 检查是否通过installer.sh调用，如果是则配置已加载
-    # 否则尝试加载默认配置或从环境变量获取
-    if [[ -z "${DATAKIT_VERSION:-}" ]]; then
-        # 尝试从环境变量获取配置文件路径
-        local config_file="${DATAKIT_CONFIG_FILE:-}"
-        
-        if [[ -n "$config_file" ]]; then
-            # 加载指定的配置文件
-            if [[ -f "$config_file" ]]; then
-                source "$config_file"
-            elif [[ -f "$CONFIG_DIR/env/$config_file" ]]; then
-                source "$CONFIG_DIR/env/$config_file"
-            else
-                echo "[ERROR] 指定的配置文件不存在: $config_file" >&2
-                exit 1
-            fi
-        else
-            # 尝试加载默认配置
-            local default_configs=("benjamin.sh" "production.sh" "development.sh")
-            local config_loaded=false
-            
-            for config in "${default_configs[@]}"; do
-                if [[ -f "$CONFIG_DIR/env/$config" ]]; then
-                    echo "[INFO] 加载默认配置文件: $config"
-                    source "$CONFIG_DIR/env/$config"
-                    config_loaded=true
-                    break
-                fi
-            done
-            
-            if [[ "$config_loaded" == "false" ]]; then
-                echo "[ERROR] 未找到可用的配置文件，请设置 DATAKIT_CONFIG_FILE 环境变量" >&2
-                exit 1
-            fi
-        fi
-    fi
-}
+load_module "loader" "$SCENARIO_PROJECT_ROOT/config/loader.sh"
 
-# 加载配置
-load_scenario_config
+load_module "utils" "$SCENARIO_PROJECT_ROOT/core/utils.sh"
+load_module "validation" "$SCENARIO_PROJECT_ROOT/core/validation.sh"
+load_module "datakit_service" "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
+# config_api.sh的功能已合并到utils.sh中
 
-# 加载模块
-source "$MODULES_DIR/core/logging.sh"
-source "$MODULES_DIR/core/utils.sh"
+load_module "download" "$SCENARIO_PROJECT_ROOT/install/download.sh"
+load_module "install" "$SCENARIO_PROJECT_ROOT/install/install.sh"
+load_module "configure" "$SCENARIO_PROJECT_ROOT/install/configure.sh"
+load_module "setup_cron" "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
+# load_module "verify" "$SCENARIO_PROJECT_ROOT/install/verify.sh"
 
-# 重装场景
+
+# 存量安装场景主函数
+# 功能: 执行Datakit存量安装的完整流程
+# 参数: 无
+# 返回: 0-成功, 1-失败
 execute_reinstall() {
-    log_info "=== 执行重装场景 ==="
-    log_info "场景描述: 完全重新安装Datakit"
+    local start_time=$(date +%s)
     
-    # 步骤1: 验证环境
-    validate_environment
+    log_info "=== 开始Datakit重新安装场景 ==="
+    log_info "场景描述: 已经安装过Datakit的主机重新安装"
+    log_info "脚本版本: $SCRIPT_VERSION"
+    log_info "开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
     
-    # 步骤2: 创建完整备份
-    create_full_backup
+    # 记录脚本启动到Dataway
+    log_info "开始Datakit重新安装: 场景=reinstall"
     
-    # 步骤3: 完全卸载
-    uninstall_datakit
+    #=================================================
+    # 步骤1: 检查安装状态 (致命错误 - 直接退出程序)
+    #=================================================
+    log_info "步骤1: 检查安装状态..."
+    if ! check_installation_status; then
+        handle_error "VALIDATION_ERROR" "不符合安装条件，退出安装" "ERROR" "true"
+    fi
+    log_info "步骤1: 安装状态检查通过"
+
+    #=================================================
+    # 步骤2: 设置资源限制 (致命错误 - 直接退出程序)
+    #=================================================
+    log_info "步骤2: 获取资源限制并设置环境变量"
+    if ! get_machine_specs; then
+        handle_error "RESOURCE_ERROR" "资源限制设置失败，请检查机器规格" "ERROR" "true"
+    fi
+    log_info "步骤2: 资源限制获取成功"
+
+    #=================================================
+    # 步骤3: 下载安装包 (致命错误 - 直接退出程序)
+    #=================================================
+    # log_info "步骤3: 下载安装包..."
+    # if ! download_packages; then
+    #     
+    #     handle_error "NETWORK_ERROR" "下载任务失败，退出安装" "ERROR" "true"
+    # fi
+    # log_info "步骤3: 安装包下载完成"
+
+    #=================================================
+    # 步骤4: 获取主机信息 (非致命错误 - 退出函数)
+    #=================================================
+    log_info "步骤4: 获取主机信息..."
+    if ! get_host_info; then
+        handle_error "API_ERROR" "获取主机信息失败，使用缺省值继续安装" "ERROR" "false"
+        return 1
+    fi
+    log_info "步骤4: 主机信息获取完成"
+
+    #=================================================
+    # 步骤5: 执行安装 (致命错误 - 直接退出程序)
+    #=================================================
+    log_info "步骤5: 执行安装..."
+    if ! install_components; then
+        handle_error "DEPENDENCY_ERROR" "安装失败，退出安装" "ERROR" "true"
+    fi
+    log_info "步骤5: 组件安装完成"
+
+    #=================================================
+    # 步骤6: 配置和验证 (非致命错误 - 退出函数)
+    #=================================================
+    log_info "步骤6: 配置和验证..."
+    if ! configure_and_verify; then
+        handle_error "CONFIG_ERROR" "配置和验证失败，退出安装" "ERROR" "false"
+        return 1
+    fi
+
+    log_info "步骤6: 配置和验证完成"
     
-    # 步骤4: 清理残留文件
-    cleanup_datakit_files
+    #=================================================
+    # 步骤7: 设置定时任务
+    #=================================================
+    log_info "步骤7: 设置定时任务..."
+    if ! setup_cron_jobs; then
+        handle_error "COMMAND_ERROR" "设置定时任务失败，退出安装" "ERROR" "false"
+        return 1
+    fi
+    log_info "步骤7: 定时任务设置完成"
     
-    # 步骤5: 下载安装包
-    download_datakit_packages
+    #=================================================
+    # 步骤8: 验证安装结果 (非致命错误 - 退出函数)
+    #=================================================
+    log_info "步骤8: 验证安装结果..."
+    if ! verify_installation; then
+        handle_error "VALIDATION_ERROR" "安装验证失败，退出安装" "ERROR" "false"
+        return 1
+    fi
+    log_info "步骤8: 安装验证通过"
     
-    # 步骤6: 重新安装
-    install_datakit
+    #=================================================
+    # 安装完成 - 记录成功信息
+    #=================================================
+    # 计算执行时间
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
     
-    # 步骤7: 配置Datakit
-    configure_datakit
+    log_info "=== Datakit存量安装完成 ==="
+    log_info "总执行时间: ${duration}秒"
+    log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
     
-    # 步骤8: 验证安装
-    verify_installation
+    # 记录成功信息到Dataway
+    log_info "Datakit存量安装完成: 耗时=${duration}秒"
     
-    # 步骤9: 健康检查
-    perform_health_check
-    
-    log_info "重装完成"
+    return 0
 }
 
-# 备份函数
-create_full_backup() {
-    log_info "创建完整备份..."
+#=================================================
+# 脚本入口点
+#=================================================
+# 如果直接运行此脚本（而不是被其他脚本source），则执行安装流程
+# if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     
-    if command -v create_backup >/dev/null 2>&1; then
-        create_backup "/usr/local/datakit" "datakit_full"
-    else
-        echo "[WARN] create_backup函数未找到，跳过备份"
-    fi
-}
-
-# 卸载和清理函数
-uninstall_datakit() {
-    log_info "卸载Datakit..."
+#     log_info "总执行时间: ${duration}秒"
+#     log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
     
-    # 停止服务
-    if systemctl is-active --quiet datakit 2>/dev/null; then
-        systemctl stop datakit
-    fi
+#     # 初始化错误处理器
+#     init_error_handler
     
-    # 禁用服务
-    if systemctl is-enabled --quiet datakit 2>/dev/null; then
-        systemctl disable datakit
-    fi
-    
-    # 删除服务文件
-    if [[ -f "/etc/systemd/system/datakit.service" ]]; then
-        rm -f /etc/systemd/system/datakit.service
-    fi
-    
-    # 重新加载systemd
-    systemctl daemon-reload
-}
-
-cleanup_datakit_files() {
-    log_info "清理Datakit文件..."
-    
-    # 删除安装目录
-    if [[ -d "/usr/local/datakit" ]]; then
-        rm -rf /usr/local/datakit
-    fi
-    
-    # 删除日志目录
-    if [[ -d "/var/log/datakit" ]]; then
-        rm -rf /var/log/datakit
-    fi
-    
-    # 删除数据目录
-    if [[ -d "/var/lib/datakit" ]]; then
-        rm -rf /var/lib/datakit
-    fi
-}
-
-# 如果直接运行此脚本
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    execute_reinstall
-fi 
+#     # 执行存量安装场景
+#     execute_existing_installation
+# fi 

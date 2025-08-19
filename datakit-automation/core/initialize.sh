@@ -65,7 +65,7 @@ init_runtime_environment() {
 # 创建基础运行时目录
 init_base_runtime_dirs() {
     local dirs=(
-        "$RUNTIME_ROOT"
+        "$RUNTIME_DIR"
         "$RUNTIME_LOG_DIR"
         "$RUNTIME_LOG_CURRENT_DIR"
         "$RUNTIME_LOG_ARCHIVE_DIR"
@@ -79,7 +79,7 @@ init_base_runtime_dirs() {
     done
     
     # 设置基础目录权限
-    safe_execute "chmod 755 '$RUNTIME_ROOT'" "设置运行时根目录权限" || true
+    safe_execute "chmod 755 '$RUNTIME_DIR'" "设置运行时根目录权限" || true
     safe_execute "chmod 755 '$RUNTIME_LOG_DIR'" "设置日志目录权限" || true
     safe_execute "chmod 755 '$RUNTIME_LOG_CURRENT_DIR'" "设置当前日志目录权限" || true
     safe_execute "chmod 755 '$RUNTIME_LOG_ARCHIVE_DIR'" "设置归档日志目录权限" || true
@@ -133,18 +133,6 @@ create_release_directories() {
     # 设置版本目录权限
     safe_execute "chmod 755 '$runtime_release'" "设置版本目录权限" || true
     
-    # 归档当前执行的日志文件到版本目录
-    # if [ -n "${SCRIPT_EXECUTION_START_TIME:-}" ] && [ -n "${LOG_FILE:-}" ] && [ -f "$LOG_FILE" ]; then
-    #     local release_log_dir="$runtime_release/log"
-    #     local log_filename=$(basename "$LOG_FILE")
-        
-    #     log_info "归档当前执行日志到版本目录: $log_filename"
-    #     if cp "$LOG_FILE" "$release_log_dir/$log_filename"; then
-    #         log_info "日志归档成功: $release_log_dir/$log_filename"
-    #     else
-    #         record_error "BACKUP_ERROR" "日志归档失败: $LOG_FILE" "WARNING"
-    #     fi
-    # fi
     
     # 设置全局变量供其他函数使用
     set_global_state "RUNTIME_RELEASE" "$runtime_release"
@@ -233,56 +221,9 @@ cleanup_safe_delete_dir() {
     log_info "安全删除目录清理完成，删除了 $deleted_count 个文件/目录"
 }
 
-# 备份Datakit配置目录（整合到Runtime）
-backup_datakit_config() {
-    local backup_dir="$1"
-    local backup_name="${2:-conf.d}"
-    
-    if [ -z "$backup_dir" ]; then
-        log_warning "备份目录未指定，跳过备份"
-        return 0
-    fi
-    
-    if [ ! -d "/usr/local/datakit/conf.d" ]; then
-        log_warning "Datakit配置目录不存在，跳过备份"
-        return 0
-    fi
-    
-    # 确保备份目录存在
-    safe_execute "mkdir -p '$backup_dir'" "创建备份目录"
-    
-    log_info "备份Datakit配置目录到: $backup_dir"
-    
-    if safe_execute "cp -r '/usr/local/datakit/conf.d' '$backup_dir/$backup_name'" "备份Datakit配置目录"; then
-        log_info "Datakit配置目录备份完成: $backup_dir/$backup_name"
-        return 0
-    else
-        record_error "BACKUP_ERROR" "Datakit配置目录备份失败" "WARNING"
-        return 1
-    fi
-}
 
-# 备份文件到Runtime版本目录
-backup_to_runtime() {
-    local source_path="$1"
-    local backup_name="$2"
-    local script_type="${3:-}"
-    
-    if [ -z "$RUNTIME_RELEASE" ]; then
-        log_warning "Runtime版本目录未创建，跳过备份"
-        return 0
-    fi
-    
-    local backup_dir="$RUNTIME_BACKUP_DIR"
-    
-    # 根据脚本类型创建子目录
-    if [ -n "$script_type" ]; then
-        backup_dir="$backup_dir/$script_type"
-        safe_execute "mkdir -p '$backup_dir'" "创建脚本特定备份目录"
-    fi
-    
-    backup_datakit_config "$backup_dir" "$backup_name"
-}
+
+
 
 # 清理旧Runtime版本目录（基于文件数保留版本）
 # 1. 清理旧Runtime版本目录（按文件数保留）
@@ -480,7 +421,7 @@ calculate_days_diff() {
 # 废弃：初始化运行时目录（保持向后兼容）
 init_runtime_dirs() {
     log_warning "init_runtime_dirs 函数已废弃，请使用 init_runtime_environment"
-    local runtime_root="${1:-$RUNTIME_ROOT}"
+    local runtime_root="${1:-$RUNTIME_DIR}"
     local create_release="${2:-false}"
     
     # 调用新的函数
@@ -501,11 +442,25 @@ cleanup_old_backup_dirs() {
 # 原有函数（调整TODO项）
 # =============================================================================
 
-# 创建备份目录
+# 创建备份目录 并备份Datakit配置目录
 create_backup_directory() {
-    local backup_dir="${BACKUP_DIR:-/opt/datakit_backups}"
+    local backup_dir="${RUNTIME_DIR}/backup"
+    local backup_dir_tmp="${RUNTIME_DIR}/tmp"
     safe_execute "mkdir -p '$backup_dir'" "创建备份目录"
     log_info "备份目录: $backup_dir"
+    # 安全删除 
+    if safe_execute "mv '$backup_dir/conf.d' '$backup_dir_tmp/conf.d_before_$RELEASE_ID'" "安全删除备份目录"; then
+        log_info "备份目录安全删除完成"
+    else
+        handle_error "BACKUP_ERROR" "现有的备份目录安全删除失败，请手动删除" "CRITICAL" "false"
+    fi
+
+    # 备份Datakit配置目录
+    if safe_execute "cp -rf '/usr/local/datakit/conf.d' '$backup_dir'" "备份Datakit配置目录"; then
+        log_info "Datakit配置目录备份完成: $backup_dir/conf.d"
+    else
+        handle_error "BACKUP_ERROR" "Datakit配置目录备份失败" "CRITICAL" "false"
+    fi
 }
 
 # 检查当前操作权限，如果不是root，则跳过步骤，如果是则继续执行
@@ -579,8 +534,15 @@ initialize_script() {
     # 初始化安全删除目录
     init_safe_delete_dir
     
-    # 创建备份目录
-    create_backup_directory
+    if [ -d "/usr/local/datakit/conf.d" ]; then
+        log_info "Datakit 文件目录存在，进行备份"
+        # 创建备份目录并备份Datakit配置目录
+        create_backup_directory
+    else
+        log_info "Datakit 文件目录不存在，跳过备份"
+    fi
+
+
     
     # 验证系统资源
     if ! validate_system_resources_initialize; then

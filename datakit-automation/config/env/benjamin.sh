@@ -38,7 +38,7 @@ S3_BUCKET="${S3_BUCKET:-benjamin--test}"
 S3_DATAKIT_DIR="${S3_DATAKIT_DIR:-datakit}"
 
 # Datakit版本和安装配置（覆盖base配置）
-DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+
 
 # 运维平台配置
 OPS_ADDR="${OPS_ADDR:-http://172.31.16.4:5000}"

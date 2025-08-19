@@ -8,6 +8,7 @@
 
 install_components() {
     log_info "执行安装 ==="
+    log_info "安装Datakit版本: $DATAKIT_VERSION"
     
     # 解压bundle文件
     if ! extract_bundle_file; then

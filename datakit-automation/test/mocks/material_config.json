@@ -1,0 +1,12 @@
+{
+    "git_repo": "https://github.com/your-org/datakit-automation.git",
+    "git_branch": "main",
+    "s3_bucket": "benjamin--test",
+    "s3_region": "ap-southeast-1",
+    "s3_endpoint": "https://s3.ap-southeast-1.amazonaws.com",
+    "s3_access_key": "your-access-key",
+    "s3_secret_key": "your-secret-key",
+    "datakit_versions": ["1.78.0", "1.77.0", "1.76.0"],
+    "download_timeout": 300,
+    "retry_count": 3
+}

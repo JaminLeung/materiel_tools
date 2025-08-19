@@ -147,7 +147,7 @@ process_config_item() {
     local compare_paths=()
     case "$config_type" in
         "logging")
-            compare_paths=(".inputs.logging[0].tags" ".inputs.logging[0].logfiles" ".inputs.logging[0].source")
+            compare_paths=(".inputs.logging[0].tags" ".inputs.logging[0].logfiles" ".inputs.logging[0].source" ".inputs.logging[0].service")
             ;;
         "metrics")
             compare_paths=(".inputs.prom[0].urls" ".inputs.prom[0].interval" ".inputs.prom[0].tags")
@@ -261,6 +261,10 @@ process_logging() {
         # 构建日志配置内容
         local logging_content
         logging_content=$(echo "{\"inputs\": {\"logging\": [$logging]}}" | jq -r ".")
+        #如果.inputs.logging[0].tags.service 不存在，则把service_name 写入到logging_content 中
+        if ! echo "$logging_content" | jq -r ".inputs.logging[0].tags.service" 2>/dev/null; then
+            logging_content=$(echo "$logging_content" | jq --arg service_name "$service_name" ".inputs.logging[0].tags.service = \$service_name")
+        fi
         
         if ! echo "$logging_content" | jq empty 2>/dev/null; then
             record_error "VALIDATION_ERROR" "日志配置内容不是有效的JSON格式" "ERROR"
@@ -648,7 +652,8 @@ main() {
     # 随机休眠避免并发请求
     local random_number=$((RANDOM % 60 + 1))
     log_info "随机休眠 $random_number 秒"
-    sleep $random_number
+    # sleep $random_number
+    sleep 2
     
 
 
@@ -703,11 +708,11 @@ main() {
     if command -v cleanup_old_runtime_releases >/dev/null 2>&1; then
         cleanup_old_runtime_releases "$APP_INIT_BACKUP_KEEP_DAYS" "app_init"
     elif command -v cleanup_old_backups >/dev/null 2>&1; then
-        cleanup_old_backups "$RUNTIME_ROOT" "$APP_INIT_BACKUP_KEEP_DAYS" "app_init"
+        cleanup_old_backups "$RUNTIME_DIR" "$APP_INIT_BACKUP_KEEP_DAYS" "app_init"
     else
         # 兼容性处理：如果新函数不可用，使用旧函数
         if command -v cleanup_old_backup_dirs >/dev/null 2>&1; then
-            cleanup_old_backup_dirs "$RUNTIME_ROOT" "$APP_INIT_BACKUP_KEEP_DAYS"
+            cleanup_old_backup_dirs "$RUNTIME_DIR" "$APP_INIT_BACKUP_KEEP_DAYS"
         fi
     fi
     
@@ -729,29 +734,29 @@ main() {
         else
             # 兼容性处理：如果新函数不可用，使用旧函数
             if command -v init_runtime_dirs >/dev/null 2>&1; then
-                init_runtime_dirs "$RUNTIME_ROOT" "true"
+                init_runtime_dirs "$RUNTIME_DIR" "true"
             fi
         fi
 
         RUNTIME_CONF_DIR=$(get_global_state "RUNTIME_CONF_DIR")
-        
-        if  [ -d "/usr/local/datakit/conf.d" ]; then
-            log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
-            
-            # 备份整个conf.d目录
-            if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/conf.d" 2>/dev/null; then
-                log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
-            else
-                record_error "BACKUP_ERROR" "Datakit配置目录备份失败,/usr/local/datakit/conf.d 不存在" "WARNING"
-            fi
-
-            # 复制tmp_json_file 到版本目录
-            if cp -r "$tmp_json_file" "$RUNTIME_DIR/releases/$RELEASE_ID/backup/app_init/tmp.json" 2>/dev/null; then
-                log_info "tmp.json 备份完成: $RUNTIME_DIR/releases/$RELEASE_ID/backup/app_init/tmp.json"
-            else
-                record_error "BACKUP_ERROR" "tmp.json 备份失败" "WARNING"
-            fi
+                    # 复制tmp_json_file 到版本目录
+        if cp -r "$tmp_json_file" "$RUNTIME_DIR/releases/$RELEASE_ID/backup/app_init/tmp.json" 2>/dev/null; then
+            log_info "tmp.json 备份完成: $RUNTIME_DIR/releases/$RELEASE_ID/backup/app_init/tmp.json"
+        else
+            record_error "BACKUP_ERROR" "tmp.json 备份失败" "WARNING"
         fi
+
+        # if  [ -d "/usr/local/datakit/conf.d" ]; then
+        #     log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
+            
+        #     # 备份整个conf.d目录
+        #     if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/conf.d" 2>/dev/null; then
+        #         log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
+        #     else
+        #         record_error "BACKUP_ERROR" "Datakit配置目录备份失败,/usr/local/datakit/conf.d 不存在" "WARNING"
+        #     fi
+
+        # fi
 
         
         # 删除临时文件到版本目录的逻辑（已移除）

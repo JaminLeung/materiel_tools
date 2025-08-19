@@ -29,7 +29,8 @@ fi
 PROJECT_ROOT="$(cd "$BASE_CONFIG_DIR/../.." && pwd)"
 MODULES_DIR="$PROJECT_ROOT/modules"
 CONFIG_DIR="$PROJECT_ROOT/config"
-RUNTIME_DIR="$PROJECT_ROOT/runtime"
+# RUNTIME_DIR="${RUNTIME_DIR:-
+RUNTIME_DIR="/root/runtime"
 WORKSPACE=default
 ENV=test
 
@@ -65,11 +66,11 @@ DATAWAY_LOG_TIMEOUT="${DATAWAY_LOG_TIMEOUT:-30}"
 # =============================================================================
 # Runtime目录配置
 # =============================================================================
-RUNTIME_ROOT="${RUNTIME_ROOT:-$PROJECT_ROOT/runtime}"
-RUNTIME_LOG_DIR="${RUNTIME_LOG_DIR:-$RUNTIME_ROOT/log}"
+# RUNTIME_DIR="${RUNTIME_DIR:-$PROJECT_ROOT/runtime}"
+RUNTIME_LOG_DIR="${RUNTIME_LOG_DIR:-$RUNTIME_DIR/log}"
 RUNTIME_LOG_CURRENT_DIR="${RUNTIME_LOG_CURRENT_DIR:-$RUNTIME_LOG_DIR/current}"
 RUNTIME_LOG_ARCHIVE_DIR="${RUNTIME_LOG_ARCHIVE_DIR:-$RUNTIME_LOG_DIR/archive}"
-RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_ROOT/releases}"
+RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_DIR/releases}"
 
 # Runtime清理配置
 RUNTIME_MAX_RELEASES="${RUNTIME_MAX_RELEASES:-10}"

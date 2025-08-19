@@ -488,15 +488,9 @@ handle_input_delete() {
         return 0
     }
     
-    # 确保备份目录存在
-    safe_execute "mkdir -p '$CONFIG_UPDATE_BACKUP_DIR'" "创建备份目录" || return 1
     
-    # 生成备份文件名
-    local filename=$(basename "$input_path")
-    local backup_path="$CONFIG_UPDATE_BACKUP_DIR/${filename}.deleted.$(date +%Y%m%d_%H%M%S)"
-    
-    # 备份并删除文件
-    safe_execute "cp '$input_path' '$backup_path' && rm '$input_path'" "备份并删除配置文件" || return 1
+    # 删除文件
+    safe_execute " rm '$input_path'" "删除配置文件" || return 1
     
     log_info "配置文件已备份并删除: $backup_path"
     return 0
@@ -644,6 +638,14 @@ main() {
         return 1
     }
     
+    response_body=$(get_global_state "RESPONSE_BODY")
+
+    #将response_body 写入到runtime/tmp/config_update/response_body.json
+    if [ ! -d "$RUNTIME_DIR/tmp/config_update" ]; then
+        mkdir -p "$RUNTIME_DIR/tmp/config_update"
+    fi
+    echo "$response_body" > "$RUNTIME_DIR/tmp/config_update/response_body.json"
+
     # 从全局状态获取DATAKIT_CONFIG
     local datakit_config
     datakit_config=$(get_global_state 'DATAKIT_CONFIG')
@@ -679,24 +681,26 @@ main() {
         else
             # 兼容性处理：如果新函数不可用，使用旧函数
             if command -v init_runtime_dirs >/dev/null 2>&1; then
-                init_runtime_dirs "$RUNTIME_ROOT" "true"
+                init_runtime_dirs "$RUNTIME_DIR" "true"
             fi
         fi
         RUNTIME_CONF_DIR=$(get_global_state "RUNTIME_CONF_DIR")
 
-        
-        # 备份当前Datakit配置目录到版本目录
-        if  [ -d "/usr/local/datakit/conf.d" ]; then
-            log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
-            
-            # 备份整个conf.d目录
-            if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/conf.d" 2>/dev/null; then
-                log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
-            else
-                record_error "BACKUP_ERROR" "Datakit配置目录备份失败,/usr/local/datakit/conf.d 不存在" "WARNING"
-            fi
+        # 将response_body 写入到release/backup/response_body.json
+        echo "$response_body" > "$RUNTIME_DIR/releases/$(get_global_state "RELEASE_ID")/backup/response_body.json"
 
-        fi     
+        # # 备份当前Datakit配置目录到版本目录
+        # if  [ -d "/usr/local/datakit/conf.d" ]; then
+        #     log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
+            
+        #     # 备份整个conf.d目录
+        #     if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/conf.d" 2>/dev/null; then
+        #         log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
+        #     else
+        #         record_error "BACKUP_ERROR" "Datakit配置目录备份失败,/usr/local/datakit/conf.d 不存在" "WARNING"
+        #     fi
+
+        # fi     
         
         # 删除临时文件到版本目录的逻辑（已移除）
         log_info "跳过临时文件移动，直接处理配置变更"

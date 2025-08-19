@@ -164,6 +164,15 @@ backup_log_files_to_release() {
         log_info "目标日志文件: $TARGET_LOG_FILE"
         cp -r $SOURCE_LOG_FILE $TARGET_LOG_FILE 2>/dev/null
         log_info "备份日志文件到版本目录完成"
+
+        # 备份Datakit配置目录到版本目录
+        if [ -d "$RUNTIME_DIR/backup/conf.d" ]; then
+            log_info "备份Datakit配置目录到版本目录"
+            cp -rf "$RUNTIME_DIR/backup/conf.d" "$RUNTIME_DIR/releases/$RELEASE_ID/backup/" 2>/dev/null
+            log_info "备份Datakit配置目录到版本目录完成"
+        else
+            log_info "Datakit配置目录不存在，跳过备份"
+        fi
     else
         log_info "配置未变更，不备份日志文件到版本目录"
     fi
@@ -242,6 +251,7 @@ cleanup_on_exit() {
         "cleanup_log_files:清理日志文件"
         "backup_log_files_to_release:备份日志文件到版本目录"
         "upload_log_to_dataway:上传日志到Dataway"
+
     )
     
     local success_count=0
