@@ -30,6 +30,7 @@ setup_cron_jobs() {
     crontab -l 2>/dev/null > "$current_crontab" || true
     
     # 创建新的crontab内容
+    # TODO  修改一下/tmp 目录，不再/tmp 目录下存放
     local new_crontab="/tmp/new_crontab_$(date +%Y%m%d%H%M%S)"
     cat > "$new_crontab" << EOF
 
@@ -62,7 +63,7 @@ EOF
     fi
     
     # 清理临时文件
-    # TODO 所有脚本禁用 rm -f  luke
+    # TODO 所有脚本禁用 rm -f  benjamin
     rm -f "$current_crontab" "$new_crontab"
     
     # 重新加载cron配置
