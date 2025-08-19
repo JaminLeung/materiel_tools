@@ -22,17 +22,28 @@ if ! command -v safe_execute >/dev/null 2>&1; then
     }
 fi
 
+
 # 检查运行实例
 check_running_instance() {
-    local pid_file="${DATAKIT_PID_FILE}"
-    
-    if [[ -f "$pid_file" ]]; then
-        local pid=$(cat "$pid_file" 2>/dev/null || echo "")
-        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
-            handle_error "COMMAND_ERROR" "脚本已在运行 (PID: $pid)" "CRITICAL" "true"
-        else
-            handle_error "COMMAND_ERROR" "发现过期的PID文件，清理中..." "CRITICAL" "false"
-            safe_execute "rm -f '$pid_file'" "清理过期PID文件"
+
+    # 需要跳过的命令清单
+    local skip_command_list=(
+        "app-init"
+        "config-update"
+    )
+    command=$(get_global_state "command")
+    # 如果是command_list 中的命令，则需要判断是否存在与当前进程不一样pid的datakit_auto_installer.sh进程，如果存在则退出
+    if [[ " ${skip_command_list[@]} " =~ " $command " ]]; then
+        # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
+        if [ $(pgrep -f "datakit_auto_installer.sh" | grep -v $$ | wc -l) -gt 1 ]; then
+            handle_error "COMMAND_ERROR" "命令正在执行中，请勿重复执行" "WARNING" "true"
+        fi
+
+        if [[ "$command" == "app-init" ]]; then
+            # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
+            if [ $(pgrep -f "/usr/local/datakit/datakit" | grep -v $$ | wc -l) == 0 ]; then
+                handle_error "COMMAND_ERROR" "Datakit未运行，跳过app-init执行" "WARNING" "true"
+            fi
         fi
     fi
 }
@@ -530,6 +541,8 @@ initialize_script() {
     
     # 检查是否已有实例运行
     check_running_instance
+    
+
     
     # 初始化安全删除目录
     init_safe_delete_dir
