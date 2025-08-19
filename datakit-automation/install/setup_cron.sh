@@ -33,13 +33,11 @@ setup_cron_jobs() {
     local new_crontab="/tmp/new_crontab_$(date +%Y%m%d%H%M%S)"
     cat > "$new_crontab" << EOF
 
-# config-sync - 每15分钟执行一次
+
 */16 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh config-update"
 
-# health-check - 每5分钟执行一次
 */6 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh health-check"
 
-# app-init - 每10分钟执行一次
 */11 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh app-init"
 
 EOF
