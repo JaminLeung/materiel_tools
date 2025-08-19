@@ -4,7 +4,7 @@
 CMDB Observation Agent API Server
 实现两个接口：
 1. /api/v2/cmdb/observation-agent - 返回Datakit安装/运行配置
-2. /api/v2/cmdb/observation-metadata - 返回业务采集配置
+2. /api/v2/cmdb/observation-app-metadata - 返回业务采集配置
 """
 
 from flask import Flask, request, jsonify
@@ -80,72 +80,94 @@ MOCK_SERVER_CONFIGS = {
 }
 
 MOCK_METADATA_CONFIGS = {
-    "data": [{
-        "serviceA": {
-            "logging": 
-                [
-                {
-                    "logfiles": [
-                        "/home/app/bon-gateway-svr/logs/*access_normal.logaaaccccdda",
-                        "/home/app/bon-gateway-svr/logs/*access_normal11111eeddddeeddeeeeddddaaeaecccddds.logaaaaaccccbbbbbaaacccuuuvvvvaaaaa",
-                        # "/home/app/bon-gateway-svr/logs/*access_normal22222.log"
-                    ],
-                    "source": "ec2-java-logging",
-                    "service": "bon-gateway-svr",
-                    "tags": {
-                        "logType": "accewwwwwsaaaaaaaaad",
-                        "lang": "java1111",
-                        "group_name": "gateway-22222333aa"
+    "message": "",
+    "status": 200,
+    "data": [
+        {
+            "cswap-account-0-0": {
+                "logging": [
+                    {
+                        "logType": "access",
+                        "logfiles": [
+                            "/data/processLog/*process.log"
+                        ],
+                        "source": "ec2-golang-logging",
+                        "service": "cswap-account-0-0"
+                    },
+                    {
+                        "logType": "access",
+                        "logfiles": [
+                            "/data/processLog/*process.log",
+                            "/data/processLog/access/*process.log"
+                        ],
+                        "source": "ec2-golang-logging",
+                        "service": "cswap-account-0-0"
+                    },
+                    {
+                        "logType": "access",
+                        "logfiles": [
+                            "/data/processLog/*process.log"
+                        ],
+                        "source": "ec2-golang-logging",
+                        "service": "cswap-account-0-0",
+                        "tags":{
+                            "sink_project": "cswap-account-0-0",
+                            "service": "cswap-account-0-0"
+                        }
+                    },
+                    {
+                        "logType": "metric",
+                        "logfiles": [
+                            "/data/invokeLog/*invoke.log"
+                        ],
+                        "source": "ec2-golang-logging",
+                        "service": "cswap-account-0-0",
+                        "tags":{
+                            "sink_project": "cswap-account-0-0",
+                            "service": "cswap-account-0-0"
+                        }
+                    },
+                    {
+                        "logType": "event",
+                        "logfiles": [
+                            "/data/probeLog/*probe.log",
+                            "/data/probeLog/event/*probe.log"
+                        ],
+                        "source": "ec2-golang-logging",
+                        "service": "cswap-account-0-0"
+                    },
+                    {
+                        "logType": "other",
+                        "logfiles": [
+                            "/home/app/bon-swap/cswap-account-0-0/log/*",
+                            "/home/app/bon-swap/log/*"
+                        ],
+                        "source": "ec2-golang-logging",
+                        "service": "cswap-account-0-0"
                     }
-                },
-                # {
-                #     "logfiles": [
-                #         "/home/app/bon-gateway-svr/logs/*other_normal.log"
-                #     ],
-                #     "source": "ec2-java-logging",
-                #     "service": "bon-gateway-svr",
-                #     "tags": {
-                #         "logType": "other",
-                #         "lang": "java",
-                #         "group_name": "gateway-groupaaaa"
-                #     }
-                # }
-            ],
-            "metrics": [
-                {
-                    "urls": [
-                        "http://172.31.16.4:9100/metricsaaaabbbaabcccc"
-                    ],
-                    "source": "ec2-java-metrics",
-                    "measurement_name": "bon-gateway-svr",
-                    "tags": {
-                        "service": "bon-gateway-svraaaaa",
-                        "group_name": "gateway-groupdddd",
-                        # "group_name111": "gateway-group1111"
+                ],
+                "metrics": [
+                    {
+                        "urls": [
+                            "http://127.0.0.1:16888//monitor/prometheus"
+                        ],
+                        "interval": 60,
+                        "source": "ec2-golang-metrics",
+                        "measurement_name": "cswap-account-0-0"
                     }
-                }
-            ],
-            "health": [
-                {
-                    "http_urls": ["http://172.31.16.4:8080/healthnnnndddssss"],
-                    "expect_status": 200,
-                    "tags": {
-                        "service": "bon-gateway-svr",
-                        "group_name": "gateway-grouaaaaaaaapooooo",
-                        # "group_name1111": "gateway-group1111"
-                    }
-                }
-            ]
+                ],
+                "health": []
+            }
         },
-        "serviceB": {
-            "logging": [],
-            "metrics": [],
-            "health": []
+        {
+            "cswap-account-1-0": {
+                "logging": [],
+                "metrics": [],
+                "health": []
+            }
         }
-    }]
-    
+    ]
 }
-
 
 def get_server_config(server_ip: str) -> Dict[str, Any]:
     """
@@ -205,7 +227,7 @@ def observation_agent():
         }), 500
 
 
-@app.route('/api/v2/cmdb/observation-metadata', methods=['POST'])
+@app.route('/api/v2/cmdb/observation-app-metadata', methods=['POST'])
 def observation_metadata():
     """
     接口：根据目标主机 IP 返回用于 Datakit 业务采集所需的配置项
@@ -228,7 +250,7 @@ def observation_metadata():
                 "code": 400
             }), 400
         
-        logger.info(f"收到 observation-metadata 请求，server_ip: {server_ip}")
+        logger.info(f"收到 observation-app-metadata 请求，server_ip: {server_ip}")
         
         # 获取元数据配置信息
         metadata_config = get_metadata_config(server_ip)
@@ -238,7 +260,7 @@ def observation_metadata():
         return jsonify(metadata_config)
         
     except Exception as e:
-        logger.error(f"observation-metadata 接口异常: {str(e)}")
+        logger.error(f"observation-app-metadata 接口异常: {str(e)}")
         return jsonify({
             "error": f"服务器内部错误: {str(e)}",
             "code": 500
@@ -266,7 +288,7 @@ def index():
         "version": "1.0.0",
         "endpoints": {
             "observation-agent": "/api/v2/cmdb/observation-agent",
-            "observation-metadata": "/api/v2/cmdb/observation-metadata",
+            "observation-app-metadata": "/api/v2/cmdb/observation-app-metadata",
             "health": "/health"
         }
     })

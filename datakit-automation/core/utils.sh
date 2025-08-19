@@ -194,7 +194,7 @@ init_runtime_dirs() {
     
     # 检查是否已加载initialize模块
     if command -v init_runtime_environment >/dev/null 2>&1; then
-        local runtime_root="${1:-$RUNTIME_ROOT}"
+        local runtime_root="${1:-$RUNTIME_DIR}"
         local create_release="${2:-false}"
         init_runtime_environment "$create_release"
     else
@@ -523,7 +523,7 @@ get_ops_config() {
             local workspace_token=$(echo "$response_data" | jq -r '.workspace_token // empty' 2>/dev/null)
             
             # 验证必需字段
-            if [ -n "$env" ] && [ -n "$workspace" ] && [ -n "$workspace_token" ]; then
+            if [ -n "$env" ]  && [ -n "$workspace_token" ]; then
                 # 设置基础配置到全局状态
                 local dataway_full_url="$dataway_url?token=$workspace_token"
                 set_global_state "ENV" "$env"
@@ -531,6 +531,7 @@ get_ops_config() {
                 set_global_state "GLOBAL_TAGS" "$global_tags"
                 set_global_state "WORKSPACE_TOKEN" "$workspace_token"
                 set_global_state "DATAWAY_FULL_URL" "$dataway_full_url"
+                set_global_state "RESPONSE_BODY" "$response_body"
                 
                 # 解析Datakit配置
                 local datakit_config=$(echo "$response_data" | jq '.datakit_config // empty' 2>/dev/null)
@@ -596,29 +597,17 @@ get_host_info() {
 
 }
 
+# 卸载datakit
+uninstall_datakit() {
+    log_info "卸载Datakit"
 
-
-# # 检查全局状态是否完整
-# check_global_state() {
-#     local required_keys=("HOST_IP" "ENV" "WORKSPACE" "WORKSPACE_TOKEN")
-#     local missing_keys=()
     
-#     for key in "${required_keys[@]}"; do
-#         if [ -z "${GLOBAL_STATE[$key]:-}" ]; then
-#             missing_keys+=("$key")
-#         fi
-#     done
-    
-#     if [ ${#missing_keys[@]} -gt 0 ]; then
-#         log_error "缺少必需的全局状态: ${missing_keys[*]}"
-#         return 1
-#     fi
-    
-#     log_info "全局状态验证通过"
-#     return 0
-# } 
-
-
+    # 停止datakit服务
+    systemctl stop datakit
+    # 卸载datakit
+    systemctl disable datakit
+    # 删除datakit安装目录
+}
 
 # =============================================================================
 # S3下载工具函数（从install_utils整合）
@@ -1092,12 +1081,44 @@ set_json_path_value() {
     return 1
 }
 
+
+get_dataway_token_from_datakit_config() {
+    # 读取datakit.conf 的toml 文件，根据.dataway.urls[0] 获取完整值
+    local datakit_config_file="/usr/local/datakit/conf.d/datakit.conf"
+    
+    # 检查配置文件是否存在
+    if [ ! -f "$datakit_config_file" ]; then
+        log_warning "Datakit配置文件不存在: $datakit_config_file"
+        return 1
+    fi
+    
+    # 读取配置文件并提取dataway URL
+    local dataway_url
+    if ! dataway_url=$(read_toml_config "$datakit_config_file" | jq -r ".dataway.urls[0]" 2>/dev/null); then
+        log_warning "读取dataway配置失败"
+        return 1
+    fi
+   
+
+    # 检查是否成功获取到URL
+    if [ -z "$dataway_url" ] || [ "$dataway_url" = "null" ]; then
+        log_warning "未找到dataway URL配置"
+        return 1
+    fi
+
+    set_global_state "DATAWAY_FULL_URL" "$dataway_url"
+    set_global_state "DATAWAY_TOKEN" "$(echo "$dataway_url" | awk -F'token=' '{print $2}')"
+
+}
+
 # dataway 统一读取runtime/log/current/release_id.log 日志文件上报
 upload_log_to_dataway() {
     log_info "上传日志文件到dataway..."
     
-    # 获取运维平台配置
-    get_ops_config
+    get_dataway_token_from_datakit_config
+    
+    log_info "DATAWAY_FULL_URL: $(get_global_state "DATAWAY_FULL_URL")"
+    log_info "DATAWAY_TOKEN: $(get_global_state "DATAWAY_TOKEN")"
 
     # 获取必要的全局状态变量
     local release_id=$(get_global_state "RELEASE_ID")
@@ -1234,3 +1255,5 @@ upload_log_to_dataway() {
         fi
     fi
 }
+
+

@@ -11,10 +11,10 @@
 setup_cron_jobs() {
     log_info "设置定时任务..."
     
-    # 检查installer.sh脚本是否存在
-    local installer_script="$SCENARIO_PROJECT_ROOT/installer.sh"
+    # 检查datakit_auto_installer.sh脚本是否存在
+    local installer_script="$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh"
     if [ ! -f "$installer_script" ]; then
-        handle_error "FILE_ERROR" "installer.sh脚本不存在: $installer_script" "ERROR" "false"
+        handle_error "FILE_ERROR" "datakit_auto_datakit_auto_installer.sh脚本不存在: $installer_script" "ERROR" "false"
         return 1
     fi
     
@@ -34,20 +34,20 @@ setup_cron_jobs() {
     cat > "$new_crontab" << EOF
 
 # config-sync - 每15分钟执行一次
-*/15 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh config-update"
+*/16 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh config-update"
 
 # health-check - 每5分钟执行一次
-*/5 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh health-check"
+*/6 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh health-check"
 
 # app-init - 每10分钟执行一次
-*/10 * * * * bash -c "$SCENARIO_PROJECT_ROOT/installer.sh app-init"
+*/11 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh app-init"
 
 EOF
     
     # 如果有原有的crontab，添加到新文件中（排除重复的任务）
     if [ -s "$current_crontab" ]; then
         log_info "保留原有crontab配置"
-        grep -v "config-sync\|health-check\|app-init" "$current_crontab" >> "$new_crontab" || true
+        grep -v "config-update\|health-check\|app-init" "$current_crontab" >> "$new_crontab" || true
     fi
     
     # 安装新的crontab

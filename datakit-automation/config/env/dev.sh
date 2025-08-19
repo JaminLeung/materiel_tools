@@ -38,7 +38,7 @@ S3_BUCKET="${S3_BUCKET:-benjamin--test}"
 S3_DATAKIT_DIR="${S3_DATAKIT_DIR:-datakit}"
 
 # Datakit版本和安装配置（覆盖base配置）
-DATAKIT_VERSION="${DATAKIT_VERSION:-1.78.0}"
+
 
 # 运维平台配置
 OPS_ADDR="${OPS_ADDR:-http://172.31.16.4:5000}"
@@ -47,3 +47,5 @@ OPS_ADDR="${OPS_ADDR:-http://172.31.16.4:5000}"
 DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
 
 
+# runtime地址
+RUNTIME_DIR="/root/runtime"

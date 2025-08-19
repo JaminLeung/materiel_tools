@@ -47,7 +47,7 @@ generate_structured_log() {
 
     # 日志格式修改成一行，方便数据上报
     local json_log=$(cat <<EOF
-{"timestamp": "$timestamp","level": "$level","message": "$message","pid": $pid,"script_name": "$script_name","script_version": "$script_version","release_id": "$release_id","hostname": "$hostname","user": "$user","context": "$context","extra_fields": "$extra_fields"}
+{"timestamp": "$timestamp","status": "$level","level": "$level","message": "$message","pid": $pid,"script_name": "$script_name","script_version": "$script_version","release_id": "$release_id","hostname": "$hostname","user": "$user","context": "$context","extra_fields": "$extra_fields"}
 EOF
 )
     echo "$json_log"
