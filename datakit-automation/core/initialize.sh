@@ -77,9 +77,10 @@ init_runtime_environment() {
 init_base_runtime_dirs() {
     local dirs=(
         "$RUNTIME_DIR"
-        "$RUNTIME_LOG_DIR"
-        "$RUNTIME_LOG_CURRENT_DIR"
-        "$RUNTIME_LOG_ARCHIVE_DIR"
+        "$RUNTIME_DIR"/tmp
+        "$RUNTIME_DIR"/backup
+        "$RUNTIME_DIR"/log
+
 
     )
     
@@ -460,12 +461,13 @@ create_backup_directory() {
     safe_execute "mkdir -p '$backup_dir'" "创建备份目录"
     log_info "备份目录: $backup_dir"
     # 安全删除 
-    if safe_execute "mv '$backup_dir/conf.d' '$backup_dir_tmp/conf.d_before_$RELEASE_ID'" "安全删除备份目录"; then
-        log_info "备份目录安全删除完成"
-    else
-        handle_error "BACKUP_ERROR" "现有的备份目录安全删除失败，请手动删除" "CRITICAL" "false"
+    if [ -d "$backup_dir/conf.d" ]; then    
+        if safe_execute "mv '$backup_dir/conf.d' '$backup_dir_tmp/conf.d_before_$RELEASE_ID'" "安全删除备份目录"; then
+            log_info "备份目录安全删除完成"
+        else
+                handle_error "BACKUP_ERROR" "现有的备份目录安全删除失败，请手动删除" "CRITICAL" "false"
+        fi
     fi
-
     # 备份Datakit配置目录
     if safe_execute "cp -rf '/usr/local/datakit/conf.d' '$backup_dir'" "备份Datakit配置目录"; then
         log_info "Datakit配置目录备份完成: $backup_dir/conf.d"
