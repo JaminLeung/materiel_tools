@@ -147,7 +147,7 @@ main() {
     local env_config_file=""
     local command=""
     # sleep 100
-    set_global_state "RELEASE_ID" "$(date +%s%6N)"
+    set_global_state "RELEASE_ID" "datakit_auto_installer_$(date +%Y%m%d_%H%M%S)"
 
     # 解析命令行参数
     while [[ $# -gt 0 ]]; do

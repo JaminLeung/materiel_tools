@@ -59,8 +59,8 @@ init_runtime_environment() {
     
     log_info "初始化运行时环境"
     
-    # 初始化安全删除目录
-    init_safe_delete_dir
+    # # 初始化安全删除目录
+    # init_safe_delete_dir
     
     # 创建基础运行时目录
     init_base_runtime_dirs
@@ -77,10 +77,13 @@ init_runtime_environment() {
 init_base_runtime_dirs() {
     local dirs=(
         "$RUNTIME_DIR"
-        "$RUNTIME_LOG_DIR"
-        "$RUNTIME_LOG_CURRENT_DIR"
-        "$RUNTIME_LOG_ARCHIVE_DIR"
-
+        "$RUNTIME_DIR"/releases
+        "$RUNTIME_DIR"/releases/current
+        "$RUNTIME_DIR"/releases/archive
+        "$RUNTIME_DIR"/releases/current/$(get_global_state "RELEASE_ID")
+        "$RUNTIME_DIR"/releases/current/$(get_global_state "RELEASE_ID")/log
+        "$RUNTIME_DIR"/releases/current/$(get_global_state "RELEASE_ID")/backup
+        "$RUNTIME_DIR"/releases/current/$(get_global_state "RELEASE_ID")/tmp
     )
     
     for dir in "${dirs[@]}"; do
@@ -88,12 +91,12 @@ init_base_runtime_dirs() {
             safe_execute "mkdir -p '$dir'" "创建运行时目录: $dir"
         fi
     done
-    
+    set_global_state "RUNTIME_RELEASE_DIR" "$RUNTIME_DIR/releases/current/$(get_global_state "RELEASE_ID")"
     # 设置基础目录权限
     safe_execute "chmod 755 '$RUNTIME_DIR'" "设置运行时根目录权限" || true
-    safe_execute "chmod 755 '$RUNTIME_LOG_DIR'" "设置日志目录权限" || true
-    safe_execute "chmod 755 '$RUNTIME_LOG_CURRENT_DIR'" "设置当前日志目录权限" || true
-    safe_execute "chmod 755 '$RUNTIME_LOG_ARCHIVE_DIR'" "设置归档日志目录权限" || true
+    safe_execute "chmod 755 '$RUNTIME_DIR/releases'" "设置运行时版本目录权限" || true
+    safe_execute "chmod 755 '$RUNTIME_DIR/releases/current'" "设置运行时当前版本目录权限" || true
+    safe_execute "chmod 755 '$RUNTIME_DIR/releases/archive'" "设置运行时归档版本目录权限" || true
     # safe_execute "chmod 755 '$RUNTIME_TMP_ROOT'" "设置临时目录权限" || true
     # safe_execute "chmod 755 '$RUNTIME_DIFF_ROOT'" "设置对比目录权限" || true
 }
@@ -101,17 +104,17 @@ init_base_runtime_dirs() {
 # 创建版本目录
 create_release_directories() {
     local script_type="$1"
-    local runtime_release="$RUNTIME_RELEASES_DIR/$(get_global_state "RELEASE_ID")"
+    local runtime_release="$RUNTIME_DIR/releases/current/$(get_global_state "RELEASE_ID")"
     
     log_info "创建版本目录: $runtime_release"
     
     # 创建版本目录结构
     local release_dirs=(
-        "$RUNTIME_RELEASES_DIR"
         "$runtime_release"
         "$runtime_release/backup"
         "$runtime_release/conf"
-        "$runtime_release/log"  # 新增：版本日志目录
+        "$runtime_release/log" 
+        "$runtime_release/tmp"
     )
     
     # 根据脚本类型添加特定目录
@@ -148,9 +151,7 @@ create_release_directories() {
     # 设置全局变量供其他函数使用
     set_global_state "RUNTIME_RELEASE" "$runtime_release"
     set_global_state "RUNTIME_RELEASE_LOG_DIR" "$runtime_release/log"
-    set_global_state "RUNTIME_RELEASE_LOG_FILE" "$runtime_release/log/latest.log"
 
-    set_global_state "RUNTIME_CONF_DIR" "$runtime_release/conf"
     set_global_state "RUNTIME_BACKUP_DIR" "$runtime_release/backup"
     set_global_state "RUNTIME_TMP_DIR" "$runtime_release/tmp"
     
@@ -163,181 +164,14 @@ create_release_directories() {
 # 备份管理（与Runtime整合）
 # =============================================================================
 
-# 初始化安全删除目录
-init_safe_delete_dir() {
-    if [ ! -d "/tmp/datakit" ]; then
-        safe_execute "mkdir -p '/tmp/datakit'" "创建安全删除目录"
-        safe_execute "chmod 700 '/tmp/datakit'" "设置安全删除目录权限"
-        log_info "安全删除目录初始化完成: /tmp/datakit"
-    fi
-}
+# 注意：以下函数已移动到 error_handler.sh 中
+# - init_safe_delete_dir
+# - safe_delete
 
-# 安全删除文件/目录
-safe_delete() {
-    local source_path="$1"
-    local description="${2:-删除文件}"
-    
-    if [ ! -e "$source_path" ]; then
-        log_info "源路径不存在，无需删除: $source_path"
-        return 0
-    fi
-    
-    # 确保安全删除目录存在
-    init_safe_delete_dir
-    
-    # 生成目标路径（在安全删除目录中）
-    local timestamp=$(date +%Y%m%d_%H%M%S)
-    local basename=$(basename "$source_path")
-    local target_path="/tmp/datakit/${basename}.deleted.${timestamp}"
-    
-    log_info "安全删除: $source_path -> $target_path"
-    
-    # 移动到安全删除目录
-    if safe_execute "mv '$source_path' '$target_path'" "$description"; then
-        log_info "文件已移动到安全删除目录: $target_path"
-        return 0
-    else
-        record_error "DELETE_ERROR" "$description 失败" "WARNING"
-        return 1
-    fi
-}
-
-# 清理安全删除目录（真正的删除操作）
-cleanup_safe_delete_dir() {
-    local keep_hours="${1:-24}"  # 默认保留24小时
-    
-    if [ ! -d "/tmp/datakit" ]; then
-        log_info "安全删除目录不存在，跳过清理"
-        return 0
-    fi
-    
-    log_info "清理安全删除目录: /tmp/datakit (保留 $keep_hours 小时)"
-    
-    local deleted_count=0
-    local current_time=$(date +%s)
-    
-    # 查找并删除超过保留时间的文件
-    while IFS= read -r -d '' file; do
-        local file_time=$(stat -c %Y "$file" 2>/dev/null || echo "0")
-        local age_hours=$(( (current_time - file_time) / 3600 ))
-        
-        if [ "$age_hours" -gt "$keep_hours" ]; then
-            log_info "删除过期文件: $(basename "$file") (已保留 $age_hours 小时)"
-            if safe_execute "rm -rf '$file'" "删除过期文件"; then
-                deleted_count=$((deleted_count + 1))
-            fi
-        fi
-    done < <(find "/tmp/datakit" -type f -o -type d -print0 2>/dev/null)
-    
-    log_info "安全删除目录清理完成，删除了 $deleted_count 个文件/目录"
-}
-
-
-
-
-
-# 清理旧Runtime版本目录（基于文件数保留版本）
-# 1. 清理旧Runtime版本目录（按文件数保留）
-# 2. 清理过期日志文件（按文件数保留）
-# 3. 清理过期备份目录
-# 4. 清理过期配置
-# 5. 清理过期配置同步
-# 6. 清理过期健康检查
-# 7. 清理过期应用初始化
-cleanup_old_runtime_releases() {
-    local max_releases="${1:-$RUNTIME_MAX_RELEASES}"
-    local script_type="${2:-}"
-    
-    log_info "清理旧Runtime版本目录（保留最新的 $max_releases 个版本）"
-    
-    if [ ! -d "$RUNTIME_RELEASES_DIR" ]; then
-        log_info "Runtime版本目录不存在，跳过清理"
-        return 0
-    fi
-    
-    # 确保安全删除目录存在
-    if ! command -v init_safe_delete_dir >/dev/null 2>&1; then
-        log_warning "安全删除函数不可用，跳过版本目录清理"
-        return 1
-    fi
-    
-    init_safe_delete_dir
-    
-    # 统计当前版本目录数量
-    local current_releases=$(find "$RUNTIME_RELEASES_DIR" -maxdepth 1 -type d -name "*_*_*" | wc -l)
-    log_info "当前Runtime版本目录数量: $current_releases"
-    log_info "最大保留版本目录数量: $max_releases"
-    
-    if [ "$current_releases" -gt "$max_releases" ]; then
-        log_info "清理旧Runtime版本目录，保留最新的 $max_releases 个版本"
-        
-        # 查找需要删除的版本目录（按修改时间排序，保留最新的）
-        local dirs_to_delete=$(find "$RUNTIME_RELEASES_DIR" -maxdepth 1 -type d -name "*_*_*" -printf '%T@ %p\n' | sort -n | head -n $((current_releases - max_releases)) | awk '{print $2}' 2>/dev/null)
-        
-        local deleted_count=0
-        if [ -n "$dirs_to_delete" ]; then
-            for dir in $dirs_to_delete; do
-            if [ -d "$dir" ]; then
-                local dir_name=$(basename "$dir")
-                log_info "安全删除旧Runtime版本目录: $dir_name"
-                if safe_delete "$dir" "移动旧Runtime版本目录"; then
-                    deleted_count=$((deleted_count + 1))
-                fi
-            fi
-        done
-        fi
-        
-        log_info "Runtime版本目录清理完成，删除了 $deleted_count 个旧版本目录"
-    else
-        log_info "Runtime版本目录数量 ($current_releases) 未超过限制 ($max_releases)，无需清理"
-    fi
-
-    cleanup_expired_logs_safe "$script_type"
-
-}
-
-# 清理过期日志文件（安全删除版本）
-cleanup_expired_logs_safe() {
-    local script_log_dir="$RUNTIME_LOG_CURRENT_DIR/"
-    log_info "清理过期日志文件: $script_log_dir" 
-    
-    if [ ! -d "$script_log_dir" ]; then
-        return 0
-    fi
-    
-    # 确保安全删除目录存在
-    if ! command -v init_safe_delete_dir >/dev/null 2>&1; then
-        log_warning "安全删除函数不可用，跳过日志清理" "log_cleanup"
-        return 1
-    fi
-    
-    init_safe_delete_dir
-    
-    # 按修改时间排序，保留最新的N个文件
-    local max_files="$LOG_MAX_FILES_PER_SCRIPT"
-    local current_files=$(find "$script_log_dir" -name "*.log" -type f | wc -l)
-    log_info "当前日志文件数量: $current_files" "log_cleanup"
-    log_info "最大保留日志文件数量: $max_files" "log_cleanup"
-    if [ "$current_files" -gt "$max_files" ]; then
-        log_info "清理过期日志文件，保留最新的 $max_files 个文件" "log_cleanup"
-        
-        # 查找需要删除的文件（按修改时间排序，保留最新的）
-        local files_to_delete=$(find "$script_log_dir" -name "*.log" -type f -printf '%T@ %p\n' | sort -n | head -n $((current_files - max_files)) | awk '{print $2}')
-        
-        local deleted_count=0
-        for file in $files_to_delete; do
-            if [ -f "$file" ]; then
-                if safe_delete "$file" "清理过期日志文件"; then
-                    deleted_count=$((deleted_count + 1))
-                fi
-            fi
-        done
-        
-        log_info "日志清理完成，删除了 $deleted_count 个过期文件" "log_cleanup"
-    else
-        log_info "日志文件数量 ($current_files) 未超过限制 ($max_files)，无需清理" "log_cleanup"
-    fi
-}
+# 注意：以下清理函数已移动到 error_handler.sh 中
+# - cleanup_safe_delete_dir
+# - cleanup_old_runtime_releases  
+# - cleanup_expired_logs_safe
 
 # 清理旧备份目录（基于文件数保留版本）
 # 详细说明函数功能
@@ -430,16 +264,16 @@ calculate_days_diff() {
 # =============================================================================
 
 # 废弃：初始化运行时目录（保持向后兼容）
-init_runtime_dirs() {
-    log_warning "init_runtime_dirs 函数已废弃，请使用 init_runtime_environment"
-    local runtime_root="${1:-$RUNTIME_DIR}"
-    local create_release="${2:-false}"
+# init_runtime_dirs() {
+#     log_warning "init_runtime_dirs 函数已废弃，请使用 init_runtime_environment"
+#     local runtime_root="${1:-$RUNTIME_DIR}"
+#     local create_release="${2:-false}"
     
-    # 调用新的函数
-    init_runtime_environment "$create_release"
-}
+#     # 调用新的函数
+#     init_runtime_environment "$create_release"
+# }
 
-# 废弃：清理旧备份目录（保持向后兼容）
+# # 废弃：清理旧备份目录（保持向后兼容）
 cleanup_old_backup_dirs() {
     log_warning "cleanup_old_backup_dirs 函数已废弃，请使用 cleanup_old_backups"
     local backup_base_dir="$1"
@@ -455,15 +289,18 @@ cleanup_old_backup_dirs() {
 
 # 创建备份目录 并备份Datakit配置目录
 create_backup_directory() {
-    local backup_dir="${RUNTIME_DIR}/backup"
-    local backup_dir_tmp="${RUNTIME_DIR}/tmp"
+    RUNTIME_RELEASE_DIR=$(get_global_state "RUNTIME_RELEASE_DIR")
+    local backup_dir="${RUNTIME_RELEASE_DIR}/backup"
+    local backup_dir_tmp="/tmp"
     safe_execute "mkdir -p '$backup_dir'" "创建备份目录"
     log_info "备份目录: $backup_dir"
     # 安全删除 
-    if safe_execute "mv '$backup_dir/conf.d' '$backup_dir_tmp/conf.d_before_$RELEASE_ID'" "安全删除备份目录"; then
-        log_info "备份目录安全删除完成"
-    else
-        handle_error "BACKUP_ERROR" "现有的备份目录安全删除失败，请手动删除" "CRITICAL" "false"
+    if [ -d "$backup_dir/conf.d" ]; then    
+        if safe_execute "mv '$backup_dir/conf.d' '$backup_dir_tmp/conf.d_before_$RELEASE_ID'" "安全删除备份目录"; then
+            log_info "备份目录安全删除完成"
+        else
+                handle_error "BACKUP_ERROR" "现有的备份目录安全删除失败，请手动删除" "CRITICAL" "false"
+        fi
     fi
 
     # 备份Datakit配置目录
@@ -570,12 +407,11 @@ initialize_script() {
     fi
     
     # 验证必需命令
-    if ! validate_required_commands; then
-        handle_error "VALIDATION_ERROR" "必需命令验证失败" "CRITICAL" "true"
-    fi
+    #if ! validate_required_commands; then
+    #    handle_error "VALIDATION_ERROR" "必需命令验证失败" "CRITICAL" "true"
+    #fi
     
-    # 清理过期的安全删除目录内容
-    cleanup_safe_delete_dir
+    # 注意：cleanup_safe_delete_dir 已移动到 error_handler.sh 中，会在脚本退出时自动调用
     
     log_info "脚本初始化完成"
 } 

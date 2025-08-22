@@ -112,6 +112,9 @@ init_logging() {
     local script_type="${1:-unknown}"
     local log_file="${LOG_FILE}"
     
+    # 设置脚本类型全局状态（供cleanup_on_exit使用）
+    set_global_state "SCRIPT_TYPE" "$script_type"
+    
     # 如果LOG_FILE已经设置且包含执行时间戳，说明已经初始化过
     if [[ "$LOG_FILE" =~ .*_[0-9]{8}_[0-9]{6}\.log$ ]]; then
         log_info "日志系统已初始化，跳过重复初始化" "logging_init"
@@ -123,11 +126,11 @@ init_logging() {
     
     # 如果LOG_FILE是相对路径或未设置，使用默认路径
     if [[ -z "$log_file" ]] || [[ "$log_file" != /* ]]; then
-        # 确保RUNTIME_LOG_CURRENT_DIR已定义
-        if [[ -z "${RUNTIME_LOG_CURRENT_DIR:-}" ]]; then
-            RUNTIME_LOG_CURRENT_DIR="${RUNTIME_LOG_DIR:-/tmp}/current"
+        # 确保RUNTIME_RELEASES_DIR已定义
+        if [[ -z "${RUNTIME_RELEASES_DIR:-}" ]]; then
+            RUNTIME_RELEASES_DIR="$RUNTIME_DIR/releases/current/$RELEASE_ID"
         fi
-        log_file="$RUNTIME_LOG_CURRENT_DIR/$script_type/${execution_start_time}.log"
+        log_file="$RUNTIME_RELEASES_DIR/log/$script_type/${execution_start_time}.log"
     fi
     
     # 创建日志目录
