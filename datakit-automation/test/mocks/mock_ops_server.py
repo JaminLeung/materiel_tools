@@ -27,13 +27,13 @@ app = Flask(__name__)
 MOCK_SERVER_CONFIGS = {
     "data": {
         "env": "prod",
-        "workspace": "业务工作空间",
+        "workspace": "业务工作空间aaaaa",
         "global_tags": {
             "global_source": {
                 "app": "datakit",
                 "env1": "production",
-                "region1": "ap-southeast-1",
-                "service1": "monitoring",
+                "region1": "ap-southeast-sssss1",
+                "service1": "monitoringaaaaaaaaaaaaadsdsa",
                 "team1": "ops"
             }
         },
@@ -53,7 +53,7 @@ MOCK_SERVER_CONFIGS = {
                     "enable": True
                 },
                 {
-                    "key": "global_host_tags.sssssaaaabbbaccc",
+                    "key": "global_host_tags.sssssaaaabbbaaaaaaccc",
                     "value": "info",
                     "enable": True
                 }
@@ -63,13 +63,13 @@ MOCK_SERVER_CONFIGS = {
                     "input_name": "ddtrace",
                     "input_path": "/usr/local/datakit/conf.d/ddtrace/ddtrace.conf",
                     "key": "inputs.ddtrace[0].customer_tags",
-                    "value": ["sink_project", "custom_dd_tagaaasaa"],
+                    "value": ["sink_project", "custom_dd_tagaaasaadddddaasaadd"],
                     "enable": True
                 },
                 {
                     "input_name": "ddtrace",
                     "input_path": "/usr/local/datakit/conf.d/ddtrace/ddtrace.conf",
-                    "key": "inputs.ddtrace[0].customer_tagstttaaaaa111aaaa1bbbcccbbbbsc",
+                    "key": "inputs.ddtrace[0].customer_tagstttaaaaa111aaaaaaa1bbbcccbbbbsc",
                     "value": ["sink_project", "custom_dd_tagaaaa"],
                     "enable": True
                 }
@@ -98,7 +98,7 @@ MOCK_METADATA_CONFIGS = {
                         "logType": "access",
                         "logfiles": [
                             "/data/processLog/*process.log",
-                            "/data/processLog/access/*process.log"
+                            "/data/processLog/access/*processaaaaa.log"
                         ],
                         "source": "ec2-golang-logging",
                         "service": "cswap-account-0-0"

@@ -26,11 +26,12 @@ if [[ -n "${SCENARIO_PROJECT_ROOT:-}" ]]; then
 else
     PROJECT_ROOT="$(cd "$BASE_CONFIG_DIR/../.." && pwd)"
 fi
+set_global_state "PROJECT_ROOT" "$PROJECT_ROOT"
 PROJECT_ROOT="$(cd "$BASE_CONFIG_DIR/../.." && pwd)"
 MODULES_DIR="$PROJECT_ROOT/modules"
 CONFIG_DIR="$PROJECT_ROOT/config"
 # RUNTIME_DIR="${RUNTIME_DIR:-
-RUNTIME_DIR="/root/runtime"
+RUNTIME_DIR="/var/log/datakit/runtime"
 WORKSPACE=default
 ENV=test
 
@@ -39,7 +40,7 @@ set_global_state "RUNTIME_DIR" "$RUNTIME_DIR"
 # =============================================================================
 # 安装路径配置（可被环境配置覆盖）
 # =============================================================================
-DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-/opt/datakit_install}"
+DATAKIT_INSTALL_DIR="${DATAKIT_INSTALL_DIR:-$PROJECT_ROOT/package}"
 DATAKIT_BIN_DIR="/usr/local/bin"
 DATAKIT_CONFIG_DIR="/usr/local/datakit/conf.d"
 DATAKIT_DATA_DIR="/usr/local/datakit/data"
@@ -50,7 +51,10 @@ DATAKIT_PID_FILE="/var/run/datakit_install.pid"
 # 日志配置
 # =============================================================================
 RELEASE_ID="$(get_global_state "RELEASE_ID")"
-DATAKIT_LOG_FILE=$RUNTIME_DIR/log/current/$RELEASE_ID.log
+DATAKIT_LOG_FILE=$RUNTIME_DIR/releases/current/$RELEASE_ID/log/datakit_install.log
+RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_DIR/releases/current/$RELEASE_ID}"
+
+
 LOG_FILE="${DATAKIT_LOG_FILE:-/var/log/datakit_install.log}"
 LOG_LEVEL="${LOG_LEVEL:-1}"
 LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-3}"
@@ -70,7 +74,6 @@ DATAWAY_LOG_TIMEOUT="${DATAWAY_LOG_TIMEOUT:-30}"
 RUNTIME_LOG_DIR="${RUNTIME_LOG_DIR:-$RUNTIME_DIR/log}"
 RUNTIME_LOG_CURRENT_DIR="${RUNTIME_LOG_CURRENT_DIR:-$RUNTIME_LOG_DIR/current}"
 RUNTIME_LOG_ARCHIVE_DIR="${RUNTIME_LOG_ARCHIVE_DIR:-$RUNTIME_LOG_DIR/archive}"
-RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_DIR/releases}"
 
 # Runtime清理配置
 RUNTIME_MAX_RELEASES="${RUNTIME_MAX_RELEASES:-10}"

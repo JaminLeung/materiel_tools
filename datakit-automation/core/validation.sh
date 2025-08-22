@@ -130,9 +130,9 @@ validate_environment() {
     fi
     
     # 验证必需命令
-    if ! validate_required_commands; then
-        return 1
-    fi
+    #if ! validate_required_commands; then
+    #    return 1
+    #fi
     
 
     

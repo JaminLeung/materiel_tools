@@ -113,6 +113,7 @@ dataway_log_batch() {
     },
     "time": $(date +%s%N),
     "fields": {
+        "status": "$level" 
         "message": "$escaped_message"
     }
 }
@@ -323,19 +324,19 @@ retry_safe_execute() {
 }
 
 
-# 清理旧备份
-cleanup_old_backups() {
-    local backup_name="$1"
+# # 清理旧备份
+# cleanup_old_backups() {
+#     local backup_name="$1"
     
-    # 按修改时间排序，保留最新的MAX_BACKUP_COUNT个
-    local old_backups=$(find "$BACKUP_DIR" -name "${backup_name}_*" -type d -printf '%T@ %p\n' | sort -n | head -n -$MAX_BACKUP_COUNT | awk '{print $2}')
+#     # 按修改时间排序，保留最新的MAX_BACKUP_COUNT个
+#     local old_backups=$(find "$BACKUP_DIR" -name "${backup_name}_*" -type d -printf '%T@ %p\n' | sort -n | head -n -$MAX_BACKUP_COUNT | awk '{print $2}')
     
-    if [[ -n "$old_backups" ]]; then
-        log_info "清理旧备份..."
-        echo "$old_backups" | xargs rm -rf
-        log_info "旧备份清理完成"
-    fi
-}
+#     if [[ -n "$old_backups" ]]; then
+#         log_info "清理旧备份..."
+#         echo "$old_backups" | xargs rm -rf
+#         log_info "旧备份清理完成"
+#     fi
+# }
 
 # 清理临时文件
 cleanup_temp_files() {
@@ -343,7 +344,8 @@ cleanup_temp_files() {
     if [ -z "${CONFIG+x}" ]; then
         declare -A CONFIG
     fi
-    local temp_dir="${CONFIG[DATAKIT_INSTALL_DIR]:-/opt/datakit_install/tmp}"
+
+    local temp_dir="${CONFIG[DATAKIT_INSTALL_DIR]:-$(get_global_state 'PROJECT_ROOT')/package/tmp}"
     if [ -n "$temp_dir" ] && dir_exists "$temp_dir"; then
         log_info "清理临时文件: $temp_dir"
         rm -rf "$temp_dir"
@@ -1024,17 +1026,7 @@ update_toml_config() {
         return 0
     fi
     
-    # 使用CONFIG_UPDATE_BACKUP_DIR，如果未定义则使用默认值
-    local backup_dir="${CONFIG_UPDATE_BACKUP_DIR:-/var/backups/datakit}"
-    safe_execute "mkdir -p '$backup_dir'" "创建备份目录" || return 1
-    local filename=$(basename "$toml_file")
-    local backup_file="$backup_dir/${filename}.backup.$(date +%Y%m%d_%H%M%S)"
-    if [ -f "$toml_file" ]; then
-        safe_execute "cp '$toml_file' '$backup_file'" "备份配置文件" || return 1
-        log_info "备份文件: $backup_file"
-    else
-        log_info "原文件不存在，无需备份"
-    fi
+
     
     # 更新配置文件
     safe_execute "echo '$json_data' | yj -jt > '$toml_file'" "更新配置文件" || return 1
@@ -1089,7 +1081,7 @@ get_dataway_token_from_datakit_config() {
     # 检查配置文件是否存在
     if [ ! -f "$datakit_config_file" ]; then
         log_warning "Datakit配置文件不存在: $datakit_config_file"
-        return 1
+        handle_error "FILE_ERROR" "Datakit配置文件不存在: $datakit_config_file" "ERROR" "true"
     fi
     
     # 读取配置文件并提取dataway URL
@@ -1115,31 +1107,35 @@ get_dataway_token_from_datakit_config() {
 upload_log_to_dataway() {
     log_info "上传日志文件到dataway..."
     
+    # 判断 /usr/local/datakit/conf.d/datakit.conf 是否存在
+    if [ ! -f "/usr/local/datakit/conf.d/datakit.conf" ]; then
+        handle_error "FILE_ERROR" "datakit.conf 文件不存在" "ERROR" "true"
+    fi
+    
     get_dataway_token_from_datakit_config
     
+
     log_info "DATAWAY_FULL_URL: $(get_global_state "DATAWAY_FULL_URL")"
     log_info "DATAWAY_TOKEN: $(get_global_state "DATAWAY_TOKEN")"
 
+    # 判断 DATAWAY_FULL_URL 和 DATAWAY_TOKEN 是否存在
+    if [ -z "$(get_global_state "DATAWAY_FULL_URL")" ] || [ -z "$(get_global_state "DATAWAY_TOKEN")" ]; then
+        log_info "DATAWAY_FULL_URL 或 DATAWAY_TOKEN 未设置，查询datakit.conf 文件"
+        get_dataway_token_from_datakit_config
+    fi
+    
     # 获取必要的全局状态变量
     local release_id=$(get_global_state "RELEASE_ID")
     local runtime_dir=$(get_global_state "RUNTIME_DIR")
+    local runtime_release_dir=$(get_global_state "RUNTIME_RELEASE_DIR")
+
     
-    if [ -z "$release_id" ]; then
-        log_warning "RELEASE_ID 未设置，跳过日志上报"
-        return 1
-    fi
-    
-    if [ -z "$runtime_dir" ]; then
-        log_warning "RUNTIME_DIR 未设置，跳过日志上报"
-        return 1
-    fi
     
     # 构建日志文件路径
-    local log_file="$runtime_dir/log/current/$release_id.log"
+    local log_file="$runtime_release_dir/log/datakit_install.log"
     
     if [ ! -f "$log_file" ]; then
-        log_warning "日志文件不存在: $log_file"
-        return 1
+        handle_error "FILE_ERROR" "日志文件不存在: $log_file" "ERROR" "true"
     fi
     
     # 检查Dataway配置

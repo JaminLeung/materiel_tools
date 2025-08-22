@@ -597,6 +597,7 @@ process_services() {
 main() {
     # 初始化日志系统（传入脚本类型）
     RUNTIME_RELEASE=$(get_global_state "RUNTIME_RELEASE")
+    RUNTIME_RELEASE_DIR=$(get_global_state "RUNTIME_RELEASE_DIR")
     
     init_logging "app_init"
     
@@ -652,23 +653,26 @@ main() {
     # 随机休眠避免并发请求
     local random_number=$((RANDOM % 60 + 1))
     log_info "随机休眠 $random_number 秒"
-    # sleep $random_number
-    sleep 2
+    sleep $random_number
+    #sleep 2
     
 
 
     # 调用业务配置API
-    local tmp_json_file="$RUNTIME_DIR/tmp/app_init/tmp.json"
+    local tmp_json_file="$RUNTIME_RELEASE_DIR/backup/app_init.json"
     local http_code
 
+    log_info "开始请求业务配置API $APP_INIT_OPS_API_URL"
 
+    # 判断curl执行是否成功，如果成功，则返回200，否则返回错误码
     http_code=$(curl -s -o "$tmp_json_file" -w "%{http_code}" -X POST "$APP_INIT_OPS_API_URL" \
         -H "Authorization: Token $ops_token" \
         -H "Content-Type: application/json;charset=UTF-8" \
         -d "{\"server_ip\": \"$HOST_IP\"}" \
         --connect-timeout 10 \
         --max-time 30)
-    
+
+    log_info "开始请求业务配置API 完成✅"
     log_info "response: $(cat $tmp_json_file)"
     # 检查HTTP状态码
     if [ "$http_code" -eq 28 ]; then
@@ -702,19 +706,9 @@ main() {
     
     # 清理和备份旧配置
     # TODO 确认是否整合
-    cleanup_old_configs
+    # cleanup_old_configs
     
-    # 清理旧Runtime版本目录
-    if command -v cleanup_old_runtime_releases >/dev/null 2>&1; then
-        cleanup_old_runtime_releases "$APP_INIT_BACKUP_KEEP_DAYS" "app_init"
-    elif command -v cleanup_old_backups >/dev/null 2>&1; then
-        cleanup_old_backups "$RUNTIME_DIR" "$APP_INIT_BACKUP_KEEP_DAYS" "app_init"
-    else
-        # 兼容性处理：如果新函数不可用，使用旧函数
-        if command -v cleanup_old_backup_dirs >/dev/null 2>&1; then
-            cleanup_old_backup_dirs "$RUNTIME_DIR" "$APP_INIT_BACKUP_KEEP_DAYS"
-        fi
-    fi
+    # 注意：Runtime清理逻辑已移动到 error_handler.sh 的 cleanup_on_exit 中，会在脚本退出时自动执行
     
     # 输出配置变更统计信息
     log_info "配置变更统计:"
@@ -722,43 +716,30 @@ main() {
     log_info "  日志变更数: $config_change_logging"
     log_info "  指标变更数: $config_change_metrics"
     log_info "  健康检查变更数: $config_change_health"
-    
+    log_info "  CONFIG_CHANGED: $CONFIG_CHANGED"
     # 如果有配置变更，创建版本目录并重启Datakit
     if [ "$CONFIG_CHANGED" = true ]; then
         set_global_state "CONFIG_CHANGED" "true"
-        log_info "检测到配置变更，创建版本目录"
+        # log_info "检测到配置变更，创建版本目录"
         
-        # 创建版本目录
-        if command -v init_runtime_environment >/dev/null 2>&1; then
-            init_runtime_environment "true" "app_init"
-        else
-            # 兼容性处理：如果新函数不可用，使用旧函数
-            if command -v init_runtime_dirs >/dev/null 2>&1; then
-                init_runtime_dirs "$RUNTIME_DIR" "true"
-            fi
-        fi
+        # # 创建版本目录
+        # if command -v init_runtime_environment >/dev/null 2>&1; then
+        #     init_runtime_environment "true" "app_init"
+        # else
+        #     # 兼容性处理：如果新函数不可用，使用旧函数
+        #     if command -v init_runtime_dirs >/dev/null 2>&1; then
+        #         init_runtime_dirs "$RUNTIME_DIR" "true"
+        #     fi
+        # fi
 
-        RUNTIME_CONF_DIR=$(get_global_state "RUNTIME_CONF_DIR")
-                    # 复制tmp_json_file 到版本目录
-        if cp -r "$tmp_json_file" "$RUNTIME_DIR/releases/$RELEASE_ID/backup/app_init/tmp.json" 2>/dev/null; then
-            log_info "tmp.json 备份完成: $RUNTIME_DIR/releases/$RELEASE_ID/backup/app_init/tmp.json"
+        log_info "开始备份tmp.json 到版本目录: $RUNTIME_RELEASE_DIR"
+        # 复制tmp_json_file 到版本目录
+        if cp -r "$tmp_json_file" "$RUNTIME_RELEASE_DIR/backup/app_init/tmp.json" 2>/dev/null; then
+            log_info "tmp.json 备份完成: $RUNTIME_RELEASE_DIR/backup/app_init/tmp.json"
         else
             record_error "BACKUP_ERROR" "tmp.json 备份失败" "WARNING"
         fi
 
-        # if  [ -d "/usr/local/datakit/conf.d" ]; then
-        #     log_info "备份Datakit配置目录到版本目录: $RUNTIME_CONF_DIR"
-            
-        #     # 备份整个conf.d目录
-        #     if cp -r "/usr/local/datakit/conf.d" "$RUNTIME_CONF_DIR/conf.d" 2>/dev/null; then
-        #         log_info "Datakit配置目录备份完成: $RUNTIME_CONF_DIR/datakit_conf.d"
-        #     else
-        #         record_error "BACKUP_ERROR" "Datakit配置目录备份失败,/usr/local/datakit/conf.d 不存在" "WARNING"
-        #     fi
-
-        # fi
-
-        
         # 删除临时文件到版本目录的逻辑（已移除）
         log_info "跳过临时文件移动，直接处理配置变更"
         

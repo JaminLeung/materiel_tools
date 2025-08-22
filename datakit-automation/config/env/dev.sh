@@ -48,4 +48,4 @@ DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498
 
 
 # runtime地址
-RUNTIME_DIR="/root/runtime"
+RUNTIME_DIR="/var/log/datakit/runtime"
