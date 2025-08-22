@@ -554,7 +554,6 @@ process_services() {
     
     # 读取JSON数据并解析
     local services
-    local tmp_json_file="$RUNTIME_DIR/tmp/app_init/tmp.json"
     # 检查是否有data字段，如果没有则直接使用根对象
     if jq -e '.data' "$tmp_json_file" >/dev/null 2>&1; then
         services=$(jq -c '.data[]' "$tmp_json_file" 2>/dev/null) || {
@@ -732,13 +731,6 @@ main() {
         #     fi
         # fi
 
-        log_info "开始备份tmp.json 到版本目录: $RUNTIME_RELEASE_DIR"
-        # 复制tmp_json_file 到版本目录
-        if cp -r "$tmp_json_file" "$RUNTIME_RELEASE_DIR/backup/app_init/tmp.json" 2>/dev/null; then
-            log_info "tmp.json 备份完成: $RUNTIME_RELEASE_DIR/backup/app_init/tmp.json"
-        else
-            record_error "BACKUP_ERROR" "tmp.json 备份失败" "WARNING"
-        fi
 
         # 删除临时文件到版本目录的逻辑（已移除）
         log_info "跳过临时文件移动，直接处理配置变更"

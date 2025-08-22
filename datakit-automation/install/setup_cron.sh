@@ -33,9 +33,9 @@ setup_cron_jobs() {
     # TODO  修改一下/tmp 目录，不再/tmp 目录下存放
     local new_crontab="/tmp/new_crontab_$(date +%Y%m%d%H%M%S)"
     cat > "$new_crontab" << EOF
-*/16 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh config-update"
-*/6 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh health-check"
-*/11 * * * * bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh app-init"
+*/16 * * * * DATAKIT_ENV=${DATAKIT_ENV} bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh config-update"
+*/6 * * * * DATAKIT_ENV=${DATAKIT_ENV} bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh health-check"
+*/11 * * * * DATAKIT_ENV=${DATAKIT_ENV} bash -c "$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh app-init"
 EOF
     
     # 如果有原有的crontab，添加到新文件中（排除重复的任务）
