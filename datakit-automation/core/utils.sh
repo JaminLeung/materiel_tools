@@ -113,7 +113,7 @@ dataway_log_batch() {
     },
     "time": $(date +%s%N),
     "fields": {
-        "status": "$level" 
+        "status": "$level",
         "message": "$escaped_message"
     }
 }
@@ -436,6 +436,7 @@ get_ops_config() {
     fi
     
     # 支持多种API地址配置
+
     local ops_addr="${CONFIG_UPDATE_OPS_API_URL:-${OPS_ADDR:-}}"
     
     if [ -z "$ops_addr" ]; then
