@@ -27,7 +27,7 @@ configure_and_verify() {
     # 重启Datakit
     # TODO restart_datakit 提取单独封装
     if ! restart_datakit; then
-        handle_error "SERVICE_ERROR" "重启Datakit失败，回退配置" "ERROR" "false"
+        handle_error "SERVICE_ERROR" "重启Datakit失败" "ERROR" "false"
         
 
         # 1、获取 ops 配置，写到一个目录里
@@ -38,20 +38,20 @@ configure_and_verify() {
 
         # TODO 备份统一处理, 和初始化里的合并
         # 备份失败的配置文件
-        mv "$datakit_conf" "$datakit_conf.backup.$Date.failed"
+        # mv "$datakit_conf" "$datakit_conf.backup.$Date.failed"
 
-        # 还原回原来的配置文件
-        mv "$datakit_conf.backup.$Date" "$datakit_conf"
+        # # 还原回原来的配置文件
+        # mv "$datakit_conf.backup.$Date" "$datakit_conf"
 
-        # 重启Datakit
-        if ! restart_datakit; then
-            handle_error "SERVICE_ERROR" "重启Datakit失败" "ERROR" "false"
+        # # 重启Datakit
+        # if ! restart_datakit; then
+        #     handle_error "SERVICE_ERROR" "重启Datakit失败" "ERROR" "false"
             
-            return 1
-        else
-            log_info "配置回退成功"
-            return 0
-        fi
+        #     return 1
+        # else
+        #     log_info "配置回退成功"
+        #     return 0
+        # fi
 
         return 1
 
@@ -145,10 +145,10 @@ configure_datakit_main_config() {
     log_info "设置Dataway地址: $dataway_url"
     
     # 备份原配置文件
-    cp "$datakit_conf" "$datakit_conf.backup.$Date"
+    # cp "$datakit_conf" "$datakit_conf.backup.$Date"
     
     # 创建临时配置文件
-    local temp_conf="/tmp/datakit.conf.tmp"
+    # local temp_conf="/tmp/datakit.conf.tmp"
     
     # 使用yj将更新后的JSON转换回TOML格式
     if ! echo "$current_config" | yj -jt > "$temp_conf"; then
@@ -157,12 +157,12 @@ configure_datakit_main_config() {
     fi
     
     # 替换原配置文件
-    mv "$temp_conf" "$datakit_conf"
+    # mv "$temp_conf" "$datakit_conf"
     
     # 验证配置是否正确
     if ! read_toml_config "$datakit_conf" >/dev/null; then
-        handle_error "CONFIG_ERROR" "配置文件验证失败，恢复备份" "ERROR" "false"
-        mv "$datakit_conf.backup.$Date" "$datakit_conf"
+        handle_error "CONFIG_ERROR" "配置文件验证失败" "ERROR" "false"
+        # mv "$datakit_conf.backup.$Date" "$datakit_conf"
         return 1
     fi
     
