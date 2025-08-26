@@ -9,7 +9,7 @@ set -euo pipefail
 # 脚本元信息
 readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
 readonly DATAKIT_VERSION="1.78.0"
-readonly INSTALLER_SCRIPT_VERSION="1.0.1"
+readonly INSTALLER_SCRIPT_VERSION="1.0.2"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 声明全局状态变量
@@ -210,7 +210,9 @@ main() {
     # 初始化错误处理器
     init_error_handler
 
-
+    # 检查是否已有实例运行
+    check_running_instance
+    
     # 设置当前时间在GLOBAL_STATE中
     # set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
     # 执行命令

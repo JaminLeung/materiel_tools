@@ -126,11 +126,11 @@ EOF
         batch_data="$batch_data]"
         
         # 上报当前批次
-        log_info "上报批次 $batch_count: $current_batch_size 条消息"
-        # debug
-        echo "curl -s --max-time "$timeout" -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
-            -H "Content-Type: application/json" \
-            -d "$batch_data""
+        # log_info "上报批次 $batch_count: $current_batch_size 条消息"
+        # # debug
+        # echo "curl -s --max-time "$timeout" -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
+        #     -H "Content-Type: application/json" \
+        #     -d "$batch_data""
 
 
         if curl -s --max-time "$timeout" -X POST "$dataway_host/v1/write/logging?token=$dataway_token" \
@@ -338,34 +338,16 @@ retry_safe_execute() {
 #     fi
 # }
 
-# 清理临时文件
-cleanup_temp_files() {
-    # 确保CONFIG数组已初始化
-    if [ -z "${CONFIG+x}" ]; then
-        declare -A CONFIG
-    fi
 
-    local temp_dir="${CONFIG[DATAKIT_INSTALL_DIR]:-$(get_global_state 'PROJECT_ROOT')/package/tmp}"
-    if [ -n "$temp_dir" ] && dir_exists "$temp_dir"; then
-        log_info "清理临时文件: $temp_dir"
-        rm -rf "$temp_dir"
-    fi
-}
 
 # 清理AWS凭证
-cleanup_aws_credentials() {
-    if dir_exists ~/.aws; then
-        log_info "清理AWS凭证"
-        rm -rf ~/.aws
-    fi
-}
+# cleanup_aws_credentials() {
+#     if dir_exists ~/.aws; then
+#         log_info "清理AWS凭证"
+#         rm -rf ~/.aws
+#     fi
+# }
 
-# 完整清理函数
-full_cleanup() {
-    cleanup_temp_files
-    cleanup_aws_credentials
-    log_info "清理完成"
-}
 
 # 设置当前步骤
 set_current_step() {
@@ -616,112 +598,112 @@ uninstall_datakit() {
 # S3下载工具函数（从install_utils整合）
 # =============================================================================
 
-# 使用curl下载私有S3文件（AWS签名v4）
-download_from_s3_with_curl() {
-    local bucket="$1"
-    local key="$2"
-    local local_path="$3"
+# # 使用curl下载私有S3文件（AWS签名v4）
+# download_from_s3_with_curl() {
+#     local bucket="$1"
+#     local key="$2"
+#     local local_path="$3"
     
-    log_info "使用curl从私有S3下载: $key"
+#     log_info "使用curl从私有S3下载: $key"
     
-    # 检查AWS凭证
-    if [ -z "$S3_ACCESS_KEY" ] || [ -z "$S3_SECRET_KEY" ]; then
-        handle_error "CONFIG_ERROR" "缺少AWS凭证，无法访问私有S3 bucket" "ERROR" "false"
-        return 1
-    fi
+#     # 检查AWS凭证
+#     if [ -z "$S3_ACCESS_KEY" ] || [ -z "$S3_SECRET_KEY" ]; then
+#         handle_error "CONFIG_ERROR" "缺少AWS凭证，无法访问私有S3 bucket" "ERROR" "false"
+#         return 1
+#     fi
     
-    # 设置变量
-    local http_method="GET"
-    local canonical_uri="/$key"
-    local canonical_querystring=""
-    local timestamp=$(date -u +%Y%m%dT%H%M%SZ)
-    local date_stamp=$(date -u +%Y%m%d)
-    local region="${S3_REGION:-ap-southeast-1}"
-    local service="s3"
-    local host="$bucket.s3.$region.amazonaws.com"
+#     # 设置变量
+#     local http_method="GET"
+#     local canonical_uri="/$key"
+#     local canonical_querystring=""
+#     local timestamp=$(date -u +%Y%m%dT%H%M%SZ)
+#     local date_stamp=$(date -u +%Y%m%d)
+#     local region="${S3_REGION:-ap-southeast-1}"
+#     local service="s3"
+#     local host="$bucket.s3.$region.amazonaws.com"
     
-    # 生成负载哈希（GET请求为空）
-    local payload_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+#     # 生成负载哈希（GET请求为空）
+#     local payload_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     
-    # 构建Canonical Headers - 确保格式完全正确
-    local canonical_headers="host:$host"$'\n'"x-amz-content-sha256:$payload_hash"$'\n'"x-amz-date:$timestamp"$'\n'
-    local signed_headers="host;x-amz-content-sha256;x-amz-date"
+#     # 构建Canonical Headers - 确保格式完全正确
+#     local canonical_headers="host:$host"$'\n'"x-amz-content-sha256:$payload_hash"$'\n'"x-amz-date:$timestamp"$'\n'
+#     local signed_headers="host;x-amz-content-sha256;x-amz-date"
     
-    # 构建Canonical Request - 使用精确的换行符
-    local canonical_request="$http_method"$'\n'"$canonical_uri"$'\n'"$canonical_querystring"$'\n'"$canonical_headers"$'\n'"$signed_headers"$'\n'"$payload_hash"
+#     # 构建Canonical Request - 使用精确的换行符
+#     local canonical_request="$http_method"$'\n'"$canonical_uri"$'\n'"$canonical_querystring"$'\n'"$canonical_headers"$'\n'"$signed_headers"$'\n'"$payload_hash"
     
-    # 计算Canonical Request哈希
-    local canonical_request_hash=$(printf "%s" "$canonical_request" | sha256sum | awk '{print $1}')
+#     # 计算Canonical Request哈希
+#     local canonical_request_hash=$(printf "%s" "$canonical_request" | sha256sum | awk '{print $1}')
     
-    # 构建String to Sign
-    local credential_scope="$date_stamp/$region/$service/aws4_request"
-    local string_to_sign="AWS4-HMAC-SHA256"$'\n'"$timestamp"$'\n'"$credential_scope"$'\n'"$canonical_request_hash"
+#     # 构建String to Sign
+#     local credential_scope="$date_stamp/$region/$service/aws4_request"
+#     local string_to_sign="AWS4-HMAC-SHA256"$'\n'"$timestamp"$'\n'"$credential_scope"$'\n'"$canonical_request_hash"
     
-    # 生成签名密钥 - 使用简单方法避免null byte问题
-    local kSecret="AWS4$S3_SECRET_KEY"
-    local temp_dir=$(mktemp -d)
-    # 注意：trap 在函数内部可能导致过早清理，改为手动清理
-    # 确保临时目录存在
-    if [ ! -d "$temp_dir" ]; then
-        handle_error "FILE_ERROR" "无法创建临时目录" "ERROR" "false"
-        return 1
-    fi
+#     # 生成签名密钥 - 使用简单方法避免null byte问题
+#     local kSecret="AWS4$S3_SECRET_KEY"
+#     local temp_dir=$(mktemp -d)
+#     # 注意：trap 在函数内部可能导致过早清理，改为手动清理
+#     # 确保临时目录存在
+#     if [ ! -d "$temp_dir" ]; then
+#         handle_error "FILE_ERROR" "无法创建临时目录" "ERROR" "false"
+#         return 1
+#     fi
     
-    # 调试信息
-    log_info "临时目录: $temp_dir"
-    log_info "kSecret: ${kSecret:0:20}..."
-    log_info "S3_SECRET_KEY: ${S3_SECRET_KEY:0:10}..."
-    log_info "S3_ACCESS_KEY: ${S3_ACCESS_KEY:0:10}..."
+#     # 调试信息
+#     log_info "临时目录: $temp_dir"
+#     log_info "kSecret: ${kSecret:0:20}..."
+#     log_info "S3_SECRET_KEY: ${S3_SECRET_KEY:0:10}..."
+#     log_info "S3_ACCESS_KEY: ${S3_ACCESS_KEY:0:10}..."
     
-    # kDate
-    local kDate=$(echo -n "$date_stamp" | openssl dgst -sha256 -hmac "$kSecret" -binary)
+#     # kDate
+#     local kDate=$(echo -n "$date_stamp" | openssl dgst -sha256 -hmac "$kSecret" -binary)
     
-    # kRegion
-    local kRegion=$(echo -n "$region" | openssl dgst -sha256 -hmac "$kDate" -binary)
+#     # kRegion
+#     local kRegion=$(echo -n "$region" | openssl dgst -sha256 -hmac "$kDate" -binary)
     
-    # kService
-    local kService=$(echo -n "$service" | openssl dgst -sha256 -hmac "$kRegion" -binary)
+#     # kService
+#     local kService=$(echo -n "$service" | openssl dgst -sha256 -hmac "$kRegion" -binary)
     
-    # kSigning
-    local kSigning=$(echo -n "aws4_request" | openssl dgst -sha256 -hmac "$kService" -binary)
+#     # kSigning
+#     local kSigning=$(echo -n "aws4_request" | openssl dgst -sha256 -hmac "$kService" -binary)
     
-    # 生成签名
-    echo -n "$string_to_sign" > "$temp_dir/string_input"
-    local signature=$(openssl dgst -sha256 -hmac "$kSigning" "$temp_dir/string_input" | awk '{print $2}')
+#     # 生成签名
+#     echo -n "$string_to_sign" > "$temp_dir/string_input"
+#     local signature=$(openssl dgst -sha256 -hmac "$kSigning" "$temp_dir/string_input" | awk '{print $2}')
     
-    # 生成授权头
-    local authorization_header="AWS4-HMAC-SHA256 Credential=$S3_ACCESS_KEY/$credential_scope,SignedHeaders=$signed_headers,Signature=$signature"
+#     # 生成授权头
+#     local authorization_header="AWS4-HMAC-SHA256 Credential=$S3_ACCESS_KEY/$credential_scope,SignedHeaders=$signed_headers,Signature=$signature"
     
-    # 构建完整URL
-    local s3_url="https://$host$canonical_uri"
+#     # 构建完整URL
+#     local s3_url="https://$host$canonical_uri"
     
-    # 使用curl下载
-    log_info "开始下载文件..."
-    if curl -L -o "$local_path" "$s3_url" \
-        -H "Authorization: $authorization_header" \
-        -H "x-amz-content-sha256: $payload_hash" \
-        -H "x-amz-date: $timestamp" \
-        --connect-timeout 30 --max-time "${DOWNLOAD_TIMEOUT:-300}"; then
+#     # 使用curl下载
+#     log_info "开始下载文件..."
+#     if curl -L -o "$local_path" "$s3_url" \
+#         -H "Authorization: $authorization_header" \
+#         -H "x-amz-content-sha256: $payload_hash" \
+#         -H "x-amz-date: $timestamp" \
+#         --connect-timeout 30 --max-time "${DOWNLOAD_TIMEOUT:-300}"; then
         
-        # 检查文件大小，确保下载成功
-        local file_size=$(stat -c%s "$local_path" 2>/dev/null || stat -f%z "$local_path" 2>/dev/null)
-        if [ "$file_size" -gt 0 ]; then
-            log_info "文件下载成功: $local_path (${file_size} bytes)"
-            return 0
-        else
-            handle_error "NETWORK_ERROR" "下载的文件为空: $key" "ERROR" "false"
-            return 1
-        fi
-    else
-        handle_error "NETWORK_ERROR" "下载失败: $key" "ERROR" "false"
-        # 清理临时目录
-        rm -rf "$temp_dir" 2>/dev/null || true
-        return 1
-    fi
+#         # 检查文件大小，确保下载成功
+#         local file_size=$(stat -c%s "$local_path" 2>/dev/null || stat -f%z "$local_path" 2>/dev/null)
+#         if [ "$file_size" -gt 0 ]; then
+#             log_info "文件下载成功: $local_path (${file_size} bytes)"
+#             return 0
+#         else
+#             handle_error "NETWORK_ERROR" "下载的文件为空: $key" "ERROR" "false"
+#             return 1
+#         fi
+#     else
+#         handle_error "NETWORK_ERROR" "下载失败: $key" "ERROR" "false"
+#         # 清理临时目录
+#         rm -rf "$temp_dir" 2>/dev/null || true
+#         return 1
+#     fi
     
-    # 清理临时目录
-    rm -rf "$temp_dir" 2>/dev/null || true
-}
+#     # 清理临时目录
+#     rm -rf "$temp_dir" 2>/dev/null || true
+# }
 
 # 带重试的S3下载
 download_from_s3_with_retry() {
@@ -879,44 +861,44 @@ check_required_tools() {
     return 0
 }
 
-# 创建备份（重命名避免冲突）
-create_package_backup() {
-    local source_path="$1"
-    local backup_dir="$2"
+# # 创建备份（重命名避免冲突）
+# create_package_backup() {
+#     local source_path="$1"
+#     local backup_dir="$2"
     
-    if [ ! -e "$source_path" ]; then
-        log_info "源路径不存在，无需备份: $source_path"
-        return 0
-    fi
+#     if [ ! -e "$source_path" ]; then
+#         log_info "源路径不存在，无需备份: $source_path"
+#         return 0
+#     fi
     
-    # 创建备份目录
-    mkdir -p "$backup_dir"
+#     # 创建备份目录
+#     mkdir -p "$backup_dir"
     
-    # 生成备份文件名
-    local timestamp=$(date +%Y%m%d_%H%M%S)
-    local basename=$(basename "$source_path")
-    local backup_path="$backup_dir/${basename}.backup.${timestamp}"
+#     # 生成备份文件名
+#     local timestamp=$(date +%Y%m%d_%H%M%S)
+#     local basename=$(basename "$source_path")
+#     local backup_path="$backup_dir/${basename}.backup.${timestamp}"
     
-    # 执行备份
-    if cp -r "$source_path" "$backup_path"; then
-        log_info "备份创建成功: $backup_path"
-        return 0
-    else
-        handle_error "BACKUP_ERROR" "备份创建失败: $source_path" "ERROR" "false"
-        return 1
-    fi
-}
+#     # 执行备份
+#     if cp -r "$source_path" "$backup_path"; then
+#         log_info "备份创建成功: $backup_path"
+#         return 0
+#     else
+#         handle_error "BACKUP_ERROR" "备份创建失败: $source_path" "ERROR" "false"
+#         return 1
+#     fi
+# }
 
 # 清理临时文件（重命名避免冲突）
-cleanup_package_temp_files() {
-    local temp_dir="$1"
+# cleanup_package_temp_files() {
+#     local temp_dir="$1"
     
-    if [ -n "$temp_dir" ] && [ -d "$temp_dir" ]; then
-        log_info "清理临时文件: $temp_dir"
-        rm -rf "$temp_dir"
-        log_info "临时文件清理完成"
-    fi
-}
+#     if [ -n "$temp_dir" ] && [ -d "$temp_dir" ]; then
+#         log_info "清理临时文件: $temp_dir"
+#         rm -rf "$temp_dir"
+#         log_info "临时文件清理完成"
+#     fi
+# }
 
 # =============================================================================
 # 机器规格检测工具函数（从install_utils整合）

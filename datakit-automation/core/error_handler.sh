@@ -248,19 +248,19 @@ cleanup_on_exit() {
     local success_count=0
     local total_steps=0
     
-    # 1. 清理临时文件
-    total_steps=$((total_steps + 1))
-    if command -v cleanup_temp_files >/dev/null 2>&1; then
-        log_info "执行清理步骤: 清理临时文件"
-        if cleanup_temp_files; then
-            log_info "清理步骤成功: 清理临时文件"
-            success_count=$((success_count + 1))
-        else
-            log_warning "清理步骤失败: 清理临时文件"
-        fi
-    else
-        log_debug "跳过不存在的清理函数: cleanup_temp_files"
-    fi
+    # # 1. 清理临时文件
+    # total_steps=$((total_steps + 1))
+    # if command -v cleanup_temp_files >/dev/null 2>&1; then
+    #     log_info "执行清理步骤: 清理临时文件"
+    #     if cleanup_temp_files; then
+    #         log_info "清理步骤成功: 清理临时文件"
+    #         success_count=$((success_count + 1))
+    #     else
+    #         log_warning "清理步骤失败: 清理临时文件"
+    #     fi
+    # else
+    #     log_debug "跳过不存在的清理函数: cleanup_temp_files"
+    # fi
     
     # 2. 清理日志文件
     total_steps=$((total_steps + 1))
@@ -290,19 +290,19 @@ cleanup_on_exit() {
         log_debug "跳过不存在的清理函数: cleanup_old_runtime_releases"
     fi
     
-    # 4. 清理过期日志文件（安全版本）
-    total_steps=$((total_steps + 1))
-    if command -v cleanup_expired_logs_safe >/dev/null 2>&1; then
-        log_info "执行清理步骤: 清理过期日志文件"
-        if cleanup_expired_logs_safe "$script_type"; then
-            log_info "清理步骤成功: 清理过期日志文件"
-            success_count=$((success_count + 1))
-        else
-            log_warning "清理步骤失败: 清理过期日志文件"
-        fi
-    else
-        log_debug "跳过不存在的清理函数: cleanup_expired_logs_safe"
-    fi
+    # # 4. 清理过期日志文件（安全版本）
+    # total_steps=$((total_steps + 1))
+    # if command -v cleanup_expired_logs_safe >/dev/null 2>&1; then
+    #     log_info "执行清理步骤: 清理过期日志文件"
+    #     if cleanup_expired_logs_safe "$script_type"; then
+    #         log_info "清理步骤成功: 清理过期日志文件"
+    #         success_count=$((success_count + 1))
+    #     else
+    #         log_warning "清理步骤失败: 清理过期日志文件"
+    #     fi
+    # else
+    #     log_debug "跳过不存在的清理函数: cleanup_expired_logs_safe"
+    # fi
     
     # 5. 清理安全删除目录
     total_steps=$((total_steps + 1))
@@ -405,23 +405,23 @@ cleanup_log_files() {
     
     # 清理过期的日志目录
     local log_patterns=(
-
         "datakit_auto_installer_*"
     )
     
     local cleaned_count=0
     local error_count=0
-    local retention_days="${LOG_RETENTION_DAYS:-3}"
+    local retention_days="${LOG_RETENTION_DAYS:-0}"
     local runtime_dir=$(get_global_state "RUNTIME_DIR" 2>/dev/null || echo "/var/log/datakit/runtime")
     
     for pattern in "${log_patterns[@]}"; do
         # 清理 runtime/log/current 目录
-        local current_log_dir="$runtime_dir/log/current"
+        local current_log_dir="$runtime_dir/releases/current"
+        log_info "清理 runtime/log/current 目录: $current_log_dir"
         if [[ -d "$current_log_dir" ]]; then
             local current_dirs=$(find "$current_log_dir" -name "$pattern" -type d -mtime +$retention_days 2>/dev/null)
             if [[ -n "$current_dirs" ]]; then
                 if find "$current_log_dir" -name "$pattern" -type d -mtime +$retention_days -delete 2>/dev/null; then
-                    log_debug "清理成功: $current_log_dir/$pattern"
+                    log_info "清理成功: $current_log_dir/$pattern"
                     cleaned_count=$((cleaned_count + 1))
                 else
                     log_warning "清理失败: $current_log_dir/$pattern"
@@ -431,12 +431,12 @@ cleanup_log_files() {
         fi
 
         # 清理 runtime/log/archive 目录
-        local archive_log_dir="$runtime_dir/log/archive"
+        local archive_log_dir="$runtime_dir/releases/archive"
         if [[ -d "$archive_log_dir" ]]; then
             local archive_dirs=$(find "$archive_log_dir" -name "$pattern" -type d -mtime +$retention_days 2>/dev/null)
             if [[ -n "$archive_dirs" ]]; then
                 if find "$archive_log_dir" -name "$pattern" -type d -mtime +$retention_days -delete 2>/dev/null; then
-                    log_debug "清理成功: $archive_log_dir/$pattern"
+                    log_info "清理成功: $archive_log_dir/$pattern"
                     cleaned_count=$((cleaned_count + 1))
                 else
                     log_warning "清理失败: $archive_log_dir/$pattern"
@@ -445,19 +445,6 @@ cleanup_log_files() {
             fi
         fi
         
-        # 清理 /tmp/datakit 目录
-        if [[ -d "/tmp/datakit" ]]; then
-            local tmp_dirs=$(find /tmp/datakit -name "$pattern" -type d -mtime +$retention_days 2>/dev/null)
-            if [[ -n "$tmp_dirs" ]]; then
-                if find /tmp/datakit -name "$pattern" -type d -mtime +$retention_days -delete 2>/dev/null; then
-                    log_debug "清理成功: /tmp/datakit/$pattern"
-                    cleaned_count=$((cleaned_count + 1))
-                else
-                    log_warning "清理失败: /tmp/datakit/$pattern"
-                    error_count=$((error_count + 1))
-                fi
-            fi
-        fi
     done
     
     if [[ $cleaned_count -gt 0 ]]; then
@@ -615,20 +602,36 @@ cleanup_safe_delete_dir() {
     local deleted_count=0
     local current_time=$(date +%s)
     
-    # 查找并删除超过保留时间的文件
-    while IFS= read -r -d '' file; do
-        local file_time=$(stat -c %Y "$file" 2>/dev/null || echo "0")
-        local age_hours=$(( (current_time - file_time) / 3600 ))
-        
-        if [ "$age_hours" -gt "$keep_hours" ]; then
-            log_info "删除过期文件: $(basename "$file") (已保留 $age_hours 小时)"
-            if safe_execute "rm -rf '$file'" "删除过期文件"; then
+
+    cd /tmp/datakit
+
+    # 清理过期目录，只保留时间最近的10个目录，其他目录删除
+    local dirs_to_delete=$(find /tmp/datakit -name "datakit_auto_installer_*" -type d -mtime +0)
+    log_info "/tmp/datakit删除过期目录: $dirs_to_delete"
+    
+    if [ -n "$dirs_to_delete" ]; then
+        for dir in $dirs_to_delete; do
+            log_info "删除过期目录: $dir"
+            if safe_execute "rm -rf '$dir'" "删除过期目录"; then
                 deleted_count=$((deleted_count + 1))
             fi
-        fi
-    done < <(find "/tmp/datakit" -type f -o -type d -print0 2>/dev/null)
-    
+        done
+    fi
     log_info "安全删除目录清理完成，删除了 $deleted_count 个文件/目录"
+    # 查找并删除超过保留时间的文件
+    # while IFS= read -r -d '' file; do
+    #     local file_time=$(stat -c %Y "$file" 2>/dev/null || echo "0")
+    #     local age_hours=$(( (current_time - file_time) / 3600 ))
+        
+    #     if [ "$age_hours" -gt "$keep_hours" ]; then
+    #         log_info "删除过期文件: $(basename "$file") (已保留 $age_hours 小时)"
+    #         if safe_execute "rm -rf '$file'" "删除过期文件"; then
+    #             deleted_count=$((deleted_count + 1))
+    #         fi
+    #     fi
+    # done < <(find "/tmp/datakit" -type f -o -type d -print0 2>/dev/null)
+    
+    # log_info "安全删除目录清理完成，删除了 $deleted_count 个文件/目录"
 }
 
 # 清理旧Runtime版本目录（基于文件数保留版本）

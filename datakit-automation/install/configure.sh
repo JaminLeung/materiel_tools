@@ -148,7 +148,7 @@ configure_datakit_main_config() {
     # cp "$datakit_conf" "$datakit_conf.backup.$Date"
     
     # 创建临时配置文件
-    # local temp_conf="/tmp/datakit.conf.tmp"
+    local temp_conf="/tmp/datakit.conf.tmp"
     
     # 使用yj将更新后的JSON转换回TOML格式
     if ! echo "$current_config" | yj -jt > "$temp_conf"; then
@@ -157,7 +157,7 @@ configure_datakit_main_config() {
     fi
     
     # 替换原配置文件
-    # mv "$temp_conf" "$datakit_conf"
+    mv "$temp_conf" "$datakit_conf"
     
     # 验证配置是否正确
     if ! read_toml_config "$datakit_conf" >/dev/null; then
@@ -176,10 +176,10 @@ configure_datakit_inputs() {
     
     local conf_dir="/usr/local/datakit/conf.d"
     
-    # Prometheus配置
-    if [ -f "$conf_dir/prom/prom_node_exporter.conf" ]; then
-        cp "$conf_dir/prom/prom_node_exporter.conf" "$conf_dir/prom/prom_node_exporter.conf.backup.$Date"
-    fi
+    # # Prometheus配置
+    # if [ -f "$conf_dir/prom/prom_node_exporter.conf" ]; then
+    #     cp "$conf_dir/prom/prom_node_exporter.conf" "$conf_dir/prom/prom_node_exporter.conf.backup.$Date"
+    # fi
     
     cat > "$conf_dir/prom/prom_node_exporter.conf" << 'EOF'
 # {"version": "1.78.0", "desc": "do NOT edit this line"}
@@ -239,10 +239,10 @@ configure_datakit_inputs() {
   # timeout = "30s"
 EOF
 
-    # OpenTelemetry配置
-    if [ -f "$conf_dir/opentelemetry/opentelemetry.conf" ]; then
-        cp "$conf_dir/opentelemetry/opentelemetry.conf" "$conf_dir/opentelemetry/opentelemetry.conf.backup.$Date"
-    fi
+    # # OpenTelemetry配置
+    # if [ -f "$conf_dir/opentelemetry/opentelemetry.conf" ]; then
+    #     cp "$conf_dir/opentelemetry/opentelemetry.conf" "$conf_dir/opentelemetry/opentelemetry.conf.backup.$Date"
+    # fi
     
     cat > "$conf_dir/opentelemetry/opentelemetry.conf" << 'EOF'
 # {"version": "1.78.0", "desc": "do NOT edit this line"}
@@ -260,10 +260,10 @@ EOF
    addr = "0.0.0.0:4317"
 EOF
 
-    # 日志配置
-    if [ -f "$conf_dir/log/logging.conf" ]; then
-        cp "$conf_dir/log/logging.conf" "$conf_dir/log/logging.conf.backup.$Date"
-    fi
+    # # 日志配置
+    # if [ -f "$conf_dir/log/logging.conf" ]; then
+    #     cp "$conf_dir/log/logging.conf" "$conf_dir/log/logging.conf.backup.$Date"
+    # fi
     
     cat > "$conf_dir/log/logging.conf" << 'EOF'
 [[inputs.logging]]
@@ -303,10 +303,10 @@ EOF
   [inputs.logging.tags]
 EOF
 
-    # Pushgateway配置
-    if [ -f "$conf_dir/pushgateway/pushgateway.conf" ]; then
-        cp "$conf_dir/pushgateway/pushgateway.conf" "$conf_dir/pushgateway/pushgateway.conf.backup.$Date"
-    fi
+    # # Pushgateway配置
+    # if [ -f "$conf_dir/pushgateway/pushgateway.conf" ]; then
+    #     cp "$conf_dir/pushgateway/pushgateway.conf" "$conf_dir/pushgateway/pushgateway.conf.backup.$Date"
+    # fi
     
     cat > "$conf_dir/pushgateway/pushgateway.conf" << 'EOF'
 [[inputs.pushgateway]]

@@ -142,10 +142,10 @@ update_datakit_config() {
 upgrade_datakit() {
     log_info "升级Datakit..."
     
-    # 备份当前版本
-    if [[ -f "/usr/local/datakit/datakit" ]]; then
-        cp /usr/local/datakit/datakit /usr/local/datakit/datakit.backup
-    fi
+    # # 备份当前版本
+    # if [[ -f "/usr/local/datakit/datakit" ]]; then
+    #     cp /usr/local/datakit/datakit /usr/local/datakit/datakit.backup
+    # fi
     
     # 安装新版本
     if command -v install_datakit >/dev/null 2>&1; then

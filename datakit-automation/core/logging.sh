@@ -182,7 +182,7 @@ get_execution_start_time() {
 cleanup_old_logs() {
     local log_dir=$(dirname "$LOG_FILE")
     local base_name=$(basename "$LOG_FILE" | cut -d. -f1)
-    local retention_days="${LOG_RETENTION_DAYS:-3}"
+    local retention_days="${LOG_RETENTION_DAYS:-0}"
 
     log_info "开始清理 $retention_days 天前的日志文件" "log_cleanup"
 

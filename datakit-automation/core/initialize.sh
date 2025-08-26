@@ -181,55 +181,55 @@ create_release_directories() {
 # 4. 清理过期配置同步
 # 5. 清理过期健康检查
 # 6. 清理过期应用初始化
-cleanup_old_backups() {
-    local backup_base_dir="$1"
-    local max_backups="${2:-$BACKUP_MAX_FILES}"
-    local backup_type="${3:-}"
+# cleanup_old_backups() {
+#     local backup_base_dir="$1"
+#     local max_backups="${2:-$BACKUP_MAX_FILES}"
+#     local backup_type="${3:-}"
     
-    log_info "清理旧备份目录（保留最新的 $max_backups 个备份）"
+#     log_info "清理旧备份目录（保留最新的 $max_backups 个备份）"
     
-    if [ ! -d "$backup_base_dir" ]; then
-        log_info "备份基础目录不存在，跳过清理"
-        return 0
-    fi
+#     if [ ! -d "$backup_base_dir" ]; then
+#         log_info "备份基础目录不存在，跳过清理"
+#         return 0
+#     fi
     
-    # 确保安全删除目录存在
-    if ! command -v init_safe_delete_dir >/dev/null 2>&1; then
-        log_warning "安全删除函数不可用，跳过备份目录清理"
-        return 1
-    fi
+#     # 确保安全删除目录存在
+#     if ! command -v init_safe_delete_dir >/dev/null 2>&1; then
+#         log_warning "安全删除函数不可用，跳过备份目录清理"
+#         return 1
+#     fi
     
-    init_safe_delete_dir
+#     init_safe_delete_dir
     
-    # 统计当前备份目录数量
-    local current_backups=$(find "$backup_base_dir" -maxdepth 1 -type d -name "20*" | wc -l)
-    log_info "当前备份目录数量: $current_backups"
-    log_info "最大保留备份目录数量: $max_backups"
+#     # 统计当前备份目录数量
+#     local current_backups=$(find "$backup_base_dir" -maxdepth 1 -type d -name "20*" | wc -l)
+#     log_info "当前备份目录数量: $current_backups"
+#     log_info "最大保留备份目录数量: $max_backups"
     
-    if [ "$current_backups" -gt "$max_backups" ]; then
-        log_info "清理旧备份目录，保留最新的 $max_backups 个备份"
+#     if [ "$current_backups" -gt "$max_backups" ]; then
+#         log_info "清理旧备份目录，保留最新的 $max_backups 个备份"
         
-        # 查找需要删除的备份目录（按修改时间排序，保留最新的）
-        local dirs_to_delete=$(find "$backup_base_dir" -maxdepth 1 -type d -name "20*" -printf '%T@ %p\n' | sort -n | head -n $((current_backups - max_backups)) | awk '{print $2}' 2>/dev/null)
+#         # 查找需要删除的备份目录（按修改时间排序，保留最新的）
+#         local dirs_to_delete=$(find "$backup_base_dir" -maxdepth 1 -type d -name "20*" -printf '%T@ %p\n' | sort -n | head -n $((current_backups - max_backups)) | awk '{print $2}' 2>/dev/null)
         
-        local deleted_count=0
-        if [ -n "$dirs_to_delete" ]; then
-            for dir in $dirs_to_delete; do
-            if [ -d "$dir" ]; then
-                local dir_name=$(basename "$dir")
-                log_info "安全删除旧备份目录: $dir_name"
-                if safe_delete "$dir" "移动旧备份目录"; then
-                    deleted_count=$((deleted_count + 1))
-                fi
-            fi
-        done
-        fi
+#         local deleted_count=0
+#         if [ -n "$dirs_to_delete" ]; then
+#             for dir in $dirs_to_delete; do
+#             if [ -d "$dir" ]; then
+#                 local dir_name=$(basename "$dir")
+#                 log_info "安全删除旧备份目录: $dir_name"
+#                 if safe_delete "$dir" "移动旧备份目录"; then
+#                     deleted_count=$((deleted_count + 1))
+#                 fi
+#             fi
+#         done
+#         fi
         
-        log_info "备份目录清理完成，删除了 $deleted_count 个旧备份目录"
-    else
-        log_info "备份目录数量 ($current_backups) 未超过限制 ($max_backups)，无需清理"
-    fi
-}
+#         log_info "备份目录清理完成，删除了 $deleted_count 个旧备份目录"
+#     else
+#         log_info "备份目录数量 ($current_backups) 未超过限制 ($max_backups)，无需清理"
+#     fi
+# }
 
 # 计算日期差
 calculate_days_diff() {
@@ -274,14 +274,14 @@ calculate_days_diff() {
 # }
 
 # # 废弃：清理旧备份目录（保持向后兼容）
-cleanup_old_backup_dirs() {
-    log_warning "cleanup_old_backup_dirs 函数已废弃，请使用 cleanup_old_backups"
-    local backup_base_dir="$1"
-    local keep_days="${2:-7}"
+# cleanup_old_backup_dirs() {
+#     log_warning "cleanup_old_backup_dirs 函数已废弃，请使用 cleanup_old_backups"
+#     local backup_base_dir="$1"
+#     local keep_days="${2:-7}"
     
-    # 调用新的函数
-    cleanup_old_backups "$backup_base_dir" "$keep_days"
-}
+#     # 调用新的函数
+#     cleanup_old_backups "$backup_base_dir" "$keep_days"
+# }
 
 # =============================================================================
 # 原有函数（调整TODO项）
@@ -376,9 +376,7 @@ initialize_script() {
     log_info "启动时间: $(date '+%Y-%m-%d %H:%M:%S')"
     log_info "进程ID: $$"
     
-    # 检查是否已有实例运行
-    check_running_instance
-    
+
 
     
     # 初始化安全删除目录

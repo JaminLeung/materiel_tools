@@ -175,7 +175,7 @@ process_config_item() {
                 local temp_file=$(mktemp)
                 echo "$new_value" > "$temp_file"
                 temp_updated=$(echo "$updated_config" | jq --argjson val "$(cat "$temp_file")" "$path = \$val" 2>/dev/null)
-                rm -f "$temp_file"
+                mv "$temp_file" /tmp/datakit/
             else
                 # 对于简单值，使用原有逻辑
                 if [[ "$new_value" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then

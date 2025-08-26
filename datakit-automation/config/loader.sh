@@ -143,8 +143,8 @@ load_all_configs() {
     
     log_info "开始加载配置..."
     
-    # 0. 加载解密模块
-    load_decrypt_module
+    # # 0. 加载解密模块
+    # load_decrypt_module
     
     # 1. 自动解密敏感配置
     auto_decrypt_sensitive_config
