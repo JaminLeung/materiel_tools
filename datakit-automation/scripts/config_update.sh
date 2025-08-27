@@ -47,13 +47,13 @@ handle_global_config() {
     handle_dataway_config
     
     local global_config
-    global_config=$(echo "$DATAKIT_CONFIG" | jq '.global_config // empty' 2>/dev/null) || return 0
+    global_config=$(echo "$DATAKIT_CONFIG" | jq '.global_config // empty' 2>/dev/null) 
     
-    [ -n "$global_config" ] && [ "$global_config" != "null" ] || return 0
+
     
     local enabled_count
     enabled_count=$(echo "$global_config" | jq '[.[] | select(.enable == true)] | length' 2>/dev/null)
-    [ "$enabled_count" -gt 0 ] || return 0
+    
     
     log_info "发现 $enabled_count 个启用的全局配置项"
     
@@ -639,12 +639,6 @@ main() {
     }
     
     response_body=$(get_global_state "RESPONSE_BODY")
-
-    #将response_body 写入到runtime/backup
-    if [ ! -d "$RUNTIME_DIR/backup" ]; then
-        mkdir -p "$RUNTIME_DIR/backup"
-    fi
-    echo "$response_body" > "$RUNTIME_DIR/backup/config_update.json"
 
     # 从全局状态获取DATAKIT_CONFIG
     local datakit_config

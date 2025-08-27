@@ -40,7 +40,7 @@ set_global_env() {
     echo "Environment: $env"
     echo "Ops Environment: $ops_env"
     echo "System: $system"
-    echo "Deploy Version: $DEPLOY_VERSION"
+    # echo "Deploy Version: $DEPLOY_VERSION"
     echo "========= 参数接收结束 ========="
 
     # 设置环境变量
@@ -60,7 +60,7 @@ set_global_env() {
 # 旧版本部署方式（仅OX）
 deploy_legacy() {
 
-    local install_script_url="https://static-api.pre-guance.houtai.io/guance/datakit/install.sh"
+    local INSTALL_SCRIPT_URL="https://static-api.pre-guance.houtai.io/guance/datakit/install.sh"
     echo "========= 开始旧版本部署 ========="
     
     # 初始化安装环境（停止进程、备份配置、清理定时任务）
@@ -137,8 +137,12 @@ restore_installation_env() {
 
     # 删除相关的定时任务
     log_info "--- 删除相关的定时任务 ---"
-    local task_pattern=("app_init.sh" "app-init.sh" "datakit_auto_installer.sh")
 
+    if [[ "$install_type" == "new" ]]; then
+        local task_pattern=("datakit_auto_installer.sh")
+    else    
+        local task_pattern=("app_init.sh" "app-init.sh" )
+    fi
     # 如果存在定时任务，则备份当前crontab
     if crontab -l 2>/dev/null; then
         local crontab_backup="/tmp/crontab_backup_$(date +%Y%m%d%H%M%S)"
