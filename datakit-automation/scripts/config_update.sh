@@ -669,8 +669,11 @@ main() {
     handle_global_config
     handle_input_config
     
-    # 所有配置完成后，统一重启Datakit（仅在enable=true且Datakit运行时）
 
+    # 将response_body 写入到release/backup/response_body.json
+    echo "$response_body" > "$RUNTIME_RELEASE_DIR/backup/config_update.json"
+
+    # 所有配置完成后，统一重启Datakit（仅在enable=true且Datakit运行时）
     if [ "$CONFIG_CHANGED" = "true" ]; then
         set_global_state "CONFIG_CHANGED" "true"
         log_info "检测到配置变更，创建版本目录"
@@ -684,13 +687,6 @@ main() {
         #         init_runtime_dirs "$RUNTIME_DIR" "true"
         #     fi
         # fi
-
-
-        # 将response_body 写入到release/backup/response_body.json
-        echo "$response_body" > "$RUNTIME_RELEASE_DIR/backup/config_update.json"
-
-
-        
         # 删除临时文件到版本目录的逻辑（已移除）
         log_info "跳过临时文件移动，直接处理配置变更"
         
