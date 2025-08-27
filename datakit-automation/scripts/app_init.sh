@@ -305,6 +305,15 @@ process_metrics() {
         local metrics_content
         metrics_content=$(echo "{\"inputs\": {\"prom\": [$metrics]}}" | jq -r ".")
         
+        log_info "metrics_content: $metrics_content"
+
+        # 如果.inputs.prom[0].interval" 值没有带单位，则添加单位
+        if ! echo "$metrics_content" | jq -r ".inputs.prom[0].interval" 2>/dev/null | grep -q "s"; then
+            local current_interval=$(echo "$metrics_content" | jq -r ".inputs.prom[0].interval" 2>/dev/null)
+            metrics_content=$(echo "$metrics_content" | jq --arg interval "${current_interval}s" ".inputs.prom[0].interval = \$interval")
+        fi
+
+
         if ! echo "$metrics_content" | jq empty 2>/dev/null; then
             record_error "VALIDATION_ERROR" "指标配置内容不是有效的JSON格式" "ERROR"
             continue
@@ -347,6 +356,16 @@ process_health() {
         health_content=$(echo "{\"inputs\": {\"host_healthcheck\":[{\"interval\": \"1m\" ,\"http\": [$health]}]}}" | \
             jq -r '.inputs.host_healthcheck[0].tags = .inputs.host_healthcheck[0].http[0].tags' | \
             jq -r '.inputs.host_healthcheck[0].http[0].method = "GET"')
+        
+
+        log_info "health_content: $health_content"
+
+        # 如果.inputs.host_healthcheck[0].interval" 值没有带单位，则添加单位
+        if ! echo "$health_content" | jq -r ".inputs.host_healthcheck[0].interval" 2>/dev/null | grep -q "s"; then
+            local current_interval=$(echo "$health_content" | jq -r ".inputs.host_healthcheck[0].interval" 2>/dev/null)
+            health_content=$(echo "$health_content" | jq --arg interval "${current_interval}s" ".inputs.host_healthcheck[0].interval = \$interval")
+        fi
+
         
         if ! echo "$health_content" | jq empty 2>/dev/null; then
             record_error "VALIDATION_ERROR" "健康检查配置内容不是有效的JSON格式" "ERROR"
