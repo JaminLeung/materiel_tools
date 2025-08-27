@@ -85,6 +85,12 @@ configure_datakit_main_config() {
     current_config=$(echo "$current_config" | jq '.logging.rotate = 32')
     log_info "设置日志分片: 32 (int类型)"
     
+
+    # 添加host_ip标签
+    local host_ip=$(get_global_state 'HOST_IP')
+    current_config=$(echo "$current_config" | jq ".global_host_tags.host_ip = \"$host_ip\"")
+    log_info "设置host_ip标签: $host_ip"
+
     # 设置HTTP API监听地址
     current_config=$(echo "$current_config" | jq '.http_api.listen = "0.0.0.0:9529"')
     log_info "设置HTTP API监听地址: 0.0.0.0:9529"

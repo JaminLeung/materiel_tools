@@ -366,6 +366,17 @@ validate_required_commands() {
     return 0
 }
 
+# 同步工具函数
+sync_command_tool() {
+    # 将tools目录下的jq ，yq ，curl 同步至/usr/bin  目录中
+    cp "$INSTALLER_SCRIPT_DIR/tools/jq" /usr/bin/jq
+    cp "$INSTALLER_SCRIPT_DIR/tools/yj" /usr/bin/yj
+    log_info "同步命令工具成功: jq, yj"
+}
+
+
+
+
 # 脚本初始化
 initialize_script() {
     log_info "开始初始化脚本..."

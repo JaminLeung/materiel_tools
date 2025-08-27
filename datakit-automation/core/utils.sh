@@ -27,6 +27,191 @@ load_module "initialize" "$CORE_SCRIPT_DIR/initialize.sh"
 
 
 
+# 设置全局环境变量（仅OX版本）
+set_global_env() {
+    local code=${GLOBAL_CODE:-"ox"}
+    local env=${GLOBAL_ENV:-"pre"}
+    local ops_env=${GLOBAL_OPS_ENV:-"test"}
+    local system=${GLOBAL_SYSTEM:-"system"}
+    
+    # 打印日志
+    echo "========= 参数接收开始 ========="
+    echo "Code: $code"
+    echo "Environment: $env"
+    echo "Ops Environment: $ops_env"
+    echo "System: $system"
+    echo "Deploy Version: $DEPLOY_VERSION"
+    echo "========= 参数接收结束 ========="
+
+    # 设置环境变量
+    export GLOBAL_CODE="$code"
+    export GLOBAL_ENV="$env"
+    export GLOBAL_OPS_ENV="$ops_env"
+    export GLOBAL_SYSTEM="$system"
+
+    echo "已设置以下环境变量："
+    echo "GLOBAL_CODE=$GLOBAL_CODE"
+    echo "GLOBAL_ENV=$GLOBAL_ENV"
+    echo "GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV"
+    echo "GLOBAL_SYSTEM=$GLOBAL_SYSTEM"
+}
+
+
+# 旧版本部署方式（仅OX）
+deploy_legacy() {
+
+    local install_script_url="https://static-api.pre-guance.houtai.io/guance/datakit/install.sh"
+    echo "========= 开始旧版本部署 ========="
+    
+    # 初始化安装环境（停止进程、备份配置、清理定时任务）
+    restore_installation_env "legacy"
+
+
+    # 下载安装脚本
+    echo "正在下载安装脚本：$INSTALL_SCRIPT_URL..."
+    wget -q "$INSTALL_SCRIPT_URL" -O install.sh
+
+    # 检查下载是否成功
+    if [[ $? -ne 0 ]]; then
+        echo "错误: 无法下载安装脚本，请检查网络连接或 URL 是否正确。"
+        return 2
+    fi
+
+    echo "安装脚本下载完成。"
+
+    # 修改脚本权限
+    chmod +x install.sh
+
+    # 执行安装脚本
+    echo "正在执行安装脚本..."
+    ./install.sh
+
+    # 检查 install.sh 是否执行成功
+    if [[ $? -eq 0 ]]; then
+        echo "旧版本安装成功！"
+        return 0
+    else
+        echo "旧版本安装失败，请检查日志了解详情。"
+        return 3
+    fi
+}
+
+
+
+# 还原安装环境函数
+restore_installation_env() {
+    local install_type="$1"
+    
+    # 设置默认安装类型
+    if [[ -z "$install_type" ]]; then
+        install_type="unknown"
+    fi
+    
+    log_info "========= 开始还原安装环境 ========="
+    
+    # 检查datakit进程是否存在
+    log_info "--- 停止datakit进程 ---"
+    if pgrep -f "datakit" > /dev/null; then
+        log_info "datakit进程已存在，进行停止datakit操作"
+
+        # 停止datakit进程
+        if systemctl stop datakit; then
+            log_info "datakit进程已停止"
+        else
+            log_info "datakit进程停止失败，请手动停止"
+        fi
+    else
+        log_info "datakit进程不存在，跳过停止操作"
+    fi
+
+    # 备份datakit配置文件
+    log_info "备份datakit配置文件"
+    if [ -d "/usr/local/datakit/conf.d" ]; then
+        log_info "备份datakit配置文件"
+        local backup_name="datakit_${install_type}_backup_$(date +%Y%m%d%H%M%S)"
+        mv "/usr/local/datakit/conf.d" "/tmp/$backup_name"
+        log_info "配置文件已备份到: /tmp/$backup_name"
+    else
+        log_info "datakit配置文件不存在，跳过备份"
+    fi
+
+    # 删除相关的定时任务
+    log_info "--- 删除相关的定时任务 ---"
+    local task_pattern=("app_init.sh" "app-init.sh" "datakit_auto_installer.sh")
+
+    # 如果存在定时任务，则备份当前crontab
+    if crontab -l 2>/dev/null; then
+        local crontab_backup="/tmp/crontab_backup_$(date +%Y%m%d%H%M%S)"
+        log_info "crontab_backup 路径: $crontab_backup"
+        crontab -l > "$crontab_backup" 2>/dev/null
+        log_info "crontab已备份到: $crontab_backup"
+    else
+        log_info "未发现相关定时任务，跳过备份"
+    fi
+    
+    # 获取当前crontab内容
+    local current_crontab=$(crontab -l 2>/dev/null)
+    local has_deleted=false
+    
+    if [[ -n "$current_crontab" ]]; then
+        # 构建过滤后的crontab内容
+        local filtered_crontab=""
+        
+        while IFS= read -r line; do
+            local should_keep=true
+            
+            # 跳过空行和注释行
+            if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+                if [[ -n "$filtered_crontab" ]]; then
+                    filtered_crontab="$filtered_crontab"$'\n'"$line"
+                else
+                    filtered_crontab="$line"
+                fi
+                continue
+            fi
+            
+            # 检查当前行是否匹配任何任务模式
+            for task in "${task_pattern[@]}"; do
+                if echo "$line" | grep -q "$task"; then
+                    log_info "发现匹配的定时任务: $line"
+                    should_keep=false
+                    has_deleted=true
+                    break
+                fi
+            done
+            
+            # 如果应该保留，添加到过滤后的内容
+            if [[ "$should_keep" == "true" ]]; then
+                if [[ -n "$filtered_crontab" ]]; then
+                    filtered_crontab="$filtered_crontab"$'\n'"$line"
+                else
+                    filtered_crontab="$line"
+                fi
+            fi
+        done <<< "$current_crontab"
+        
+        # 如果有删除操作，更新crontab
+        if [[ "$has_deleted" == "true" ]]; then
+            log_info "正在更新crontab..."
+            if [[ -n "$filtered_crontab" ]]; then
+                echo "$filtered_crontab" | crontab -
+                log_info "定时任务删除完成，保留了 $(echo "$filtered_crontab" | grep -v '^[[:space:]]*#' | grep -v '^$' | wc -l) 个有效任务"
+            else
+                crontab -r 2>/dev/null
+                log_info "定时任务删除完成，所有任务已清空"
+            fi
+        else
+            log_info "未发现匹配的定时任务，无需删除"
+        fi
+    else
+        log_info "当前没有定时任务，无需删除"
+    fi
+    
+    log_info "========= 还原安装环境完成 ========="
+}
+
+
+
 # Dataway批量日志上报函数
 dataway_log_batch() {
     local level="$1"
@@ -137,7 +322,6 @@ EOF
             -H "Content-Type: application/json" \
             -d "$batch_data" >/dev/null 2>&1; then
             success_count=$((success_count + current_batch_size))
-            log_info "批次 $batch_count 上报成功: $current_batch_size 条消息"
         else
             fail_count=$((fail_count + current_batch_size))
             log_warning "批次 $batch_count 上报失败: $current_batch_size 条消息"

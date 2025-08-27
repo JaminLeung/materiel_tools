@@ -248,63 +248,53 @@ cleanup_on_exit() {
     local success_count=0
     local total_steps=0
     
-    # # 1. 清理临时文件
-    # total_steps=$((total_steps + 1))
-    # if command -v cleanup_temp_files >/dev/null 2>&1; then
-    #     log_info "执行清理步骤: 清理临时文件"
-    #     if cleanup_temp_files; then
-    #         log_info "清理步骤成功: 清理临时文件"
-    #         success_count=$((success_count + 1))
-    #     else
-    #         log_warning "清理步骤失败: 清理临时文件"
-    #     fi
-    # else
-    #     log_debug "跳过不存在的清理函数: cleanup_temp_files"
-    # fi
     
-    # 2. 清理日志文件
-    total_steps=$((total_steps + 1))
-    if command -v cleanup_log_files >/dev/null 2>&1; then
-        log_info "执行清理步骤: 清理日志文件"
-        if cleanup_log_files; then
-            log_info "清理步骤成功: 清理日志文件"
-            success_count=$((success_count + 1))
+ 
+    if [ "$(get_global_state "command")" != "clean-install" ]; then
+        total_steps=$((total_steps + 1))
+        if command -v cleanup_log_files >/dev/null 2>&1; then
+            log_info "执行清理步骤: 清理日志文件"
+            if cleanup_log_files; then
+                log_info "清理步骤成功: 清理日志文件"
+                success_count=$((success_count + 1))
+            else
+                log_warning "清理步骤失败: 清理日志文件"
+            fi
         else
-            log_warning "清理步骤失败: 清理日志文件"
+            log_debug "跳过不存在的清理函数: cleanup_log_files"
+        fi
+        
+        total_steps=$((total_steps + 1))
+        if command -v cleanup_old_runtime_releases >/dev/null 2>&1; then
+            log_info "执行清理步骤: 清理旧Runtime版本目录"
+            if cleanup_old_runtime_releases "$max_releases" "$script_type"; then
+                log_info "清理步骤成功: 清理旧Runtime版本目录"
+                success_count=$((success_count + 1))
+            else
+                log_warning "清理步骤失败: 清理旧Runtime版本目录"
+            fi
+        else
+            log_debug "跳过不存在的清理函数: cleanup_old_runtime_releases"
+        fi
+
+        total_steps=$((total_steps + 1))
+        if command -v backup_log_files_to_release >/dev/null 2>&1; then
+            log_info "执行清理步骤: 备份日志文件到版本目录"
+            if backup_log_files_to_release; then
+                log_info "清理步骤成功: 备份日志文件到版本目录"
+                success_count=$((success_count + 1))
+            else
+                log_warning "清理步骤失败: 备份日志文件到版本目录"
+            fi
+        else
+            log_debug "跳过不存在的清理函数: backup_log_files_to_release"
         fi
     else
-        log_debug "跳过不存在的清理函数: cleanup_log_files"
+        log_info "跳过清理日志文件"
     fi
+
     
-    # 3. 清理旧Runtime版本目录
-    total_steps=$((total_steps + 1))
-    if command -v cleanup_old_runtime_releases >/dev/null 2>&1; then
-        log_info "执行清理步骤: 清理旧Runtime版本目录"
-        if cleanup_old_runtime_releases "$max_releases" "$script_type"; then
-            log_info "清理步骤成功: 清理旧Runtime版本目录"
-            success_count=$((success_count + 1))
-        else
-            log_warning "清理步骤失败: 清理旧Runtime版本目录"
-        fi
-    else
-        log_debug "跳过不存在的清理函数: cleanup_old_runtime_releases"
-    fi
     
-    # # 4. 清理过期日志文件（安全版本）
-    # total_steps=$((total_steps + 1))
-    # if command -v cleanup_expired_logs_safe >/dev/null 2>&1; then
-    #     log_info "执行清理步骤: 清理过期日志文件"
-    #     if cleanup_expired_logs_safe "$script_type"; then
-    #         log_info "清理步骤成功: 清理过期日志文件"
-    #         success_count=$((success_count + 1))
-    #     else
-    #         log_warning "清理步骤失败: 清理过期日志文件"
-    #     fi
-    # else
-    #     log_debug "跳过不存在的清理函数: cleanup_expired_logs_safe"
-    # fi
-    
-    # 5. 清理安全删除目录
     total_steps=$((total_steps + 1))
     if command -v cleanup_safe_delete_dir >/dev/null 2>&1; then
         log_info "执行清理步骤: 清理安全删除目录"
@@ -318,21 +308,7 @@ cleanup_on_exit() {
         log_debug "跳过不存在的清理函数: cleanup_safe_delete_dir"
     fi
     
-    # 6. 备份日志文件到版本目录
-    total_steps=$((total_steps + 1))
-    if command -v backup_log_files_to_release >/dev/null 2>&1; then
-        log_info "执行清理步骤: 备份日志文件到版本目录"
-        if backup_log_files_to_release; then
-            log_info "清理步骤成功: 备份日志文件到版本目录"
-            success_count=$((success_count + 1))
-        else
-            log_warning "清理步骤失败: 备份日志文件到版本目录"
-        fi
-    else
-        log_debug "跳过不存在的清理函数: backup_log_files_to_release"
-    fi
-    
-    # 7. 上传日志到Dataway
+
     total_steps=$((total_steps + 1))
     if command -v upload_log_to_dataway >/dev/null 2>&1; then
         log_info "执行清理步骤: 上传日志到Dataway"

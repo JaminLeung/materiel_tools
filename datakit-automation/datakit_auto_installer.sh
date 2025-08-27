@@ -16,6 +16,9 @@ readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 declare -A GLOBAL_STATE
 
+
+
+
 # 设置全局状态
 set_global_state() {
     local key="$1"
@@ -31,6 +34,7 @@ get_global_state() {
 
 # TODO[done] 定时任务修改 ENV 
 DATAKIT_ENV="${DATAKIT_ENV:-dev}"
+
 
 
 
@@ -75,8 +79,8 @@ initialize_installer() {
         fi
     fi
     
-
-
+    # 同步命令工具
+    sync_command_tool
 
     # 执行初始化脚本
     initialize_script
@@ -108,6 +112,7 @@ Datakit 版本 v$DATAKIT_VERSION
     config-update           配置同步 - Datakit服务控制和配置管理
     health-check          健康检查 - 检查Datakit健康状态并自动重启
     version               查看版本 - 查看Datakit安装器版本、Datakit版本
+    clean-install         清理安装环境 - 清理Datakit安装环境
 
 配置方式:
     1. 环境变量 (推荐):
@@ -142,12 +147,14 @@ EOF
 }
 
 # 主函数
-main() {
-
+main() {    
     local env_config_file=""
     local command=""
-    # sleep 100
+    local IS_OLD_VERSION=${IS_OLD_VERSION:-"false"}
+    
     set_global_state "RELEASE_ID" "datakit_auto_installer_$(date +%Y%m%d_%H%M%S)"
+
+
 
     # 解析命令行参数
     while [[ $# -gt 0 ]]; do
@@ -179,7 +186,7 @@ main() {
                 echo "Datakit版本: $DATAKIT_VERSION"
                 exit 0
                 ;;
-            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|config-update|health-check)
+            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|config-update|health-check|clean-install)
                 command="$1"
                 shift
                 ;;
@@ -190,7 +197,9 @@ main() {
                 ;;
         esac
     done
-    
+
+
+
     # 检查命令
     if [[ -z "$command" ]]; then
         show_help
@@ -204,6 +213,13 @@ main() {
     # echo "env_config_file: $env_config_file"
     # load_config "$env_config_file"
     
+    # 判断是否是旧版本
+    if [ "$IS_OLD_VERSION" == "true" ]; then
+        log_info "执行旧版本重新部署方式"
+        wget -qO- https://static-api.pre-guance.houtai.io/guance/datakit/datakit_install.sh | sudo bash
+        exit 0
+    fi
+
     # 初始化安装器
     initialize_installer
 
@@ -246,6 +262,9 @@ main() {
             ;;
         health-check)
             execute_health_check
+            ;;
+        clean-install)
+            restore_installation_env "new"
             ;;
         *)
             echo "[ERROR] 未知命令: $command" >&2
@@ -324,22 +343,48 @@ execute_version_upgrade() {
 # 重装场景
 execute_reinstall() {
     log_info "=== 执行重装场景 ==="
-    log_info "场景描述: 完全重新安装Datakit"
-    
-    # 调用scenarios目录下的重装脚本
-    local scenario_script="$INSTALLER_SCRIPT_DIR/scenarios/reinstall.sh"
-    
-    if [[ -f "$scenario_script" ]]; then
-        log_info "调用重装场景脚本: $scenario_script"
-        
-        # 传递配置信息给场景脚本
-        export DATAKIT_CONFIG_FILE="$env_config_file"
-        
-        # 执行场景脚本
-        source "$scenario_script"
-    else
-        handle_error "FILE_ERROR" "重装场景脚本不存在: $scenario_script" "CRITICAL" "true"
-    fi
+    log_info "场景描述: 完全重新安装Datakit, 支持新旧版本"
+    log_info "新版本部署方式: 执行存量安装场景"
+    log_info "旧版本部署方式: 执行旧版本重新部署方式"
+
+    local DATAKIT_AUTO_INSTALLER_TYPE=${DATAKIT_AUTO_INSTALLER_TYPE:-new}
+
+    case "$DATAKIT_AUTO_INSTALLER_TYPE" in
+        new)
+            # 执行旧版本部署方式
+            log_info "执行新版本重新部署方式"
+            
+            log_info "还原安装环境"
+            restore_installation_env "new"
+
+            log_info "执行新版本重新部署脚本，执行存量安装场景"
+            execute_existing_installation
+            
+            exit_code=$?
+            log_info "新版本重新部署方式完成"
+            ;;
+        old)            
+            # 旧版本需要4个必需参数
+            log_info "执行旧版本重新部署方式"
+
+            # 设置环境变量
+            log_info "设置OX环境变量"
+            set_global_env 
+
+            log_info "还原安装环境"
+            restore_installation_env "legacy"
+
+
+            log_info "执行旧版本重新部署脚本"
+            deploy_legacy
+            exit_code=$?
+            log_info "旧版本重新部署方式完成"
+            ;;
+        *)
+            handle_error "COMMAND_ERROR" "未知命令: $command" "CRITICAL" "true"
+            ;;
+    esac
+
 }
 
 # 设置定时任务场景

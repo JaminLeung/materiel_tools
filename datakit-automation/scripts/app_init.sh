@@ -147,10 +147,10 @@ process_config_item() {
     local compare_paths=()
     case "$config_type" in
         "logging")
-            compare_paths=(".inputs.logging[0].tags" ".inputs.logging[0].logfiles" ".inputs.logging[0].source" ".inputs.logging[0].service")
+            compare_paths=(".inputs.logging[0].tags" ".inputs.logging[0].logfiles" ".inputs.logging[0].source" ".inputs.logging[0].service" )
             ;;
         "metrics")
-            compare_paths=(".inputs.prom[0].urls" ".inputs.prom[0].interval" ".inputs.prom[0].tags")
+            compare_paths=(".inputs.prom[0].urls" ".inputs.prom[0].interval" ".inputs.prom[0].tags" ".inputs.prom[0].source" ".inputs.prom[0].measurement_name" ".inputs.prom[0].service")
             ;;
         "health")
             compare_paths=(".inputs.host_healthcheck[0].http[0].url" ".inputs.host_healthcheck[0].interval" ".inputs.host_healthcheck[0].tags")
@@ -313,6 +313,8 @@ process_metrics() {
         # 构建目标文件路径
         local target_file="${APP_INIT_METRICS_DIR}/${service_name}_metrics_auto.conf"
         
+
+        log_info "metrics_content: $metrics_content"
         # 直接处理配置项
         process_config_item "$service_name" "metrics" "$metrics_content" "$target_file"
     done

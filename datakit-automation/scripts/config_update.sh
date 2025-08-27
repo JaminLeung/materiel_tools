@@ -687,10 +687,7 @@ main() {
 
 
         # 将response_body 写入到release/backup/response_body.json
-        if [ ! -d "$RUNTIME_RELEASE_DIR/backup/config_update" ]; then
-            mkdir -p "$RUNTIME_RELEASE_DIR/backup/config_update"
-        fi
-        echo "$response_body" > "$RUNTIME_RELEASE_DIR/backup/config_update/response_body.json"
+        echo "$response_body" > "$RUNTIME_RELEASE_DIR/backup/config_update.json"
 
 
         
