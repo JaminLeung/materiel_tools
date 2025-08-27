@@ -36,7 +36,7 @@ check_running_instance() {
     if [[ " ${skip_command_list[@]} " =~ " $command " ]]; then
         # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
         if [ $(pgrep -f "datakit_auto_installer.sh" | grep -v $$ | wc -l) -gt 1 ]; then
-            handle_error "COMMAND_ERROR" "命令正在执行中，请勿重复执行" "WARNING" "true"
+            handle_error "COMMAND_ERROR" "当前存在主函数正在执行（$command），跳过任务" "WARNING" "true"
         fi
 
         if [[ "$command" == "app-init" ]]; then

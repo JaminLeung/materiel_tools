@@ -25,6 +25,7 @@ backup/
 datakit-automation/config/env/*.sh
 datakit-automation/config/scripts/*.sh
 !datakit-automation/config/env/example.sh
+!datakit-automation/config/env/ox.sh
 !datakit-automation/config/scripts/*.sh
 datakit-automation/logs
 datakit-automation/runtime

@@ -9,7 +9,7 @@ set -euo pipefail
 # 脚本元信息
 readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
 readonly DATAKIT_VERSION="1.78.0"
-readonly INSTALLER_SCRIPT_VERSION="1.0.4"
+readonly INSTALLER_SCRIPT_VERSION="1.0.5"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 声明全局状态变量
