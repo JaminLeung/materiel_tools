@@ -27,7 +27,7 @@ configure_and_verify() {
     # 重启Datakit
     # TODO restart_datakit 提取单独封装
     if ! restart_datakit; then
-        handle_error "SERVICE_ERROR" "重启Datakit失败，回退配置" "ERROR" "false"
+        handle_error "SERVICE_ERROR" "重启Datakit失败" "ERROR" "false"
         
 
         # 1、获取 ops 配置，写到一个目录里
@@ -38,20 +38,20 @@ configure_and_verify() {
 
         # TODO 备份统一处理, 和初始化里的合并
         # 备份失败的配置文件
-        mv "$datakit_conf" "$datakit_conf.backup.$Date.failed"
+        # mv "$datakit_conf" "$datakit_conf.backup.$Date.failed"
 
-        # 还原回原来的配置文件
-        mv "$datakit_conf.backup.$Date" "$datakit_conf"
+        # # 还原回原来的配置文件
+        # mv "$datakit_conf.backup.$Date" "$datakit_conf"
 
-        # 重启Datakit
-        if ! restart_datakit; then
-            handle_error "SERVICE_ERROR" "重启Datakit失败" "ERROR" "false"
+        # # 重启Datakit
+        # if ! restart_datakit; then
+        #     handle_error "SERVICE_ERROR" "重启Datakit失败" "ERROR" "false"
             
-            return 1
-        else
-            log_info "配置回退成功"
-            return 0
-        fi
+        #     return 1
+        # else
+        #     log_info "配置回退成功"
+        #     return 0
+        # fi
 
         return 1
 
@@ -85,6 +85,12 @@ configure_datakit_main_config() {
     current_config=$(echo "$current_config" | jq '.logging.rotate = 32')
     log_info "设置日志分片: 32 (int类型)"
     
+
+    # 添加host_ip标签
+    local host_ip=$(get_global_state 'HOST_IP')
+    current_config=$(echo "$current_config" | jq ".global_host_tags.host_ip = \"$host_ip\"")
+    log_info "设置host_ip标签: $host_ip"
+
     # 设置HTTP API监听地址
     current_config=$(echo "$current_config" | jq '.http_api.listen = "0.0.0.0:9529"')
     log_info "设置HTTP API监听地址: 0.0.0.0:9529"
@@ -145,7 +151,7 @@ configure_datakit_main_config() {
     log_info "设置Dataway地址: $dataway_url"
     
     # 备份原配置文件
-    cp "$datakit_conf" "$datakit_conf.backup.$Date"
+    # cp "$datakit_conf" "$datakit_conf.backup.$Date"
     
     # 创建临时配置文件
     local temp_conf="/tmp/datakit.conf.tmp"
@@ -161,8 +167,8 @@ configure_datakit_main_config() {
     
     # 验证配置是否正确
     if ! read_toml_config "$datakit_conf" >/dev/null; then
-        handle_error "CONFIG_ERROR" "配置文件验证失败，恢复备份" "ERROR" "false"
-        mv "$datakit_conf.backup.$Date" "$datakit_conf"
+        handle_error "CONFIG_ERROR" "配置文件验证失败" "ERROR" "false"
+        # mv "$datakit_conf.backup.$Date" "$datakit_conf"
         return 1
     fi
     
@@ -176,10 +182,10 @@ configure_datakit_inputs() {
     
     local conf_dir="/usr/local/datakit/conf.d"
     
-    # Prometheus配置
-    if [ -f "$conf_dir/prom/prom_node_exporter.conf" ]; then
-        cp "$conf_dir/prom/prom_node_exporter.conf" "$conf_dir/prom/prom_node_exporter.conf.backup.$Date"
-    fi
+    # # Prometheus配置
+    # if [ -f "$conf_dir/prom/prom_node_exporter.conf" ]; then
+    #     cp "$conf_dir/prom/prom_node_exporter.conf" "$conf_dir/prom/prom_node_exporter.conf.backup.$Date"
+    # fi
     
     cat > "$conf_dir/prom/prom_node_exporter.conf" << 'EOF'
 # {"version": "1.78.0", "desc": "do NOT edit this line"}
@@ -239,10 +245,10 @@ configure_datakit_inputs() {
   # timeout = "30s"
 EOF
 
-    # OpenTelemetry配置
-    if [ -f "$conf_dir/opentelemetry/opentelemetry.conf" ]; then
-        cp "$conf_dir/opentelemetry/opentelemetry.conf" "$conf_dir/opentelemetry/opentelemetry.conf.backup.$Date"
-    fi
+    # # OpenTelemetry配置
+    # if [ -f "$conf_dir/opentelemetry/opentelemetry.conf" ]; then
+    #     cp "$conf_dir/opentelemetry/opentelemetry.conf" "$conf_dir/opentelemetry/opentelemetry.conf.backup.$Date"
+    # fi
     
     cat > "$conf_dir/opentelemetry/opentelemetry.conf" << 'EOF'
 # {"version": "1.78.0", "desc": "do NOT edit this line"}
@@ -260,10 +266,10 @@ EOF
    addr = "0.0.0.0:4317"
 EOF
 
-    # 日志配置
-    if [ -f "$conf_dir/log/logging.conf" ]; then
-        cp "$conf_dir/log/logging.conf" "$conf_dir/log/logging.conf.backup.$Date"
-    fi
+    # # 日志配置
+    # if [ -f "$conf_dir/log/logging.conf" ]; then
+    #     cp "$conf_dir/log/logging.conf" "$conf_dir/log/logging.conf.backup.$Date"
+    # fi
     
     cat > "$conf_dir/log/logging.conf" << 'EOF'
 [[inputs.logging]]
@@ -303,10 +309,10 @@ EOF
   [inputs.logging.tags]
 EOF
 
-    # Pushgateway配置
-    if [ -f "$conf_dir/pushgateway/pushgateway.conf" ]; then
-        cp "$conf_dir/pushgateway/pushgateway.conf" "$conf_dir/pushgateway/pushgateway.conf.backup.$Date"
-    fi
+    # # Pushgateway配置
+    # if [ -f "$conf_dir/pushgateway/pushgateway.conf" ]; then
+    #     cp "$conf_dir/pushgateway/pushgateway.conf" "$conf_dir/pushgateway/pushgateway.conf.backup.$Date"
+    # fi
     
     cat > "$conf_dir/pushgateway/pushgateway.conf" << 'EOF'
 [[inputs.pushgateway]]

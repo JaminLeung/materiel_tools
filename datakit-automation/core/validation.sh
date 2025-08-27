@@ -444,12 +444,7 @@ verify_ops_platform_info() {
         return 1
     fi
     
-    if [ -n "$workspace" ]; then
-        log_info "工作空间: $workspace"
-    else
-        log_error "工作空间信息未获取"
-        return 1
-    fi
+
     
     if [ -n "$dataway_url" ]; then
         log_info "Dataway地址已配置"

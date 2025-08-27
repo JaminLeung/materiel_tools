@@ -43,9 +43,9 @@ MOCK_SERVER_CONFIGS = {
             "enable": True,
             "global_config": [
                 {
-                    "key": "logging.level",
+                    "key": "logging.levellll",
                     "value": "info",
-                    "enable": True
+                    "enable": False
                 },
                                 {
                     "key": "http_api.request_rate_limit",

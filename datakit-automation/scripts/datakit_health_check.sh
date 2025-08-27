@@ -75,9 +75,7 @@ set_failure_count() {
     echo "$count" > "$HEALTH_CHECK_FAILURE_COUNT_FILE"
 }
 
-reset_failure_count() {
-    rm -f "$HEALTH_CHECK_FAILURE_COUNT_FILE"
-}
+
 
 # =============================================================================
 # Datakit健康检查函数

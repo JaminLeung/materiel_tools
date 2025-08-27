@@ -57,7 +57,7 @@ RUNTIME_RELEASES_DIR="${RUNTIME_RELEASES_DIR:-$RUNTIME_DIR/releases/current/$REL
 
 LOG_FILE="${DATAKIT_LOG_FILE:-/var/log/datakit_install.log}"
 LOG_LEVEL="${LOG_LEVEL:-1}"
-LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-3}"
+LOG_RETENTION_DAYS="${LOG_RETENTION_DAYS:-1}"
 LOG_MAX_FILES_PER_SCRIPT="${LOG_MAX_FILES_PER_SCRIPT:-10}"
 
 # =============================================================================

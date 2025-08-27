@@ -640,11 +640,11 @@ main() {
     
     response_body=$(get_global_state "RESPONSE_BODY")
 
-    #将response_body 写入到runtime/tmp/config_update/response_body.json
-    if [ ! -d "$RUNTIME_DIR/tmp/config_update" ]; then
-        mkdir -p "$RUNTIME_DIR/tmp/config_update"
+    #将response_body 写入到runtime/backup
+    if [ ! -d "$RUNTIME_DIR/backup" ]; then
+        mkdir -p "$RUNTIME_DIR/backup"
     fi
-    echo "$response_body" > "$RUNTIME_DIR/tmp/config_update/response_body.json"
+    echo "$response_body" > "$RUNTIME_DIR/backup/config_update.json"
 
     # 从全局状态获取DATAKIT_CONFIG
     local datakit_config
@@ -687,10 +687,7 @@ main() {
 
 
         # 将response_body 写入到release/backup/response_body.json
-        if [ ! -d "$RUNTIME_RELEASE_DIR/backup/config_update" ]; then
-            mkdir -p "$RUNTIME_RELEASE_DIR/backup/config_update"
-        fi
-        echo "$response_body" > "$RUNTIME_RELEASE_DIR/backup/config_update/response_body.json"
+        echo "$response_body" > "$RUNTIME_RELEASE_DIR/backup/config_update.json"
 
 
         
