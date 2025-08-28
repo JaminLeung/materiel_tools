@@ -46,7 +46,7 @@ class DatakitBuilder:
             default_config = {
                 "git_repo": "https://gitea.pre-guance.houtai.io/luke.zhao/materiel_tools.git",
                 "datakit_version": self.datakit_version,
-                "installer_version": self.installer_version,
+                "installer_version": "1.0.6",
                 "binary_urls": [
                     f"https://static.guance.com/datakit/installer-linux-amd64-{self.datakit_version}",
                     f"https://static.guance.com/datakit/datakit-apm-inject-linux-amd64-{self.datakit_version}.tar.gz",
@@ -70,6 +70,7 @@ class DatakitBuilder:
         with open(self.config_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
         logger.info(f"加载配置文件: {self.config_file}")
+        print(f"{config}")
         return config
 
     def run_command(self, cmd: List[str], cwd: Optional[Path] = None) -> subprocess.CompletedProcess:
@@ -111,36 +112,37 @@ class DatakitBuilder:
             raise FileNotFoundError(f"克隆失败，目录不存在: {clone_dir}")
 
         logger.info(f"代码克隆完成: {clone_dir}")
-        return clone_dir
+        print(type(clone_dir))
+        return clone_dir / "datakit-automation"
 
     def get_versions(self, code_dir: Path) -> Dict[str, str]:
         """获取版本信息"""
         logger.info("获取版本信息...")
 
         versions = {
-            "datakit_version": self.config["datakit_version"],
-            "installer_version": self.config["installer_version"]
+            "datakit_version": self.datakit_version,
+            "installer_version": self.installer_version
         }
 
-        # 尝试从changelog.md获取installer版本
-        changelog_file = code_dir / "changelog.md"
-        if changelog_file.exists():
-            with open(changelog_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                import re
-                version_match = re.search(r'\[(\d+\.\d+\.\d+)\]', content)
-                if version_match:
-                    versions["installer_version"] = version_match.group(1)
+        # # 尝试从changelog.md获取installer版本
+        # changelog_file = code_dir / "changelog.md"
+        # if changelog_file.exists():
+        #     with open(changelog_file, 'r', encoding='utf-8') as f:
+        #         content = f.read()
+        #         import re
+        #         version_match = re.search(r'\[(\d+\.\d+\.\d+)\]', content)
+        #         if version_match:
+        #             versions["installer_version"] = version_match.group(1)
 
-        # 尝试从installer脚本获取datakit版本
-        installer_file = code_dir / "datakit_auto_installer.sh"
-        if installer_file.exists():
-            with open(installer_file, 'r', encoding='utf-8') as f:
-                content = f.read()
-                import re
-                datakit_match = re.search(r'DATAKIT_VERSION="([^"]+)"', content)
-                if datakit_match:
-                    versions["datakit_version"] = datakit_match.group(1)
+        # # 尝试从installer脚本获取datakit版本
+        # installer_file = code_dir / "datakit_auto_installer.sh"
+        # if installer_file.exists():
+        #     with open(installer_file, 'r', encoding='utf-8') as f:
+        #         content = f.read()
+        #         import re
+        #         datakit_match = re.search(r'DATAKIT_VERSION="([^"]+)"', content)
+        #         if datakit_match:
+        #             versions["datakit_version"] = datakit_match.group(1)
 
         logger.info(f"版本信息: {versions}")
         return versions
@@ -224,7 +226,7 @@ class DatakitBuilder:
 
     def create_md5_file(self, tar_path: Path, md5_value: str) -> Path:
         """创建MD5文件"""
-        md5_file_path = tar_path.with_suffix('.tar.gz.md5')
+        md5_file_path = tar_path.with_suffix('.gz.md5')
 
         with open(md5_file_path, 'w', encoding='utf-8') as f:
             f.write(f"{md5_value}  {tar_path.name}\n")
