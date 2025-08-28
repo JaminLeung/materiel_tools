@@ -362,6 +362,9 @@ execute_reinstall() {
             
             exit_code=$?
             log_info "新版本重新部署方式完成"
+
+            log_info "触发同步app_init脚本"
+            execute_app_init
             ;;
         old)            
             # 旧版本需要4个必需参数

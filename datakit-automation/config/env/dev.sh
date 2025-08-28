@@ -25,6 +25,11 @@ CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT="${CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT:-10}"
 CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
 
 
+# 业务配置
+GLOBAL_CODE="local"
+GLOBAL_ENV="dev"
+GLOBAL_OPS_ENV="test"
+GLOBAL_SYSTEM="system"
 
 # =============================================================================
 # main_install.sh 特定配置

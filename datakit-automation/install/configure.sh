@@ -91,6 +91,21 @@ configure_datakit_main_config() {
     current_config=$(echo "$current_config" | jq ".global_host_tags.host_ip = \"$host_ip\"")
     log_info "设置host_ip标签: $host_ip"
 
+    # 设置GLOBAL_CODE
+    local global_code=$(get_global_state 'GLOBAL_CODE')
+    current_config=$(echo "$current_config" | jq ".global_host_tags.global_code = \"$global_code\"")
+    log_info "设置GLOBAL_CODE标签: $global_code"
+
+    # 设置GLOBAL_ENV
+    local global_env=$(get_global_state 'GLOBAL_ENV')
+    current_config=$(echo "$current_config" | jq ".global_host_tags.global_env = \"$global_env\"")
+    log_info "设置GLOBAL_ENV标签: $global_env"
+
+
+
+
+
+
     # 设置HTTP API监听地址
     current_config=$(echo "$current_config" | jq '.http_api.listen = "0.0.0.0:9529"')
     log_info "设置HTTP API监听地址: 0.0.0.0:9529"

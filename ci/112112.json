@@ -1,0 +1,898 @@
+{
+  "10.40.40.134": {
+    "instance_info": {
+      "instance_id": "i-06e7bd2e2ad4df92b",
+      "instance_type": "c6a.large",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.large",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 48.66924312181569,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 61.16924312181569,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.0266151375636863,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.6159690825382117,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.40.121": {
+    "instance_info": {
+      "instance_id": "i-0f86b247f13bb22d1",
+      "instance_type": "c6a.4xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.4xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 6.684129958197354,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 19.184129958197353,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.8663174008360528,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.1197904405016317,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.40.128": {
+    "instance_info": {
+      "instance_id": "i-032bc5db7ddc1ada1",
+      "instance_type": "c6a.4xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.4xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 17.640351058191424,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 30.140351058191424,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.6471929788361714,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.9883157873017028,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.40.224": {
+    "instance_info": {
+      "instance_id": "i-07b40a2f8678b3ac2",
+      "instance_type": "c5.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c5.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 78.61478262723347,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 91.11478262723347,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 0.4277043474553306,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.25662260847319834,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "不推荐",
+      "risk_level": "极高",
+      "can_deploy": false,
+      "usage_too_high": true,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.41.38": {
+    "instance_info": {
+      "instance_id": "i-0d3a228c6895be4f9",
+      "instance_type": "t3a.large",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "t3a.large",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 82.11858742678058,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 94.61858742678058,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 0.3576282514643885,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.21457695087863307,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "不推荐",
+      "risk_level": "极高",
+      "can_deploy": false,
+      "usage_too_high": true,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.41.51": {
+    "instance_info": {
+      "instance_id": "i-023b26f1145d96b4a",
+      "instance_type": "c6a.4xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.4xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 70.07218713469071,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 82.57218713469071,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 0.5985562573061858,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.3591337543837115,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.42.101": {
+    "instance_info": {
+      "instance_id": "i-0125521331942cc99",
+      "instance_type": "c6a.2xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.2xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 84.07657751184787,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 96.57657751184787,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 0.31846844976304256,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.19108106985782553,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "不推荐",
+      "risk_level": "极高",
+      "can_deploy": false,
+      "usage_too_high": true,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.42.127": {
+    "instance_info": {
+      "instance_id": "i-07168c4ef9dd12b25",
+      "instance_type": "t3a.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "t3a.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 7.847212704232076,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 20.347212704232078,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.8430557459153585,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.105833447549215,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.40.83": {
+    "instance_info": {
+      "instance_id": "i-01cff1fc4c69224a7",
+      "instance_type": "c5.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c5.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 18.399278966285454,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 30.899278966285454,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.6320144206742908,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.9792086524045744,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.40.244": {
+    "instance_info": {
+      "instance_id": "i-06e592a6d1ffe208b",
+      "instance_type": "c6a.2xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.2xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 8.964853460182017,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 21.464853460182017,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.8207029307963596,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.0924217584778158,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.40.32": {
+    "instance_info": {
+      "instance_id": "i-08f844002786a2557",
+      "instance_type": "t3a.large",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "t3a.large",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 52.13722735099444,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 64.63722735099444,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 0.9572554529801112,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.5743532717880667,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.42.250": {
+    "instance_info": {
+      "instance_id": "i-0a16aab5983ba77fd",
+      "instance_type": "c6a.2xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.2xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 82.72287952500085,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 95.22287952500085,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 0.34554240949998305,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.2073254456999898,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "不推荐",
+      "risk_level": "极高",
+      "can_deploy": false,
+      "usage_too_high": true,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.42.251": {
+    "instance_info": {
+      "instance_id": "i-05b257fbe7e7a4cd9",
+      "instance_type": "t3a.large",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "t3a.large",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 19.90480954713675,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 32.40480954713675,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.601903809057265,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.961142285434359,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.42.13": {
+    "instance_info": {
+      "instance_id": "i-08cfa54a0db08cd49",
+      "instance_type": "c6a.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 34.98049535092449,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 47.48049535092449,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.3003900929815102,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.7802340557889061,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.42.207": {
+    "instance_info": {
+      "instance_id": "i-035ec08c458ed59f8",
+      "instance_type": "t3a.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "t3a.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 20.776215671660598,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 33.276215671660594,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.5844756865667882,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.9506854119400728,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.43.178": {
+    "instance_info": {
+      "instance_id": "i-04165a59e3ba5b0b4",
+      "instance_type": "c6a.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 23.350283702827635,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 35.85028370282764,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.5329943259434473,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.9197965955660683,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.42.34": {
+    "instance_info": {
+      "instance_id": "i-08557847050c7058c",
+      "instance_type": "t3a.large",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "t3a.large",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 58.99279151030835,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 71.49279151030835,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 0.820144169793833,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.49208650187629976,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.43.209": {
+    "instance_info": {
+      "instance_id": "i-0b9708ae6eb5946ce",
+      "instance_type": "c6a.large",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.large",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 12.73676079170534,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 25.23676079170534,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.7452647841658933,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.0471588704995358,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.45.217": {
+    "instance_info": {
+      "instance_id": "i-009f66cfd30098830",
+      "instance_type": "c6a.4xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.4xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 26.68280973443135,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 39.182809734431345,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.4663438053113729,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.8798062831868237,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.45.187": {
+    "instance_info": {
+      "instance_id": "i-0620a6052da8c2ff5",
+      "instance_type": "t3a.large",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "t3a.large",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 33.19291228711003,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 45.69291228711003,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.3361417542577994,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.8016850525546796,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.45.120": {
+    "instance_info": {
+      "instance_id": "i-0ed9adec3e52c04be",
+      "instance_type": "t3a.large",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "t3a.large",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 86.37956511754187,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 98.87956511754187,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 0.27240869764916265,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.1634452185894976,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "不推荐",
+      "risk_level": "极高",
+      "can_deploy": false,
+      "usage_too_high": true,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.45.10": {
+    "instance_info": {
+      "instance_id": "i-04e56254586135632",
+      "instance_type": "c5.2xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c5.2xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 17.468775442752307,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 29.968775442752307,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.650624491144954,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 0.9903746946869723,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.45.66": {
+    "instance_info": {
+      "instance_id": "i-0d24794deeae64f83",
+      "instance_type": "c6a.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 14.785774508271304,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 27.285774508271302,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.704284509834574,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.0225707059007443,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.44.44.9": {
+    "instance_info": {
+      "instance_id": "i-07a96ceb70648b614",
+      "instance_type": "r6a.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "r6a.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 9.200979523524238,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 21.70097952352424,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.8159804095295153,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.089588245717709,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.42.68.9": {
+    "instance_info": {
+      "instance_id": "i-024fac532ed3fdadf",
+      "instance_type": "c6a.2xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.2xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 3.6702989649754074,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 16.17029896497541,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.926594020700492,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.155956412420295,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.43.115": {
+    "instance_info": {
+      "instance_id": "i-021a9054f909e5f38",
+      "instance_type": "c6a.4xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.4xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 11.809744357741371,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 24.309744357741373,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.7638051128451726,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.0582830677071036,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.40.44.29": {
+    "instance_info": {
+      "instance_id": "i-021dcca9f5fe59403",
+      "instance_type": "c6a.4xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "c6a.4xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 11.361988530035577,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 23.861988530035575,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.7727602293992883,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.063656137639573,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  },
+  "10.44.44.11": {
+    "instance_info": {
+      "instance_id": "i-0dba372c60e33cfb9",
+      "instance_type": "r6a.xlarge",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "state": "running"
+    },
+    "resource_analysis": {
+      "instance_type": "r6a.xlarge",
+      "cpu_cores": 2,
+      "memory_gb": 8,
+      "cpu_usage_7d_avg": 10.258943373140506,
+      "memory_usage_7d_avg": 45.0,
+      "cpu_usage_with_datakit": 22.758943373140504,
+      "memory_usage_with_datakit": 57.5,
+      "available_cpu": 1.79482113253719,
+      "available_memory": 4.4,
+      "datakit_cpu_limit": 1.076892679522314,
+      "datakit_memory_limit": 2.4,
+      "recommendation": "允许",
+      "risk_level": "中",
+      "can_deploy": true,
+      "usage_too_high": false,
+      "spec_too_small": false
+    },
+    "memory_info": {
+      "usage": 45.0,
+      "method": "估算值",
+      "note": "内存使用率获取方法说明"
+    }
+  }
+}
