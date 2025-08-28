@@ -100,6 +100,13 @@ load_env_config() {
         source "$env_config_file"
         log_info "已加载环境配置: $env_config_file"
         
+        # 设置全局标签
+        set_global_state "GLOBAL_CODE" "$GLOBAL_CODE"
+        set_global_state "GLOBAL_ENV" "$GLOBAL_ENV"
+        set_global_state "GLOBAL_OPS_ENV" "$GLOBAL_OPS_ENV"
+        set_global_state "GLOBAL_SYSTEM" "$GLOBAL_SYSTEM"
+
+        log_info "已设置全局标签: GLOBAL_CODE=$GLOBAL_CODE, GLOBAL_ENV=$GLOBAL_ENV, GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV, GLOBAL_SYSTEM=$GLOBAL_SYSTEM"
         # 更新环境状态
         if declare -F update_current_step >/dev/null; then
             update_current_step "加载环境配置: $env_name"

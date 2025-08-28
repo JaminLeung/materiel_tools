@@ -1,0 +1,17 @@
+{
+                "git_repo": "https://gitea.pre-guance.houtai.io/luke.zhao/materiel_tools.git",
+                "datakit_version": "1.78.0",
+                "installer_version": "1.0.6",
+                "binary_urls": [
+                    "https://static.guance.com/datakit/datakit-linux-amd64-1.78.0.tar.gz",
+                    "https://static.guance.com/datakit/datakit_lite-linux-amd64-1.78.0.tar.gz",
+                    "https://static.guance.com/datakit/datakit-apm-inject-linux-amd64-1.78.0.tar.gz",
+                    "https://static.guance.com/datakit/dk_upgrader-linux-amd64.tar.gz",
+                    "https://static.guance.com/datakit/data.tar.gz",
+                    "https://guance-south.oss-cn-guangzhou.aliyuncs.com/liangjieming/bingx-prod/yj",
+                    "https://guance-south.oss-cn-guangzhou.aliyuncs.com/liangjieming/bingx-prod/jq",
+                    "https://guance-south.oss-cn-guangzhou.aliyuncs.com/liangjieming/bingx-prod/node_exporter-1.8.2.linux-amd64.tar.gz"
+                ],
+                "package_name": "datakit_bundle-linux-amd64",
+                "final_package_name": "datakit-automation-all"
+}
