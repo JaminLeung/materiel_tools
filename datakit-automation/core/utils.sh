@@ -1095,6 +1095,7 @@ check_required_tools() {
 # 获取机器规格并设置资源限制
 get_machine_specs() {
     log_info "获取机器规格并设置资源限制..."
+    return 0
     
     # 获取CPU规格
     local cpu_cores=$(lscpu | grep "CPU(s)" | cut -d ':' -f 2 | sed 's/^ //' | awk '{print $1}' | head -n 1)
