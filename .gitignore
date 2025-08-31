@@ -62,4 +62,6 @@ test_*.sh
 
 # 临时目录
 tmp/
-temp/ 
+temp/
+ci/materiel_tools/
+ci/datakit.*
