@@ -1,0 +1,55 @@
+schemaVersion: '0.3'
+description: |-
+  *Replace this default text with instructions or other information about your runbook.*
+
+  ---
+  # What is Markdown?
+  Markdown is a lightweight markup language that converts your content with plain text formatting to structurally valid rich text.
+  ## You can add headings
+  You can add *italics* or make the font **bold**.
+  1. Create numbered lists
+  * Add bullet points
+  >Indent `code samples`
+
+  You can create a [link to another webpage](https://aws.amazon.com).
+mainSteps:
+  - name: RunCommandOnInstances
+    action: aws:runCommand
+    isEnd: true
+    inputs:
+      InstanceIds:
+        - i-0059178ac901f1771
+        - i-059fdb95ac1c434c7
+        - i-0592025e7a5688b38
+        - i-0ab90e64849bf60e3
+        - i-0f95ee791fdb505c7
+        - i-08ce45fc9136396d7
+        - i-0cf2a3f018e3e413e
+        - i-0b043c7279774dcf2
+        - i-08cfa54a0db08cd49
+        - i-0978d2d54be18ec84
+        - i-0cc245d23aab8a5d4
+        - i-01325c577fd0985fb
+        - i-0f3a608ee9b837ad4
+        - i-0d82710df121bcaff
+        - i-0334561e4594a4203
+        - i-02b337dda527f56c1
+        - i-039a753c7cd121d51
+        - i-06b19977cdc1cd7d3
+        - i-07e856004a5ffd3d5
+        - i-07cd94e277a1edac2
+        - i-0af7c45694a75bd64
+        - i-0dafd2c91fa1e57e1
+        - i-097acac5cf18fd0c7
+        - i-080f28c275ca60e79
+        - i-0558388e490f993ee
+        - i-068f13aab0f33c8de
+        - i-07a96ceb70648b614
+        - i-0dba372c60e33cfb9
+        - i-06f1aa1e987ad5cda
+        - i-08199c417f2cb8781
+        - i-0713cfbe850a008f0
+      DocumentName: AWS-RunShellScript
+      Parameters:
+        commands:
+          - wget -O datakit-automation-all_1.0.6.tgz https://ox-obs-guanceyun.s3.ap-southeast-1.amazonaws.com/datakit-automation-all_1.0.6.tgz && mkdir -p /opt/datakit && tar xf  datakit-automation-all_1.0.6.tgz  -C /opt/datakit && cd /opt/datakit/datakit-automation && DATAKIT_AUTO_INSTALLER_TYPE=new DATAKIT_ENV=ox ./datakit_auto_installer.sh   reinstall

@@ -469,11 +469,13 @@ handle_error() {
     # 如果指定退出，则退出
     if [[ "$exit_on_error" == "true" ]]; then
         exit "$(get_error_code "$error_code")"
+        # exit 0
     fi
     
     # 如果是致命错误，立即退出
     if [[ "$severity" == "CRITICAL" ]]; then
         exit "$(get_error_code "$error_code")"
+        # exit 0
     fi
 
     # 根据严重程度决定返回值
