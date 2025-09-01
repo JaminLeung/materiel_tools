@@ -63,3 +63,6 @@ test_*.sh
 # 临时目录
 tmp/
 temp/ 
+
+# 测试及mock代码
+datakit-automation/test
