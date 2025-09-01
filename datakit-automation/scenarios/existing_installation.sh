@@ -20,7 +20,6 @@ load_module "validation" "$SCENARIO_PROJECT_ROOT/core/validation.sh"
 load_module "datakit_service" "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
 # config_api.sh的功能已合并到utils.sh中
 
-load_module "download" "$SCENARIO_PROJECT_ROOT/install/download.sh"
 load_module "install" "$SCENARIO_PROJECT_ROOT/install/install.sh"
 load_module "configure" "$SCENARIO_PROJECT_ROOT/install/configure.sh"
 load_module "setup_cron" "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
@@ -60,20 +59,11 @@ execute_existing_installation() {
     fi
     log_info "步骤2: 资源限制获取成功"
 
-    #=================================================
-    # 步骤3: 下载安装包 (致命错误 - 直接退出程序)
-    #=================================================
-    # log_info "步骤3: 下载安装包..."
-    # if ! download_packages; then
-    #     
-    #     handle_error "NETWORK_ERROR" "下载任务失败，退出安装" "ERROR" "true"
-    # fi
-    # log_info "步骤3: 安装包下载完成"
 
     #=================================================
-    # 步骤4: 获取主机信息 (非致命错误 - 退出函数)
+    # 步骤3: 获取主机信息 (非致命错误 - 退出函数)
     #=================================================
-    log_info "步骤4: 获取主机信息..."
+    log_info "步骤3: 获取主机信息..."
     if ! get_host_info; then
         handle_error "API_ERROR" "获取主机信息失败，使用缺省值继续安装" "ERROR" "false"
         return 1
@@ -81,44 +71,44 @@ execute_existing_installation() {
     log_info "步骤4: 主机信息获取完成"
 
     #=================================================
-    # 步骤5: 执行安装 (致命错误 - 直接退出程序)
+    # 步骤4: 执行安装 (致命错误 - 直接退出程序)
     #=================================================
-    log_info "步骤5: 执行安装..."
+    log_info "步骤4: 执行安装..."
     if ! install_components; then
         handle_error "DEPENDENCY_ERROR" "安装失败，退出安装" "ERROR" "true"
     fi
-    log_info "步骤5: 组件安装完成"
+    log_info "步骤4: 组件安装完成"
 
     #=================================================
-    # 步骤6: 配置和验证 (非致命错误 - 退出函数)
+    # 步骤5: 配置和验证 (非致命错误 - 退出函数)
     #=================================================
-    log_info "步骤6: 配置和验证..."
+    log_info "步骤5: 配置和验证..."
     if ! configure_and_verify; then
         handle_error "CONFIG_ERROR" "配置和验证失败，退出安装" "ERROR" "false"
         return 1
     fi
 
-    log_info "步骤6: 配置和验证完成"
+    log_info "步骤5: 配置和验证完成"
     
     #=================================================
-    # 步骤7: 设置定时任务
+    # 步骤6: 设置定时任务
     #=================================================
-    log_info "步骤7: 设置定时任务..."
+    log_info "步骤6: 设置定时任务..."
     if ! setup_cron_jobs; then
         handle_error "COMMAND_ERROR" "设置定时任务失败，退出安装" "ERROR" "false"
         return 1
     fi
-    log_info "步骤7: 定时任务设置完成"
+    log_info "步骤6: 定时任务设置完成"
     
     #=================================================
-    # 步骤8: 验证安装结果 (非致命错误 - 退出函数)
+    # 步骤7: 验证安装结果 (非致命错误 - 退出函数)
     #=================================================
-    log_info "步骤8: 验证安装结果..."
+    log_info "步骤7: 验证安装结果..."
     if ! verify_installation; then
         handle_error "VALIDATION_ERROR" "安装验证失败，退出安装" "ERROR" "false"
         return 1
     fi
-    log_info "步骤8: 安装验证通过"
+    log_info "步骤7: 安装验证通过"
     
     #=================================================
     # 安装完成 - 记录成功信息

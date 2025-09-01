@@ -23,12 +23,14 @@ backup/
 
 # 配置文件（包含敏感信息）
 datakit-automation/config/env/*.sh
+datakit-automation/config/env/benjamin.sh
 datakit-automation/config/scripts/*.sh
 !datakit-automation/config/env/example.sh
 !datakit-automation/config/env/ox.sh
 !datakit-automation/config/scripts/*.sh
 datakit-automation/logs
 datakit-automation/runtime
+
 
 # 加密配置文件
 *.encrypted
@@ -65,3 +67,6 @@ tmp/
 temp/
 ci/materiel_tools/
 ci/datakit.*
+
+# 测试及mock代码
+datakit-automation/test

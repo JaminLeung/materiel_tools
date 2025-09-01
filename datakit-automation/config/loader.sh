@@ -150,28 +150,24 @@ load_all_configs() {
     
     log_info "开始加载配置..."
     
-    # # 0. 加载解密模块
-    # load_decrypt_module
+
     
-    # 1. 自动解密敏感配置
-    auto_decrypt_sensitive_config
-    
-    # 2. 加载基础配置
+    # 1. 加载基础配置
     if ! load_base_config; then
         return 1
     fi
     
-    # 3. 加载状态配置
+    # 2. 加载状态配置
     if ! load_state_config; then
         return 1
     fi
     
-    # 4. 加载环境配置
+    # 3. 加载环境配置
     if ! load_env_config "$env_name"; then
         return 1
     fi
     
-    # 5. 加载脚本特定配置（如果指定）
+    # 4. 加载脚本特定配置（如果指定）
     if [[ -n "$script_name" ]]; then
         if ! load_script_config "$script_name"; then
             return 1
