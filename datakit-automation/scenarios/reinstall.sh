@@ -31,111 +31,88 @@ load_module "setup_cron" "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
 # 功能: 执行Datakit存量安装的完整流程
 # 参数: 无
 # 返回: 0-成功, 1-失败
-execute_reinstall() {
-    local start_time=$(date +%s)
-    
-    log_info "=== 开始Datakit重新安装场景 ==="
-    log_info "场景描述: 已经安装过Datakit的主机重新安装"
-    log_info "脚本版本: $SCRIPT_VERSION"
-    log_info "开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
-    
-    # 记录脚本启动到Dataway
-    log_info "开始Datakit重新安装: 场景=reinstall"
-    
-    #=================================================
-    # 步骤1: 检查安装状态 (致命错误 - 直接退出程序)
-    #=================================================
-    log_info "步骤1: 检查安装状态..."
-    if ! check_installation_status; then
-        handle_error "VALIDATION_ERROR" "不符合安装条件，退出安装" "ERROR" "true"
-    fi
-    log_info "步骤1: 安装状态检查通过"
+# 重装场景
 
-    #=================================================
-    # 步骤2: 设置资源限制 (致命错误 - 直接退出程序)
-    #=================================================
-    log_info "步骤2: 获取资源限制并设置环境变量"
-    if ! get_machine_specs; then
-        handle_error "RESOURCE_ERROR" "资源限制设置失败，请检查机器规格" "ERROR" "true"
-    fi
-    log_info "步骤2: 资源限制获取成功"
-
-    #=================================================
-    # 步骤3: 下载安装包 (致命错误 - 直接退出程序)
-    #=================================================
-    # log_info "步骤3: 下载安装包..."
-    # if ! download_packages; then
-    #     
-    #     handle_error "NETWORK_ERROR" "下载任务失败，退出安装" "ERROR" "true"
-    # fi
-    # log_info "步骤3: 安装包下载完成"
-
-    #=================================================
-    # 步骤4: 获取主机信息 (非致命错误 - 退出函数)
-    #=================================================
-    log_info "步骤4: 获取主机信息..."
-    if ! get_host_info; then
-        handle_error "API_ERROR" "获取主机信息失败，使用缺省值继续安装" "ERROR" "false"
-        return 1
-    fi
-    log_info "步骤4: 主机信息获取完成"
-
-    #=================================================
-    # 步骤5: 执行安装 (致命错误 - 直接退出程序)
-    #=================================================
-    log_info "步骤5: 执行安装..."
-    if ! install_components; then
-        handle_error "DEPENDENCY_ERROR" "安装失败，退出安装" "ERROR" "true"
-    fi
-    log_info "步骤5: 组件安装完成"
-
-    #=================================================
-    # 步骤6: 配置和验证 (非致命错误 - 退出函数)
-    #=================================================
-    log_info "步骤6: 配置和验证..."
-    if ! configure_and_verify; then
-        handle_error "CONFIG_ERROR" "配置和验证失败，退出安装" "ERROR" "false"
-        return 1
-    fi
-
-    log_info "步骤6: 配置和验证完成"
-    
-    #=================================================
-    # 步骤7: 设置定时任务
-    #=================================================
-    log_info "步骤7: 设置定时任务..."
-    if ! setup_cron_jobs; then
-        handle_error "COMMAND_ERROR" "设置定时任务失败，退出安装" "ERROR" "false"
-        return 1
-    fi
-    log_info "步骤7: 定时任务设置完成"
-    
-    #=================================================
-    # 步骤8: 验证安装结果 (非致命错误 - 退出函数)
-    #=================================================
-    log_info "步骤8: 验证安装结果..."
-    if ! verify_installation; then
-        handle_error "VALIDATION_ERROR" "安装验证失败，退出安装" "ERROR" "false"
-        return 1
-    fi
-    log_info "步骤8: 安装验证通过"
-    
-    #=================================================
-    # 安装完成 - 记录成功信息
-    #=================================================
-    # 计算执行时间
-    local end_time=$(date +%s)
-    local duration=$((end_time - start_time))
-    
-    log_info "=== Datakit存量安装完成 ==="
-    log_info "总执行时间: ${duration}秒"
-    log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
-    
-    # 记录成功信息到Dataway
-    log_info "Datakit存量安装完成: 耗时=${duration}秒"
-    
-    return 0
+execute_preserve_reinstall() {
+    log_info "执行保留配置重装场景"
+    execute_incremental_installation
 }
+
+execute_full_reinstall() {
+    log_info "执行完全重装场景"
+    execute_existing_installation
+}
+
+
+execute_reinstall() {
+    local reinstall_type=$(get_global_state "REINSTALL_TYPE")
+    local DATAKIT_AUTO_INSTALLER_TYPE=${DATAKIT_AUTO_INSTALLER_TYPE:-new}
+    
+    log_info "=== 执行重装场景 ==="
+    log_info "场景描述: 重新安装Datakit, 支持新旧版本，支持完全重装和保留配置重装"
+    log_info "安装器类型: $DATAKIT_AUTO_INSTALLER_TYPE"
+    log_info "重装类型: $reinstall_type"
+    
+
+    case "$DATAKIT_AUTO_INSTALLER_TYPE" in
+        new)
+            case "$reinstall_type" in
+                full)
+                    log_info "执行新版本完全重新部署方式，执行完全重装场景"
+                                
+                    log_info "执行步骤1: 还原安装环境"
+                    restore_installation_env "new" "$reinstall_type"            
+                    if [ $? -ne 0 ]; then
+                        handle_error "RESTORE_ENV_ERROR" "还原安装环境失败" "CRITICAL" "true"
+                    fi
+
+                    log_info "执行步骤2: 执行完全重装场景"
+                    execute_full_reinstall
+                    if [ $? -ne 0 ]; then
+                        handle_error "FULL_REINSTALL_ERROR" "执行完全重装场景失败" "CRITICAL" "true"
+                    fi
+
+                    log_info "执行步骤3: 触发同步app_init脚本，执行app_init场景"
+                    execute_app_init
+                    if [ $? -ne 0 ]; then
+                        handle_error "APP_INIT_ERROR" "执行app_init场景失败" "CRITICAL" "true"
+                    fi
+
+                    log_info "执行步骤4: 重装场景完成"
+                    ;;
+                preserve)
+                    log_info "执行新版本保留配置重新部署方式，执行保留配置重装场景"
+                    execute_preserve_reinstall
+                    ;;
+                *)
+                    handle_error "COMMAND_ERROR" "未知重装类型: $reinstall_type" "CRITICAL" "true"
+                    ;;
+            esac
+
+            ;;
+        old)            
+            # 旧版本需要4个必需参数
+            log_info "执行旧版本重新部署方式"
+
+            # 设置环境变量
+            log_info "设置OX环境变量"
+            set_global_env 
+
+            log_info "还原安装环境"
+            restore_installation_env "legacy" "$reinstall_type"
+
+            log_info "执行旧版本重新部署脚本"
+            deploy_legacy
+            exit_code=$?
+            log_info "旧版本重新部署方式完成"
+            ;;
+        *)
+            handle_error "COMMAND_ERROR" "未知安装器类型: $DATAKIT_AUTO_INSTALLER_TYPE" "CRITICAL" "true"
+            ;;
+    esac
+
+}
+
 
 #=================================================
 # 脚本入口点

@@ -100,7 +100,7 @@ update_datakit_config() {
 restart_datakit_service() {
     log_info "重启Datakit服务..."
     
-    systemctl restart datakit
+    sudo /usr/bin/systemctl restart datakit.service
     sleep 3
 }
 

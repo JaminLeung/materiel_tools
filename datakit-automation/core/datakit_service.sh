@@ -86,7 +86,7 @@ start_datakit() {
     log_info "启动Datakit"
     local start_success=false
     
-    if command_exists systemctl && systemctl start datakit 2>/dev/null; then
+    if command_exists systemctl && sudo  /usr/bin/systemctl start datakit.service 2>/dev/null; then
         start_success=true
     elif command_exists datakit && datakit service -S >/dev/null 2>&1; then
         start_success=true
@@ -132,7 +132,7 @@ start_datakit() {
 
 stop_datakit() {
     log_info "停止Datakit"
-    if command_exists systemctl && systemctl stop datakit 2>/dev/null; then
+    if command_exists systemctl && sudo /usr/bin/systemctl stop datakit.service 2>/dev/null; then
         log_info "Datakit停止成功"
         return 0
     fi
@@ -150,7 +150,7 @@ restart_datakit() {
     log_info "重启Datakit"
     local restart_success=false
     
-    if command_exists systemctl && systemctl restart datakit 2>/dev/null; then
+    if command_exists systemctl && sudo /usr/bin/systemctl restart datakit.service 2>/dev/null; then
         restart_success=true
     elif command_exists datakit && datakit service -R >/dev/null 2>&1; then
         restart_success=true

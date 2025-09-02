@@ -9,7 +9,7 @@ set -euo pipefail
 # 脚本元信息
 readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
 readonly DATAKIT_VERSION="1.78.0"
-readonly INSTALLER_SCRIPT_VERSION="1.0.6"
+readonly INSTALLER_SCRIPT_VERSION="1.0.7"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 声明全局状态变量
@@ -80,11 +80,22 @@ initialize_installer() {
     fi
     
     # 同步命令工具
-    sync_command_tool
+    # 如果是root用户，则同步命令工具
+    log_info "当前用户: $(whoami)"
+    if [ "$(whoami)" == "root" ]; then
+        log_info "当前用户是root用户，同步命令工具,并初始化Datakit用户运行态环境"
+        sync_command_tool
+        init_datakit_runtime_environment
+    else
+        log_info "当前用户不是root用户，跳过同步命令工具及Datakit用户运行态环境初始化"
+    fi
 
     # 执行初始化脚本
     initialize_script
-    
+
+
+
+
     log_info "安装器初始化完成"
 }
 
@@ -101,6 +112,9 @@ Datakit 版本 v$DATAKIT_VERSION
     -d, --debug           调试模式
     -h, --help            显示此帮助信息
     --version             查看版本 - 查看Datakit安装器版本、Datakit版本
+    --type <TYPE>         重装类型 (仅用于reinstall命令):
+                          full - 完全重装，清理所有配置 (默认)
+                          preserve - 保留配置重装，保留现有配置文件
 
 命令:
     existing-install      存量安装 - 已运行但未安装的主机
@@ -134,6 +148,11 @@ Datakit 版本 v$DATAKIT_VERSION
     # 指定版本升级
     DATAKIT_VERSION=v1.5.0 $INSTALLER_SCRIPT_NAME version-upgrade
 
+    # 重装相关示例
+    $INSTALLER_SCRIPT_NAME reinstall                   # 完全重装 (默认)
+    $INSTALLER_SCRIPT_NAME --type full reinstall       # 完全重装，清理所有配置
+    $INSTALLER_SCRIPT_NAME --type preserve reinstall   # 保留配置重装
+
     # 应用初始化和配置管理
     $INSTALLER_SCRIPT_NAME app-init                    # 从运维平台同步业务配置
     $INSTALLER_SCRIPT_NAME config-update                 # 同步Datakit配置
@@ -150,6 +169,7 @@ EOF
 main() {    
     local env_config_file=""
     local command=""
+    local reinstall_type="full"  # 默认为完全重装
     local IS_OLD_VERSION=${IS_OLD_VERSION:-"false"}
     
     set_global_state "RELEASE_ID" "datakit_auto_installer_$(date +%Y%m%d_%H%M%S)"
@@ -166,6 +186,20 @@ main() {
                     exit 1
                 fi
                 env_config_file="$2"
+                shift 2
+                ;;
+            --type)
+                if [[ -z "$2" || "$2" =~ ^- ]]; then
+                    echo "[ERROR] --type 参数需要一个值" >&2
+                    show_help
+                    exit 1
+                fi
+                if [[ "$2" != "full" && "$2" != "preserve" ]]; then
+                    echo "[ERROR] --type 参数值必须是 'full' 或 'preserve'" >&2
+                    show_help
+                    exit 1
+                fi
+                reinstall_type="$2"
                 shift 2
                 ;;
             -v|--verbose)
@@ -206,6 +240,7 @@ main() {
         exit 0
     fi
     set_global_state "command" "$command"
+    set_global_state "REINSTALL_TYPE" "$reinstall_type"
 
     load_module "loader" "$INSTALLER_SCRIPT_DIR/config/loader.sh"
     # 加载配置（自动检测环境变量或配置文件）
@@ -264,7 +299,7 @@ main() {
             execute_health_check
             ;;
         clean-install)
-            restore_installation_env "new"
+            restore_installation_env "new" "full"
             ;;
         *)
             echo "[ERROR] 未知命令: $command" >&2
@@ -296,6 +331,32 @@ execute_existing_installation() {
         handle_error "FILE_ERROR" "存量安装场景脚本不存在: $scenario_script" "CRITICAL" "true"
     fi
 }
+
+
+# 重装场景
+execute_reinstall() {
+    log_info "=== 执行重装场景 ==="
+    log_info "场景描述: 重新安装Datakit, 支持新旧版本，支持完全重装和保留配置重装"
+    
+    # 调用scenarios目录下的保留配置重装脚本
+    local scenario_script="$INSTALLER_SCRIPT_DIR/scenarios/reinstall.sh"
+    
+    if [[ -f "$scenario_script" ]]; then
+        log_info "调用重装场景脚本: $scenario_script"
+        
+        # TODO[DONE] 统一从配置文件里获取
+        # 传递配置信息给场景脚本
+        
+        # 执行场景脚本
+        source "$scenario_script"
+
+        execute_reinstall
+    else
+        handle_error "FILE_ERROR" "保留配置重装场景脚本不存在: $scenario_script" "CRITICAL" "true"
+    fi
+}
+
+
 
 # 增量安装场景
 execute_incremental_installation() {
@@ -340,55 +401,7 @@ execute_version_upgrade() {
 }
 
 
-# 重装场景
-execute_reinstall() {
-    log_info "=== 执行重装场景 ==="
-    log_info "场景描述: 完全重新安装Datakit, 支持新旧版本"
-    log_info "新版本部署方式: 执行存量安装场景"
-    log_info "旧版本部署方式: 执行旧版本重新部署方式"
 
-    local DATAKIT_AUTO_INSTALLER_TYPE=${DATAKIT_AUTO_INSTALLER_TYPE:-new}
-
-    case "$DATAKIT_AUTO_INSTALLER_TYPE" in
-        new)
-            # 执行旧版本部署方式
-            log_info "执行新版本重新部署方式"
-            
-            log_info "还原安装环境"
-            restore_installation_env "new"
-
-            log_info "执行新版本重新部署脚本，执行存量安装场景"
-            execute_existing_installation
-            
-            exit_code=$?
-            log_info "新版本重新部署方式完成"
-
-            log_info "触发同步app_init脚本"
-            execute_app_init
-            ;;
-        old)            
-            # 旧版本需要4个必需参数
-            log_info "执行旧版本重新部署方式"
-
-            # 设置环境变量
-            log_info "设置OX环境变量"
-            set_global_env 
-
-            log_info "还原安装环境"
-            restore_installation_env "legacy"
-
-
-            log_info "执行旧版本重新部署脚本"
-            deploy_legacy
-            exit_code=$?
-            log_info "旧版本重新部署方式完成"
-            ;;
-        *)
-            handle_error "COMMAND_ERROR" "未知命令: $command" "CRITICAL" "true"
-            ;;
-    esac
-
-}
 
 # 设置定时任务场景
 execute_setup_cron() {

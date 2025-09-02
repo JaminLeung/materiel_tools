@@ -27,7 +27,7 @@ setup_cron_jobs() {
     
     # 备份现有的crontab
     local current_crontab="/tmp/current_crontab_$(date +%Y%m%d%H%M%S)"
-    crontab -l 2>/dev/null > "$current_crontab" || true
+    sudo -u datakit crontab -l 2>/dev/null > "$current_crontab" || true
     
     # 创建新的crontab内容
     # TODO  修改一下/tmp 目录，不再/tmp 目录下存放
@@ -45,7 +45,7 @@ EOF
     fi
     
     # 安装新的crontab
-    if crontab "$new_crontab"; then
+    if sudo -u datakit crontab "$new_crontab"; then
         log_info "定时任务设置成功"
         log_info "config-sync: 每15分钟执行一次"
         log_info "health-check: 每5分钟执行一次"

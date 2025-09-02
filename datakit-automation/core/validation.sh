@@ -259,7 +259,7 @@ validate_cron_job() {
     local cron_pattern="$1"
     local description="${2:-定时任务}"
     
-    if crontab -l 2>/dev/null | grep -q "$cron_pattern"; then
+    if sudo -u datakit crontab -l 2>/dev/null | grep -q "$cron_pattern"; then
         log_info "$description 配置存在"
         return 0
     else
@@ -418,7 +418,7 @@ verify_resource_limits() {
 # 4. 验证定时任务配置
 verify_cron_jobs() {
     # 通过crontab -l 检查config-update ,app-init ,health_check 定时任务配置是否存在
-    if crontab -l 2>/dev/null | grep -q "config-update"; then
+    if sudo -u datakit crontab -l 2>/dev/null | grep -q "config-update"; then
         log_info "config-update 定时任务配置存在"
     else
         log_error "config-update 定时任务配置不存在"
