@@ -114,7 +114,7 @@ stop_datakit_service() {
     log_info "停止Datakit服务..."
     
     if systemctl is-active --quiet datakit 2>/dev/null; then
-        systemctl stop datakit
+        sudo /usr/bin/systemctl stop datakit.service
         sleep 2
     fi
 }
@@ -122,7 +122,7 @@ stop_datakit_service() {
 start_datakit_service() {
     log_info "启动Datakit服务..."
     
-    systemctl start datakit
+    sudo /usr/bin/systemctl start datakit.service
     sleep 3
 }
 

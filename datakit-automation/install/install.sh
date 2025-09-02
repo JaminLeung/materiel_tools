@@ -115,7 +115,7 @@ After=network.target
 
 [Service]
 Type=simple
-User=root
+User=datakit
 ExecStart=/usr/local/bin/node_exporter
 Restart=always
 
@@ -127,7 +127,7 @@ EOF
     systemctl daemon-reload
     systemctl enable node_exporter
     
-    if ! systemctl start node_exporter; then
+    if !  systemctl start node_exporter; then
         handle_error "SERVICE_ERROR" "启动Node Exporter服务失败" "ERROR" "false"
         return 1
     fi
@@ -178,7 +178,7 @@ install_datakit() {
     # 执行离线安装
     log_info "执行Datakit离线安装..."
     
-    if ! ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$dataway_url" --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64.tar.gz,data.tar.gz"; then
+    if ! ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$dataway_url"  --user-name datakit     --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64.tar.gz,data.tar.gz"; then
         handle_error "DEPENDENCY_ERROR" "Datakit安装失败" "ERROR" "false"
         
         return 1
@@ -188,7 +188,7 @@ install_datakit() {
     systemctl daemon-reload
     systemctl enable datakit
     
-    if ! systemctl start datakit; then
+    if !  systemctl start datakit; then
         handle_error "SERVICE_ERROR" "启动Datakit服务失败" "ERROR" "false"
         return 1
     fi

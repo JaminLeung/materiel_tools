@@ -24,6 +24,9 @@ configure_and_verify() {
         return 1
     fi
     
+    # 重新给datakit用户授权
+    set_directory_permissions
+    
     # 重启Datakit
     # TODO restart_datakit 提取单独封装
     if ! restart_datakit; then

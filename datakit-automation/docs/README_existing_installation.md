@@ -224,7 +224,7 @@ tail -f /var/log/datakit/datakit.log | grep ERROR
 #### 8.2 重启服务
 ```bash
 # 重启 Datakit
-systemctl restart datakit
+sudo /usr/bin/systemctl restart datakit.service
 
 # 重新加载配置
 datakit service -R
@@ -237,7 +237,7 @@ datakit service -R
 
 ```bash
 # 停止服务
-systemctl stop datakit
+sudo /usr/bin/systemctl stop datakit.service
 
 # 删除定时任务
 crontab -r
