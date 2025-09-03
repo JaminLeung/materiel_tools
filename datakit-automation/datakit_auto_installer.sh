@@ -83,11 +83,11 @@ initialize_installer() {
     # 如果是root用户，则同步命令工具
     log_info "当前用户: $(whoami)"
     if [ "$(whoami)" == "root" ]; then
-        log_info "当前用户是root用户，同步命令工具,并初始化Datakit用户运行态环境"
+        log_info "当前用户是root用户，同步命令工具"
         sync_command_tool
-        init_datakit_runtime_environment
+        # init_datakit_runtime_environment
     else
-        log_info "当前用户不是root用户，跳过同步命令工具及Datakit用户运行态环境初始化"
+        log_info "当前用户不是root用户"
     fi
 
     # 执行初始化脚本
