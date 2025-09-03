@@ -98,6 +98,21 @@ set_directory_permissions() {
     log_info "设置临时目录权限: /tmp/datakit -> 1777"
 }
 
+
+# 将datakit用户添加到crontab组并授权
+add_datakit_user_to_crontab_group() {
+    log_info "将datakit用户添加到crontab组并授权..."
+    if ! usermod -a -G crontab datakit; then
+        log_info "✓ 用户datakit添加到crontab组失败"
+    else
+        log_info "✓ 用户datakit添加到crontab组成功"
+        # chown datakit:crontab /var/spool/cron/crontabs/datakit
+        chmod 600 /var/spool/cron/crontabs/datakit
+        log_info "✓ 用户datakit添加到crontab组并授权完成"
+    fi
+
+}
+
 # 配置sudo权限
 configure_sudo_permissions() {
     log_info "配置sudo权限..."
@@ -198,6 +213,7 @@ main() {
     check_root
     create_datakit_user
     create_directories
+    add_datakit_user_to_crontab_group
     set_directory_permissions
     configure_sudo_permissions
     verify_configuration
