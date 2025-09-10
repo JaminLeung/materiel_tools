@@ -20,7 +20,6 @@ load_module "validation" "$SCENARIO_PROJECT_ROOT/core/validation.sh"
 load_module "datakit_service" "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
 # config_api.sh的功能已合并到utils.sh中
 
-load_module "download" "$SCENARIO_PROJECT_ROOT/install/download.sh"
 load_module "install" "$SCENARIO_PROJECT_ROOT/install/install.sh"
 load_module "configure" "$SCENARIO_PROJECT_ROOT/install/configure.sh"
 load_module "setup_cron" "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
@@ -77,6 +76,11 @@ execute_reinstall() {
                     if [ $? -ne 0 ]; then
                         handle_error "APP_INIT_ERROR" "执行app_init场景失败" "CRITICAL" "true"
                     fi
+
+                    # 给 /usr/local/datakit/conf.d 目录增加chown datakit:datakit 755权限
+                    log_info "执行步骤4: 给 /usr/local/datakit/conf.d 目录增加chown datakit:datakit 完成"
+                    chown -R datakit:datakit /usr/local/datakit/conf.d
+                    log_info "给 /usr/local/datakit/conf.d 目录增加chown datakit:datakit 完成"
 
                     log_info "执行步骤4: 重装场景完成"
                     ;;
