@@ -146,11 +146,8 @@ restore_installation_env() {
             # 完全重装步骤：2、清理相关定时任务
             log_info "--- 还原步骤3: 完全重装模式：删除相关的定时任务 ---"
             
-            if [[ "$install_type" == "new" ]]; then
-                local task_pattern=("datakit_auto_installer.sh")
-            else    
-                local task_pattern=("app_init.sh" "app-init.sh" )
-            fi
+            local task_pattern=("datakit_auto_installer.sh" "upgrade_datakit.sh" "/opt/datakit/app_init.sh" "/opt/datakit/app-init.sh")
+
             
             # 获取当前crontab内容（root用户）
             current_crontab=$(crontab -l 2>/dev/null)
