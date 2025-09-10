@@ -122,8 +122,15 @@ restore_installation_env() {
         else
             log_info "datakit进程停止失败，请手动停止"
         fi
+
+        # 停止node_exporter进程
+        if sudo systemctl stop node_exporter; then
+            log_info "node_exporter进程已停止"
+        else
+            log_info "node_exporter进程停止失败，请手动停止"
+        fi
     else
-        log_info "datakit进程不存在，跳过停止操作"
+        log_info "node_exporter / datakit 进程不存在，跳过停止操作"
     fi
 
     # 根据重装模式处理配置文件和定时任务
@@ -135,9 +142,15 @@ restore_installation_env() {
                 local backup_name="datakit_${install_type}_full_backup_$(date +%Y%m%d%H%M%S)"
                 mv "/usr/local/datakit/conf.d" "/tmp/$backup_name"
                 log_info "配置文件已备份并删除，备份位置: /tmp/$backup_name"
+
             if [ -f "/etc/systemd/system/datakit.service" ]; then
                 mv "/etc/systemd/system/datakit.service" "/tmp/datakit.service"
                 log_info "systemd配置文件: tmp/datakit.service"
+            fi
+
+            if [ -f "/lib/systemd/system/node_exporter.service" ]; then
+                mv "/lib/systemd/system/node_exporter.service" "/tmp/node_exporter.service"
+                log_info "systemd配置文件: tmp/node_exporter.service"
             fi
             else
                 log_info "datakit配置文件不存在，跳过备份"
