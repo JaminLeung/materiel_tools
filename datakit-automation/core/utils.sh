@@ -152,26 +152,27 @@ restore_installation_env() {
                 local task_pattern=("app_init.sh" "app-init.sh" )
             fi
             
-            # 完全重装步骤：3、如果存在定时任务，则备份当前crontab
-            if sudo -u datakit crontab -l 2>/dev/null; then
-                local crontab_backup="/tmp/crontab_backup_$(date +%Y%m%d%H%M%S)"
+            # 获取当前crontab内容（root用户）
+            current_crontab=$(crontab -l 2>/dev/null)
+            
+            # 如果存在定时任务，则备份当前crontab
+            if [[ -n "$current_crontab" ]]; then
+                crontab_backup="/tmp/crontab_backup_$(date +%Y%m%d%H%M%S)"
                 log_info "crontab_backup 路径: $crontab_backup"
-                sudo -u datakit crontab -l > "$crontab_backup" 2>/dev/null
+                echo "$current_crontab" > "$crontab_backup" 2>/dev/null
                 log_info "crontab已备份到: $crontab_backup"
             else
                 log_info "未发现相关定时任务，跳过备份"
             fi
             
-            # 获取当前crontab内容
-            local current_crontab=$(sudo -u datakit crontab -l 2>/dev/null)
-            local has_deleted=false
+            has_deleted=false
             
             if [[ -n "$current_crontab" ]]; then
                 # 构建过滤后的crontab内容
-                local filtered_crontab=""
+                filtered_crontab=""
                 
                 while IFS= read -r line; do
-                    local should_keep=true
+                    should_keep=true
                     
                     # 跳过空行和注释行
                     if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
@@ -207,10 +208,10 @@ restore_installation_env() {
                 if [[ "$has_deleted" == "true" ]]; then
                     log_info "正在更新crontab..."
                     if [[ -n "$filtered_crontab" ]]; then
-                        echo "$filtered_crontab" | sudo -u datakit crontab -
+                        echo "$filtered_crontab" | crontab -
                         log_info "定时任务删除完成，保留了 $(echo "$filtered_crontab" | grep -v '^[[:space:]]*#' | grep -v '^$' | wc -l) 个有效任务"
                     else
-                        sudo -u datakit crontab -r 2>/dev/null
+                        crontab -r 2>/dev/null
                         log_info "定时任务删除完成，所有任务已清空"
                     fi
                 else
