@@ -135,6 +135,10 @@ restore_installation_env() {
                 local backup_name="datakit_${install_type}_full_backup_$(date +%Y%m%d%H%M%S)"
                 mv "/usr/local/datakit/conf.d" "/tmp/$backup_name"
                 log_info "配置文件已备份并删除，备份位置: /tmp/$backup_name"
+            if [ -f "/etc/systemd/system/datakit.service" ]; then
+                mv "/etc/systemd/system/datakit.service" "/tmp/datakit.service"
+                log_info "systemd配置文件: tmp/datakit.service"
+            fi
             else
                 log_info "datakit配置文件不存在，跳过备份"
             fi
