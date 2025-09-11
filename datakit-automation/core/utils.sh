@@ -241,9 +241,80 @@ restore_installation_env() {
             else
                 log_info "datakit配置文件不存在，跳过备份"
             fi
+       
+            log_info "--- 保留配置重装模式：保留相关的定时任务 ---"
             
-            # 保留配置重装步骤：2、不清理定时任务
-            log_info "--- 保留配置重装模式：跳过定时任务清理，保留现有定时任务 ---"
+            local task_pattern=("datakit_auto_installer.sh" "upgrade_datakit.sh" "/opt/datakit/app_init.sh" "/opt/datakit/app-init.sh"  "update_datakit.sh" )
+
+            
+            # 获取当前crontab内容（root用户）
+            current_crontab=$(crontab -l 2>/dev/null)
+            
+            # 如果存在定时任务，则备份当前crontab
+            if [[ -n "$current_crontab" ]]; then
+                crontab_backup="/tmp/crontab_backup_$(date +%Y%m%d%H%M%S)"
+                log_info "crontab_backup 路径: $crontab_backup"
+                echo "$current_crontab" > "$crontab_backup" 2>/dev/null
+                log_info "crontab已备份到: $crontab_backup"
+            else
+                log_info "未发现相关定时任务，跳过备份"
+            fi
+            
+            has_deleted=false
+            
+            if [[ -n "$current_crontab" ]]; then
+                # 构建过滤后的crontab内容
+                filtered_crontab=""
+                
+                while IFS= read -r line; do
+                    should_keep=true
+                    
+                    # 跳过空行和注释行
+                    if [[ -z "$line" ]] || [[ "$line" =~ ^[[:space:]]*# ]]; then
+                        if [[ -n "$filtered_crontab" ]]; then
+                            filtered_crontab="$filtered_crontab"$'\n'"$line"
+                        else
+                            filtered_crontab="$line"
+                        fi
+                        continue
+                    fi
+                    
+                    # 检查当前行是否匹配任何任务模式
+                    for task in "${task_pattern[@]}"; do
+                        if echo "$line" | grep -q "$task"; then
+                            log_info "发现匹配的定时任务: $line"
+                            should_keep=false
+                            has_deleted=true
+                            break
+                        fi
+                    done
+                    
+                    # 如果应该保留，添加到过滤后的内容
+                    if [[ "$should_keep" == "true" ]]; then
+                        if [[ -n "$filtered_crontab" ]]; then
+                            filtered_crontab="$filtered_crontab"$'\n'"$line"
+                        else
+                            filtered_crontab="$line"
+                        fi
+                    fi
+                done <<< "$current_crontab"
+                
+                # 如果有删除操作，更新crontab
+                if [[ "$has_deleted" == "true" ]]; then
+                    log_info "正在更新crontab..."
+                    if [[ -n "$filtered_crontab" ]]; then
+                        echo "$filtered_crontab" | crontab -
+                        log_info "定时任务删除完成，保留了 $(echo "$filtered_crontab" | grep -v '^[[:space:]]*#' | grep -v '^$' | wc -l) 个有效任务"
+                    else
+                        crontab -r 2>/dev/null
+                        log_info "定时任务删除完成，所有任务已清空"
+                    fi
+                else
+                    log_info "未发现匹配的定时任务，无需删除"
+                fi
+            else
+                log_info "当前没有定时任务，无需删除"
+            fi
             ;;
         *)
             # 其他类型：输出错误并退出
@@ -824,116 +895,6 @@ uninstall_datakit() {
     # 删除datakit安装目录
 }
 
-# =============================================================================
-# S3下载工具函数（从install_utils整合）
-# =============================================================================
-
-# # 使用curl下载私有S3文件（AWS签名v4）
-# download_from_s3_with_curl() {
-#     local bucket="$1"
-#     local key="$2"
-#     local local_path="$3"
-    
-#     log_info "使用curl从私有S3下载: $key"
-    
-#     # 检查AWS凭证
-#     if [ -z "$S3_ACCESS_KEY" ] || [ -z "$S3_SECRET_KEY" ]; then
-#         handle_error "CONFIG_ERROR" "缺少AWS凭证，无法访问私有S3 bucket" "ERROR" "false"
-#         return 1
-#     fi
-    
-#     # 设置变量
-#     local http_method="GET"
-#     local canonical_uri="/$key"
-#     local canonical_querystring=""
-#     local timestamp=$(date -u +%Y%m%dT%H%M%SZ)
-#     local date_stamp=$(date -u +%Y%m%d)
-#     local region="${S3_REGION:-ap-southeast-1}"
-#     local service="s3"
-#     local host="$bucket.s3.$region.amazonaws.com"
-    
-#     # 生成负载哈希（GET请求为空）
-#     local payload_hash="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-    
-#     # 构建Canonical Headers - 确保格式完全正确
-#     local canonical_headers="host:$host"$'\n'"x-amz-content-sha256:$payload_hash"$'\n'"x-amz-date:$timestamp"$'\n'
-#     local signed_headers="host;x-amz-content-sha256;x-amz-date"
-    
-#     # 构建Canonical Request - 使用精确的换行符
-#     local canonical_request="$http_method"$'\n'"$canonical_uri"$'\n'"$canonical_querystring"$'\n'"$canonical_headers"$'\n'"$signed_headers"$'\n'"$payload_hash"
-    
-#     # 计算Canonical Request哈希
-#     local canonical_request_hash=$(printf "%s" "$canonical_request" | sha256sum | awk '{print $1}')
-    
-#     # 构建String to Sign
-#     local credential_scope="$date_stamp/$region/$service/aws4_request"
-#     local string_to_sign="AWS4-HMAC-SHA256"$'\n'"$timestamp"$'\n'"$credential_scope"$'\n'"$canonical_request_hash"
-    
-#     # 生成签名密钥 - 使用简单方法避免null byte问题
-#     local kSecret="AWS4$S3_SECRET_KEY"
-#     local temp_dir=$(mktemp -d)
-#     # 注意：trap 在函数内部可能导致过早清理，改为手动清理
-#     # 确保临时目录存在
-#     if [ ! -d "$temp_dir" ]; then
-#         handle_error "FILE_ERROR" "无法创建临时目录" "ERROR" "false"
-#         return 1
-#     fi
-    
-#     # 调试信息
-#     log_info "临时目录: $temp_dir"
-#     log_info "kSecret: ${kSecret:0:20}..."
-#     log_info "S3_SECRET_KEY: ${S3_SECRET_KEY:0:10}..."
-#     log_info "S3_ACCESS_KEY: ${S3_ACCESS_KEY:0:10}..."
-    
-#     # kDate
-#     local kDate=$(echo -n "$date_stamp" | openssl dgst -sha256 -hmac "$kSecret" -binary)
-    
-#     # kRegion
-#     local kRegion=$(echo -n "$region" | openssl dgst -sha256 -hmac "$kDate" -binary)
-    
-#     # kService
-#     local kService=$(echo -n "$service" | openssl dgst -sha256 -hmac "$kRegion" -binary)
-    
-#     # kSigning
-#     local kSigning=$(echo -n "aws4_request" | openssl dgst -sha256 -hmac "$kService" -binary)
-    
-#     # 生成签名
-#     echo -n "$string_to_sign" > "$temp_dir/string_input"
-#     local signature=$(openssl dgst -sha256 -hmac "$kSigning" "$temp_dir/string_input" | awk '{print $2}')
-    
-#     # 生成授权头
-#     local authorization_header="AWS4-HMAC-SHA256 Credential=$S3_ACCESS_KEY/$credential_scope,SignedHeaders=$signed_headers,Signature=$signature"
-    
-#     # 构建完整URL
-#     local s3_url="https://$host$canonical_uri"
-    
-#     # 使用curl下载
-#     log_info "开始下载文件..."
-#     if curl -L -o "$local_path" "$s3_url" \
-#         -H "Authorization: $authorization_header" \
-#         -H "x-amz-content-sha256: $payload_hash" \
-#         -H "x-amz-date: $timestamp" \
-#         --connect-timeout 30 --max-time "${DOWNLOAD_TIMEOUT:-300}"; then
-        
-#         # 检查文件大小，确保下载成功
-#         local file_size=$(stat -c%s "$local_path" 2>/dev/null || stat -f%z "$local_path" 2>/dev/null)
-#         if [ "$file_size" -gt 0 ]; then
-#             log_info "文件下载成功: $local_path (${file_size} bytes)"
-#             return 0
-#         else
-#             handle_error "NETWORK_ERROR" "下载的文件为空: $key" "ERROR" "false"
-#             return 1
-#         fi
-#     else
-#         handle_error "NETWORK_ERROR" "下载失败: $key" "ERROR" "false"
-#         # 清理临时目录
-#         rm -rf "$temp_dir" 2>/dev/null || true
-#         return 1
-#     fi
-    
-#     # 清理临时目录
-#     rm -rf "$temp_dir" 2>/dev/null || true
-# }
 
 # 带重试的S3下载
 download_from_s3_with_retry() {

@@ -34,7 +34,7 @@ load_module "setup_cron" "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
 
 execute_preserve_reinstall() {
     log_info "执行保留配置重装场景"
-    execute_incremental_installation
+    execute_keep_config_installation
 }
 
 execute_full_reinstall() {
@@ -86,6 +86,12 @@ execute_reinstall() {
                     ;;
                 preserve)
                     log_info "执行新版本保留配置重新部署方式，执行保留配置重装场景"
+
+                    log_info "执行步骤1: 还原安装环境"
+                    restore_installation_env "new" "$reinstall_type"            
+                    if [ $? -ne 0 ]; then
+                        handle_error "RESTORE_ENV_ERROR" "还原安装环境失败" "CRITICAL" "true"
+                    fi
                     execute_preserve_reinstall
                     ;;
                 *)
