@@ -133,6 +133,7 @@ restore_installation_env() {
         log_info "node_exporter / datakit 进程不存在，跳过停止操作"
     fi
 
+
     # 根据重装模式处理配置文件和定时任务
     case "$reinstall_mode" in
         full)
