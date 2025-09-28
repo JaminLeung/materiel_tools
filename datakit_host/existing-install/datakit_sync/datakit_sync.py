@@ -48,7 +48,7 @@ class DatakitSync:
         }
         self.os_type = "linux"
         self.orch = "amd64"
-        self.version = "1.83.0"
+        self.version = "1.82.0"
 
     def validate_connection(self) -> bool:
         try:
@@ -251,7 +251,7 @@ def main():
     parser.add_argument("--prefix", default="datakit", help="S3 object key prefix (default: datakit)")
     parser.add_argument("--local-dir", default="./datakit-offline", help="本地下载目录 (默认: ./datakit-offline)")
     parser.add_argument("--secure", action="store_true", default=True, help="Use HTTPS")
-    parser.add_argument("--version", default="1.83.0", help="Datakit版本")
+    parser.add_argument("--version", default="1.82.0", help="Datakit版本")
     parser.add_argument("--os-type", default="linux", help="操作系统类型")
     parser.add_argument("--orch", default="amd64", help="架构类型")
     args = parser.parse_args()

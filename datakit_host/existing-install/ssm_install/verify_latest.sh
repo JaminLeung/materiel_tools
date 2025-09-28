@@ -28,7 +28,7 @@ AWS_ACCESS_KEY="AWS_ACCESS_KEY_ID_PLACEHOLDER"
 AWS_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
 BUCKET="benjamin--test"
 REGION="ap-southeast-1"
-OBJECT_KEY="datakit/datakit_bundle-linux-amd64-1.83.0.tar.gz"
+OBJECT_KEY="datakit/datakit_bundle-linux-amd64-1.82.0.tar.gz"
 
 # AWS期望的签名（从最新错误响应中获取）
 AWS_EXPECTED_SIGNATURE="06e3b17efdbd339920e8562886c04d096a3f7d58d3f2c079b36b84e1ae20178a"

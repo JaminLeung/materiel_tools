@@ -65,7 +65,7 @@ class TestDatakitSync(unittest.TestCase):
             self.assertEqual(sync.datakit_dir, "datakit")
             self.assertEqual(sync.os_type, "linux")
             self.assertEqual(sync.orch, "amd64")
-            self.assertEqual(sync.version, "1.83.0")
+            self.assertEqual(sync.version, "1.82.0")
 
     def test_validate_connection_success(self):
         """测试连接验证成功"""
@@ -216,7 +216,7 @@ class TestDatakitSync(unittest.TestCase):
         mock_download.return_value = True
         
         # 创建测试文件
-        test_file_path = os.path.join(self.temp_dir, "installer-linux-amd64-1.83.0")
+        test_file_path = os.path.join(self.temp_dir, "installer-linux-amd64-1.82.0")
         with open(test_file_path, 'w') as f:
             f.write("test installer")
         
@@ -237,8 +237,8 @@ class TestDatakitSync(unittest.TestCase):
         
         # 准备测试数据
         downloaded_files = {
-            "installer": os.path.join(self.temp_dir, "installer-linux-amd64-1.83.0"),
-            "datakit": os.path.join(self.temp_dir, "datakit-linux-amd64-1.83.0.tar.gz")
+            "installer": os.path.join(self.temp_dir, "installer-linux-amd64-1.82.0"),
+            "datakit": os.path.join(self.temp_dir, "datakit-linux-amd64-1.82.0.tar.gz")
         }
         
         # 创建测试文件
@@ -255,8 +255,8 @@ class TestDatakitSync(unittest.TestCase):
         """测试包配置文件创建"""
         # 准备测试数据
         downloaded_files = {
-            "installer": os.path.join(self.temp_dir, "installer-linux-amd64-1.83.0"),
-            "datakit": os.path.join(self.temp_dir, "datakit-linux-amd64-1.83.0.tar.gz")
+            "installer": os.path.join(self.temp_dir, "installer-linux-amd64-1.82.0"),
+            "datakit": os.path.join(self.temp_dir, "datakit-linux-amd64-1.82.0.tar.gz")
         }
         
         # 创建测试文件
@@ -274,7 +274,7 @@ class TestDatakitSync(unittest.TestCase):
         self.assertIn("metadata", result)
         
         # 验证文件信息
-        self.assertEqual(result["version"], "1.83.0")
+        self.assertEqual(result["version"], "1.82.0")
         self.assertEqual(result["os_type"], "linux")
         self.assertEqual(result["architecture"], "amd64")
         self.assertEqual(len(result["files"]), 2)
@@ -284,7 +284,7 @@ class TestDatakitSync(unittest.TestCase):
     def test_create_package_config_file_save(self, mock_json_dump, mock_file):
         """测试包配置文件保存"""
         downloaded_files = {
-            "installer": os.path.join(self.temp_dir, "installer-linux-amd64-1.83.0")
+            "installer": os.path.join(self.temp_dir, "installer-linux-amd64-1.82.0")
         }
         
         # 创建测试文件
@@ -301,7 +301,7 @@ class TestDatakitSync(unittest.TestCase):
         """测试URL模板格式化"""
         # 测试动态URL格式化
         url_template = "https://example.com/{os_type}-{orch}-{version}.tar.gz"
-        expected_url = "https://example.com/linux-amd64-1.83.0.tar.gz"
+        expected_url = "https://example.com/linux-amd64-1.82.0.tar.gz"
         
         # 模拟下载过程中的URL处理
         if "{os_type}" in url_template or "{orch}" in url_template or "{version}" in url_template:
@@ -319,9 +319,9 @@ class TestDatakitSync(unittest.TestCase):
         """测试本地文件名生成"""
         # 测试不同类型的文件名生成
         test_cases = [
-            ("installer", "installer-linux-amd64-1.83.0"),
-            ("datakit", "datakit-linux-amd64-1.83.0.tar.gz"),
-            ("datakit_lite", "datakit_lite-linux-amd64-1.83.0.tar.gz"),
+            ("installer", "installer-linux-amd64-1.82.0"),
+            ("datakit", "datakit-linux-amd64-1.82.0.tar.gz"),
+            ("datakit_lite", "datakit_lite-linux-amd64-1.82.0.tar.gz"),
             ("upgrader", "dk_upgrader-linux-amd64.tar.gz"),
             ("data.tar.gz", "data.tar.gz")
         ]
@@ -342,8 +342,8 @@ class TestDatakitSync(unittest.TestCase):
         """测试S3 key生成"""
         # 测试不同类型的S3 key生成
         test_cases = [
-            ("installer", "datakit/installer-linux-amd64-1.83.0"),
-            ("datakit", "datakit/datakit-linux-amd64-1.83.0.tar.gz"),
+            ("installer", "datakit/installer-linux-amd64-1.82.0"),
+            ("datakit", "datakit/datakit-linux-amd64-1.82.0.tar.gz"),
             ("upgrader", "datakit/dk_upgrader-linux-amd64.tar.gz"),
             ("data.tar.gz", "datakit/data.tar.gz")
         ]

@@ -8,23 +8,18 @@
 
 set -e
 
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
 
 # 日志函数
 log_info() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+    echo -e "[INFO] ${NC} $1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    echo -e "[WARN] ${NC} $1"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "[ERROR] ${NC} $1"
 }
 
 # 检查是否为root用户
@@ -49,7 +44,7 @@ create_datakit_user() {
 # 创建必要的目录
 create_directories() {
     log_info "创建必要的目录..."
-    
+
     # 基础目录
     local dirs=(
         "/opt/datakit"
@@ -57,12 +52,9 @@ create_directories() {
         "/usr/local/datakit/conf.d"
         "/var/log/datakit"
         "/var/run/datakit"
-        "/var/log/datakit/runtime"
-        "/var/log/datakit/runtime/releases"
-        "/var/log/datakit/runtime/releases/current"
         "/tmp/datakit"
     )
-    
+
     for dir in "${dirs[@]}"; do
         if [ ! -d "$dir" ]; then
             mkdir -p "$dir"
@@ -76,26 +68,51 @@ create_directories() {
 # 设置目录权限
 set_directory_permissions() {
     log_info "设置目录权限..."
-    
+
     # 设置所有权
     local own_dirs=(
         "/opt/datakit"
         "/usr/local/datakit"
-        "/var/lib/datakit"
-        "/var/log/datakit"
         "/var/run/datakit"
         "/tmp/datakit"
     )
-    
+
+    # 使用setfacl设置权限的目录
+    local acl_dirs=(
+        "/var/log"
+        #"/proc"
+        "/home/app" # 排除.ssh目录授权
+        "/data/processLog"
+        "/data/invokeLog"
+        "/data/probeLog"
+    )
+
+    # 设置标准目录权限
     for dir in "${own_dirs[@]}"; do
         chown -R datakit:datakit "$dir"
         chmod -R 755 "$dir"
         log_info "设置权限: $dir -> datakit:datakit 755"
     done
-    
-    # 特殊权限设置
-    chmod 1777 /tmp/datakit  # 临时目录权限
-    log_info "设置临时目录权限: /tmp/datakit -> 1777"
+
+    # 使用setfacl设置ACL权限（含默认ACL用于新建项继承）
+    for dir in "${acl_dirs[@]}"; do
+        # 如果是/home/app 目录，需要排除.ssh目录授权
+        if [ "$dir" == "/home/app" ]; then
+            if [ -d "$dir" ]; then
+                setfacl -R -m u:datakit:rx -m d:u:datakit:rx "$dir"
+                if [ -d "$dir/.ssh" ]; then
+                    setfacl -R -x u:datakit "$dir/.ssh" || true
+                    setfacl -R -x d:u:datakit "$dir/.ssh" || true
+                fi
+                log_info "设置ACL权限: $dir -> datakit:rx 且 d:datakit:rx (排除.ssh目录)"
+            fi
+        else
+            if [ -d "$dir" ]; then
+                setfacl -R -m u:datakit:rx -m d:u:datakit:rx "$dir"
+                log_info "设置ACL权限: $dir -> datakit:rx 且 d:datakit:rx"
+            fi
+        fi
+    done
 }
 
 
@@ -104,19 +121,13 @@ add_datakit_user_to_crontab_group() {
     log_info "将datakit用户添加到crontab组并授权..."
     if ! usermod -a -G crontab datakit; then
         log_info "✓ 用户datakit添加到crontab组失败"
-    else
-        log_info "✓ 用户datakit添加到crontab组成功"
-        # chown datakit:crontab /var/spool/cron/crontabs/datakit
-        chmod 600 /var/spool/cron/crontabs/datakit
-        log_info "✓ 用户datakit添加到crontab组并授权完成"
     fi
-
 }
 
 # 配置sudo权限
 configure_sudo_permissions() {
     log_info "配置sudo权限..."
-    
+
     # 清理现有的sudoers文件
     cat > /etc/sudoers.d/datakit << 'EOF'
 datakit ALL=(root) NOPASSWD: /usr/bin/systemctl start datakit.service
@@ -144,83 +155,21 @@ EOF
     log_info "✓ sudo权限配置完成"
 }
 
-# 验证配置
-verify_configuration() {
-    log_info "验证配置..."
-    
-    # 验证sudoers语法
-    if visudo -c -f /etc/sudoers.d/datakit; then
-        log_info "✓ sudoers语法验证通过"
-    else
-        log_error "✗ sudoers语法验证失败"
-        return 1
-    fi
-    
-    # 验证目录权限
-    local test_dirs=(
-        "/opt/datakit"
-        "/usr/local/datakit"
-        "/var/lib/datakit"
-        "/var/log/datakit"
-        "/var/run/datakit"
-        "/tmp/datakit"
-    )
-    
-    for dir in "${test_dirs[@]}"; do
-        if [ -d "$dir" ] && [ "$(stat -c '%U:%G' "$dir")" = "datakit:datakit" ]; then
-            log_info "✓ 目录权限正确: $dir"
-        else
-            log_error "✗ 目录权限错误: $dir"
-            return 1
-        fi
-    done
-    
-    # 测试datakit用户sudo权限
-    if sudo -u datakit sudo -l >/dev/null 2>&1; then
-        log_info "✓ datakit用户sudo权限验证通过"
-    else
-        log_error "✗ datakit用户sudo权限验证失败"
-        return 1
-    fi
-    
-    log_info "✓ 所有配置验证通过"
-}
 
-# 显示使用说明
-show_usage() {
-    log_info "配置完成！现在可以使用以下命令："
-    echo
-    echo "1. 启动安装服务："
-    echo "   sudo systemctl start datakit_auto_installer"
-    echo
-    echo "2. 查看服务状态："
-    echo "   sudo systemctl status datakit_auto_installer"
-    echo
-    echo "3. 查看日志："
-    echo "   sudo journalctl -u datakit_auto_installer -f"
-    echo
-    echo "4. 手动测试权限："
-    echo "   sudo -u datakit sudo -l"
-    echo
-    echo "5. 手动运行安装："
-    echo "   sudo -u datakit DATAKIT_ENV=dev /opt/datakit/datakit_auto_installer.sh existing-install"
-}
 
 # 主函数
 main() {
     log_info "开始配置Datakit完整权限..."
-    
+
     check_root
     create_datakit_user
     create_directories
     add_datakit_user_to_crontab_group
     set_directory_permissions
     configure_sudo_permissions
-    verify_configuration
-    
+
     log_info "Datakit权限配置完成！"
-    show_usage
 }
 
 # 执行主函数
-main "$@" 
+main "$@"
