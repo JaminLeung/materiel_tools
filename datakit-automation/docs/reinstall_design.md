@@ -70,10 +70,10 @@ REINSTALL_CONFIG=(
 ### 4.2 命令行参数
 ```bash
 # 基本用法
-./reinstall.sh --version 1.83.0
+./reinstall.sh --version 1.82.0
 
 # 高级用法
-./reinstall.sh --version 1.83.0 --config benjamin.sh --no-rollback --force
+./reinstall.sh --version 1.82.0 --config benjamin.sh --no-rollback --force
 ```
 
 ## 5. 错误处理和回滚

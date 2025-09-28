@@ -36,7 +36,7 @@ class DatakitBuilder:
         self.config = self.load_config()
         self.work_dir = Path.cwd()
         self.work_dir = Path.cwd()
-        self.datakit_version = "1.83.0"
+        self.datakit_version = "1.82.0"
         self.installer_version = "1.0.8"
 
 

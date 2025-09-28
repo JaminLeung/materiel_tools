@@ -29,7 +29,7 @@ AWS_ACCESS_KEY="AWS_ACCESS_KEY_ID_PLACEHOLDER"
 AWS_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
 BUCKET="benjamin--test"
 REGION="ap-southeast-1"
-OBJECT_KEY="datakit/datakit_bundle-linux-amd64-1.83.0.tar.gz"
+OBJECT_KEY="datakit/datakit_bundle-linux-amd64-1.82.0.tar.gz"
 
 # AWS提供的期望值
 AWS_EXPECTED_CANONICAL_HASH="4bc821ffd15acddc5455ece53b3afe153faf639aad67d7395cc39fe94ace9929"
@@ -40,7 +40,7 @@ AWS_EXPECTED_STRING_TO_SIGN="AWS4-HMAC-SHA256
 
 # AWS提供的Canonical Request
 AWS_EXPECTED_CANONICAL_REQUEST="GET
-/datakit/datakit_bundle-linux-amd64-1.83.0.tar.gz
+/datakit/datakit_bundle-linux-amd64-1.82.0.tar.gz
 
 host:benjamin--test.s3.ap-southeast-1.amazonaws.com
 x-amz-content-sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855

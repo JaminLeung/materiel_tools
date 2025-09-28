@@ -41,6 +41,13 @@ configure_and_verify() {
         return 1
     fi
     
+    # 配置Datakit主机监控指标过滤器
+    if ! configure_datakit_host_metrics; then
+        handle_error "CONFIG_ERROR" "配置Datakit主机监控指标过滤器失败" "ERROR" "false"
+        
+        return 1
+    fi
+    
     # 配置采集器
     if ! configure_datakit_inputs; then
         handle_error "CONFIG_ERROR" "配置采集器失败" "ERROR" "false"
@@ -218,6 +225,58 @@ configure_datakit_main_config() {
     return 0
 }
 
+# 配置Datakit主机监控指标过滤器
+configure_datakit_host_metrics() {
+    log_info "配置Datakit主机监控指标过滤器..."
+    
+    local dk_conf="/usr/local/datakit/conf.d/host/dk.conf"
+    
+    if [ ! -f "$dk_conf" ]; then
+        log_warn "主机监控配置文件不存在: $dk_conf"
+        return 0
+    fi
+    
+    # 读取当前配置
+    local current_config
+    log_info "读取主机监控配置文件: $dk_conf"
+    if ! current_config=$(read_toml_config "$dk_conf"); then
+        handle_error "FILE_ERROR" "读取主机监控配置文件失败" "ERROR" "false"
+        return 1
+    fi
+    
+    # 设置metric_name_filter为[".*"]以收集所有指标
+    current_config=$(echo "$current_config" | jq '.inputs.dk[0].metric_name_filter = [".*"]')
+    log_info "设置metric_name_filter: [\".*\"] (收集所有指标)"
+    
+    # 备份原配置文件
+    local backup_file="$dk_conf.backup.$(date +%Y%m%d_%H%M%S)"
+    cp "$dk_conf" "$backup_file"
+    log_info "备份配置文件到: $backup_file"
+    
+    # 创建临时配置文件
+    local temp_conf="/tmp/dk.conf.tmp"
+    
+    # 使用yj将更新后的JSON转换回TOML格式
+    if ! echo "$current_config" | yj -jt > "$temp_conf"; then
+        handle_error "CONFIG_ERROR" "转换主机监控配置文件格式失败" "ERROR" "false"
+        return 1
+    fi
+    
+    # 替换原配置文件
+    mv "$temp_conf" "$dk_conf"
+    
+    # 验证配置是否正确
+    if ! read_toml_config "$dk_conf" >/dev/null; then
+        handle_error "CONFIG_ERROR" "主机监控配置文件验证失败" "ERROR" "false"
+        # 恢复备份
+        mv "$backup_file" "$dk_conf"
+        return 1
+    fi
+    
+    log_info "Datakit主机监控指标过滤器配置完成"
+    return 0
+}
+
 # 配置采集器
 configure_datakit_inputs() {
     log_info "配置采集器..."
@@ -230,7 +289,7 @@ configure_datakit_inputs() {
     # fi
     
     cat > "$conf_dir/prom/prom_node_exporter.conf" << 'EOF'
-# {"version": "1.83.0", "desc": "do NOT edit this line"}
+# {"version": "1.82.0", "desc": "do NOT edit this line"}
 
 [[inputs.prom]]
   ## Exporter URLs.
@@ -293,7 +352,7 @@ EOF
     # fi
     
     cat > "$conf_dir/opentelemetry/opentelemetry.conf" << 'EOF'
-# {"version": "1.83.0", "desc": "do NOT edit this line"}
+# {"version": "1.82.0", "desc": "do NOT edit this line"}
 [[inputs.opentelemetry]]
   [inputs.opentelemetry.http]
    enable = true

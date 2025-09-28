@@ -8,7 +8,7 @@ set -euo pipefail
 
 # 脚本元信息
 readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
-readonly DATAKIT_VERSION="1.83.0"
+readonly DATAKIT_VERSION="1.82.0"
 readonly INSTALLER_SCRIPT_VERSION="1.0.8"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -141,7 +141,7 @@ Datakit 版本 v$DATAKIT_VERSION
 
 示例:
     # 使用环境变量 (推荐)
-    export DATAKIT_VERSION=1.83.0
+    export DATAKIT_VERSION=1.82.0
 
     $INSTALLER_SCRIPT_NAME existing-install
 
