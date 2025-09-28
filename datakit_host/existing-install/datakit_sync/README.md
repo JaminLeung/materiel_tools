@@ -42,7 +42,7 @@ python datakit_sync.py \
     --endpoint https://your-s3-endpoint.com \
     --access-key YOUR_ACCESS_KEY \
     --secret-key YOUR_SECRET_KEY \
-    --version 1.78.0
+    --version 1.83.0
 
 # 仅下载
 python datakit_sync.py \
@@ -75,20 +75,20 @@ python datakit_sync.py \
 - `--only-upload`: 仅上传模式
 - `--only-download`: 仅下载模式
 - `--only-upload-install-sh`: 仅上传安装脚本
-- `--version`: Datakit版本（默认：1.78.0）
+- `--version`: Datakit版本（默认：1.83.0）
 
 ## 文件结构
 
 ```
 datakit-offline/
-├── installer-linux-amd64-1.78.0
-├── installer-linux-amd64-1.78.0.md5
-├── datakit-linux-amd64-1.78.0.tar.gz
-├── datakit-linux-amd64-1.78.0.tar.gz.md5
-├── datakit_lite-linux-amd64-1.78.0.tar.gz
-├── datakit_lite-linux-amd64-1.78.0.tar.gz.md5
-├── datakit-apm-inject-linux-amd64-1.78.0.tar.gz
-├── datakit-apm-inject-linux-amd64-1.78.0.tar.gz.md5
+├── installer-linux-amd64-1.83.0
+├── installer-linux-amd64-1.83.0.md5
+├── datakit-linux-amd64-1.83.0.tar.gz
+├── datakit-linux-amd64-1.83.0.tar.gz.md5
+├── datakit_lite-linux-amd64-1.83.0.tar.gz
+├── datakit_lite-linux-amd64-1.83.0.tar.gz.md5
+├── datakit-apm-inject-linux-amd64-1.83.0.tar.gz
+├── datakit-apm-inject-linux-amd64-1.83.0.tar.gz.md5
 ├── dk_upgrader-linux-amd64.tar.gz
 ├── dk_upgrader-linux-amd64.tar.gz.md5
 ├── data.tar.gz
@@ -108,14 +108,14 @@ datakit-offline/
 ```
 guance/
 └── datakit/
-    ├── installer-linux-amd64-1.78.0
-    ├── installer-linux-amd64-1.78.0.md5
-    ├── datakit-linux-amd64-1.78.0.tar.gz
-    ├── datakit-linux-amd64-1.78.0.tar.gz.md5
-    ├── datakit_lite-linux-amd64-1.78.0.tar.gz
-    ├── datakit_lite-linux-amd64-1.78.0.tar.gz.md5
-    ├── datakit-apm-inject-linux-amd64-1.78.0.tar.gz
-    ├── datakit-apm-inject-linux-amd64-1.78.0.tar.gz.md5
+    ├── installer-linux-amd64-1.83.0
+    ├── installer-linux-amd64-1.83.0.md5
+    ├── datakit-linux-amd64-1.83.0.tar.gz
+    ├── datakit-linux-amd64-1.83.0.tar.gz.md5
+    ├── datakit_lite-linux-amd64-1.83.0.tar.gz
+    ├── datakit_lite-linux-amd64-1.83.0.tar.gz.md5
+    ├── datakit-apm-inject-linux-amd64-1.83.0.tar.gz
+    ├── datakit-apm-inject-linux-amd64-1.83.0.tar.gz.md5
     ├── dk_upgrader-linux-amd64.tar.gz
     ├── dk_upgrader-linux-amd64.tar.gz.md5
     ├── data.tar.gz
@@ -135,15 +135,15 @@ guance/
 
 ```json
 {
-  "version": "1.78.0",
+  "version": "1.83.0",
   "os_type": "linux",
   "architecture": "amd64",
   "files": {
     "installer": {
-      "local_path": "./datakit-offline/installer-linux-amd64-1.78.0",
+      "local_path": "./datakit-offline/installer-linux-amd64-1.83.0",
       "size": 1234567,
       "md5": "abcdef1234567890",
-      "s3_key": "datakit/installer-linux-amd64-1.78.0"
+      "s3_key": "datakit/installer-linux-amd64-1.83.0"
     }
   },
   "metadata": {
@@ -223,7 +223,7 @@ chmod +x run_tests.sh
 ## 1. 主要实现思路
 
 1. **下载所有物料**到本地目录（如 `./datakit-offline`）。
-2. **打包**：将所有下载的物料文件（不含旧的 tar 包和 md5）打包成一个 tar.gz（如 `datakit_bundle-linux-amd64-1.78.0.tar.gz`）。
+2. **打包**：将所有下载的物料文件（不含旧的 tar 包和 md5）打包成一个 tar.gz（如 `datakit_bundle-linux-amd64-1.83.0.tar.gz`）。
 3. **计算 md5**：对 tar.gz 包计算 md5，生成同名 `.md5` 文件。
 4. **上传**：只上传 tar.gz 和 md5 文件到 S3。
 5. **不再分文件上传**。

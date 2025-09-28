@@ -52,4 +52,4 @@ mainSteps:
       DocumentName: AWS-RunShellScript
       Parameters:
         commands:
-          - wget -O datakit-automation-all_1.0.7.tgz https://ox-obs-guanceyun.s3.ap-southeast-1.amazonaws.com/datakit-automation-all_1.0.7.tgz && mkdir -p /opt/datakit && tar xf  datakit-automation-all_1.0.7.tgz  -C /opt/datakit && cd /opt/datakit/datakit-automation && DATAKIT_AUTO_INSTALLER_TYPE=new DATAKIT_ENV=ox ./datakit_auto_installer.sh   reinstall
+          - wget -O datakit-automation-all_1.0.8.tgz https://ox-obs-guanceyun.s3.ap-southeast-1.amazonaws.com/datakit-automation-all_1.0.8.tgz && mkdir -p /opt/datakit && tar xf  datakit-automation-all_1.0.8.tgz  -C /opt/datakit && cd /opt/datakit/datakit-automation && DATAKIT_AUTO_INSTALLER_TYPE=new DATAKIT_ENV=ox ./datakit_auto_installer.sh   reinstall

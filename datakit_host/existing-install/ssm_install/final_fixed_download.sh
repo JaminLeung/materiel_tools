@@ -28,8 +28,8 @@ AWS_ACCESS_KEY="AWS_ACCESS_KEY_ID_PLACEHOLDER"
 AWS_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
 BUCKET="benjamin--test"
 REGION="ap-southeast-1"
-OBJECT_KEY="datakit/datakit_bundle-linux-amd64-1.78.0.tar.gz"
-LOCAL_FILE="./datakit_bundle-linux-amd64-1.78.0.tar.gz"
+OBJECT_KEY="datakit/datakit_bundle-linux-amd64-1.83.0.tar.gz"
+LOCAL_FILE="./datakit_bundle-linux-amd64-1.83.0.tar.gz"
 
 log_info "=== 最终修复版本下载测试 ==="
 
