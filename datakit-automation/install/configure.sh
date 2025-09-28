@@ -5,6 +5,30 @@
 #=================================================
 # 功能: 配置Datakit、采集器、定时任务、验证安装
 #=================================================
+set_directory_permissions() {
+    log_info "设置目录权限..."
+    
+    # 设置所有权
+    local own_dirs=(
+        "/opt/datakit"
+        "/usr/local/datakit"
+        "/var/lib/datakit"
+        "/var/log/datakit"
+        "/var/run/datakit"
+        "/tmp/datakit"
+    )
+    
+    for dir in "${own_dirs[@]}"; do
+        chown -R datakit:datakit "$dir"
+        chmod -R 755 "$dir"
+        log_info "设置权限: $dir -> datakit:datakit 755"
+    done
+    
+    # 特殊权限设置
+    chmod 1777 /tmp/datakit  # 临时目录权限
+    log_info "设置临时目录权限: /tmp/datakit -> 1777"
+}
+
 
 configure_and_verify() {
     local Date=$(date +%Y%m%d%H%M%S)
@@ -206,7 +230,7 @@ configure_datakit_inputs() {
     # fi
     
     cat > "$conf_dir/prom/prom_node_exporter.conf" << 'EOF'
-# {"version": "1.78.0", "desc": "do NOT edit this line"}
+# {"version": "1.83.0", "desc": "do NOT edit this line"}
 
 [[inputs.prom]]
   ## Exporter URLs.
@@ -269,7 +293,7 @@ EOF
     # fi
     
     cat > "$conf_dir/opentelemetry/opentelemetry.conf" << 'EOF'
-# {"version": "1.78.0", "desc": "do NOT edit this line"}
+# {"version": "1.83.0", "desc": "do NOT edit this line"}
 [[inputs.opentelemetry]]
   [inputs.opentelemetry.http]
    enable = true

@@ -15,7 +15,7 @@ Datakit 自动化安装工具支持多种配置方式，按优先级从高到低
 直接在命令行中设置环境变量：
 
 ```bash
-export DATAKIT_VERSION=1.78.0
+export DATAKIT_VERSION=1.83.0
 export S3_BUCKET=my-bucket
 export S3_ACCESS_KEY=your-access-key
 export S3_SECRET_KEY=your-secret-key
@@ -55,7 +55,7 @@ vim config/env/my-config.sh
 
 | 参数 | 类型 | 默认值 | 说明 |
 |------|------|--------|------|
-| `DATAKIT_VERSION` | 必需 | `1.78.0` | Datakit版本号 |
+| `DATAKIT_VERSION` | 必需 | `1.83.0` | Datakit版本号 |
 | `LOG_LEVEL` | 可选 | `1` | 日志级别 (0-4) |
 | `LOG_FILE` | 可选 | `/var/log/datakit_install.log` | 日志文件路径 |
 | `DATAKIT_INSTALL_DIR` | 可选 | `/opt/datakit_install` | 安装目录 |

@@ -92,7 +92,7 @@ datakit-automation/
 export DATAKIT_ENV=dev
 
 # 常用核心变量（按需）
-export DATAKIT_VERSION=1.78.0
+export DATAKIT_VERSION=1.83.0
 export DATAWAY_URL=https://dataway.example.com
 export OPS_ADDR=http://ops.example.com:5000
 ```

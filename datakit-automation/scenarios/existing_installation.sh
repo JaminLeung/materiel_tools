@@ -26,6 +26,97 @@ load_module "setup_cron" "$SCENARIO_PROJECT_ROOT/install/setup_cron.sh"
 # load_module "verify" "$SCENARIO_PROJECT_ROOT/install/verify.sh"
 
 
+# 保存配置安装模块
+execute_keep_config_installation() {
+    local start_time=$(date +%s)
+    local installation_type="keep_config"
+    log_info "=== 开始Datakit保存配置安装场景 ==="
+    log_info "场景描述: 已运行安装Datakit的主机，保存配置安装"
+    log_info "脚本版本: $SCRIPT_VERSION"
+    log_info "开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
+    
+    # 记录脚本启动到Dataway
+    log_info "开始Datakit保存配置安装: 场景=$installation_type"
+    
+    #=================================================
+    # 步骤1: 设置资源限制 (致命错误 - 直接退出程序)
+    #=================================================
+    log_info "步骤1: 获取资源限制并设置环境变量"
+    if ! get_machine_specs; then
+        handle_error "RESOURCE_ERROR" "资源限制设置失败，请检查机器规格" "ERROR" "true"
+    fi
+    log_info "步骤1: 资源限制获取成功"
+
+
+    #=================================================
+    # 步骤2: 获取主机信息 (非致命错误 - 退出函数)
+    #=================================================
+    log_info "步骤2: 获取主机信息..."
+    if ! get_host_info; then
+        handle_error "API_ERROR" "获取主机信息失败，使用缺省值继续安装" "ERROR" "false"
+        return 1
+    fi
+    log_info "步骤2: 主机信息获取完成"
+
+    #=================================================
+    # 步骤3: 执行安装 (致命错误 - 直接退出程序)
+    #=================================================
+    log_info "步骤3: 执行安装..."
+    if ! install_components; then
+        handle_error "DEPENDENCY_ERROR" "安装失败，退出安装" "ERROR" "true"
+    fi
+    log_info "步骤3: 组件安装完成"
+
+    #=================================================
+    # 步骤4: 配置和验证 (非致命错误 - 退出函数)
+    #=================================================
+    log_info "步骤4: 配置和验证..."
+    if ! configure_and_verify; then
+        handle_error "CONFIG_ERROR" "配置和验证失败，退出安装" "ERROR" "false"
+        return 1
+    fi
+
+    log_info "步骤4: 配置和验证完成"
+    
+    #=================================================
+    # 步骤5: 设置定时任务
+    #=================================================
+    log_info "步骤5: 设置定时任务..."
+    if ! setup_cron_jobs; then
+        handle_error "COMMAND_ERROR" "设置定时任务失败，退出安装" "ERROR" "false"
+        return 1
+    fi
+    log_info "步骤5: 定时任务设置完成"
+    
+    #=================================================
+    # 步骤6: 验证安装结果 (非致命错误 - 退出函数)
+    #=================================================
+    log_info "步骤6: 验证安装结果..."
+    if ! verify_installation; then
+        handle_error "VALIDATION_ERROR" "安装验证失败，退出安装" "ERROR" "false"
+        return 1
+    fi
+    log_info "步骤6: 安装验证通过"
+    
+    #=================================================
+    # 安装完成 - 记录成功信息
+    #=================================================
+    # 计算执行时间
+    local end_time=$(date +%s)
+    local duration=$((end_time - start_time))
+    
+    log_info "=== Datakit保存配置安装完成 ==="
+    log_info "总执行时间: ${duration}秒"
+    log_info "结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
+    
+    # 记录成功信息到Dataway
+    log_info "Datakit保存配置安装完成: 耗时=${duration}秒"
+    
+    return 0
+}
+
+
+
 # 存量安装场景主函数
 # 功能: 执行Datakit存量安装的完整流程
 # 参数: 无

@@ -212,7 +212,7 @@ python3 datakit_sync/datakit_sync.py \
     --endpoint "$S3_ENDPOINT" \
     --access-key AWS_ACCESS_KEY_ID_PLACEHOLDER \
     --secret-key AWS_SECRET_ACCESS_KEY_PLACEHOLDER \
-    --version 1.78.0
+    --version 1.83.0
 
 # 3. 批量安装
 echo "=== 步骤3: 批量安装 ==="

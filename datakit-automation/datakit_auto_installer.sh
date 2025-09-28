@@ -8,8 +8,8 @@ set -euo pipefail
 
 # 脚本元信息
 readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
-readonly DATAKIT_VERSION="1.78.0"
-readonly INSTALLER_SCRIPT_VERSION="1.0.7"
+readonly DATAKIT_VERSION="1.83.0"
+readonly INSTALLER_SCRIPT_VERSION="1.0.8"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 声明全局状态变量
@@ -141,7 +141,7 @@ Datakit 版本 v$DATAKIT_VERSION
 
 示例:
     # 使用环境变量 (推荐)
-    export DATAKIT_VERSION=1.78.0
+    export DATAKIT_VERSION=1.83.0
 
     $INSTALLER_SCRIPT_NAME existing-install
 
@@ -153,10 +153,17 @@ Datakit 版本 v$DATAKIT_VERSION
     $INSTALLER_SCRIPT_NAME --type full reinstall       # 完全重装，清理所有配置
     $INSTALLER_SCRIPT_NAME --type preserve reinstall   # 保留配置重装
 
-    # 应用初始化和配置管理
-    $INSTALLER_SCRIPT_NAME app-init                    # 从运维平台同步业务配置
-    $INSTALLER_SCRIPT_NAME config-update                 # 同步Datakit配置
-    $INSTALLER_SCRIPT_NAME health-check                # 检查Datakit健康状态
+    # 维护相关示例
+    $INSTALLER_SCRIPT_NAME version-upgrade             # 版本升级
+    $INSTALLER_SCRIPT_NAME config-update               # 配置同步
+    $INSTALLER_SCRIPT_NAME health-check                # 健康检查
+
+    # 配置相关示例
+    $INSTALLER_SCRIPT_NAME setup-cron                  # 设置定时任务
+    $INSTALLER_SCRIPT_NAME app-init                    # 应用初始化
+
+    # 信息查看
+    $INSTALLER_SCRIPT_NAME version                     # 查看版本信息
 
     配置工具:
     配置测试: $INSTALLER_SCRIPT_DIR/config/tests/test_config.sh
@@ -220,7 +227,7 @@ main() {
                 echo "Datakit版本: $DATAKIT_VERSION"
                 exit 0
                 ;;
-            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|config-update|health-check|clean-install)
+            existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|health-check|clean-install)
                 command="$1"
                 shift
                 ;;
@@ -353,6 +360,30 @@ execute_reinstall() {
         execute_reinstall
     else
         handle_error "FILE_ERROR" "保留配置重装场景脚本不存在: $scenario_script" "CRITICAL" "true"
+    fi
+}
+
+
+# 保存配置重装场景
+execute_keep_config_installation() {
+    log_info "=== 执行保存配置重装场景 ==="
+    log_info "场景描述: 已运行安装Datakit的主机，保存配置安装"
+    
+    # 调用scenarios目录下的保存配置安装脚本
+    local scenario_script="$INSTALLER_SCRIPT_DIR/scenarios/existing_installation.sh"
+    
+    if [[ -f "$scenario_script" ]]; then
+        log_info "调用保存配置重装场景脚本: $scenario_script"   
+        
+        # 传递配置信息给场景脚本
+        export DATAKIT_CONFIG_FILE="$env_config_file"
+        
+        # 执行场景脚本
+        source "$scenario_script"
+
+        execute_keep_config_installation
+    else
+        handle_error "FILE_ERROR" "保存配置重装场景脚本不存在: $scenario_script" "CRITICAL" "true"
     fi
 }
 
