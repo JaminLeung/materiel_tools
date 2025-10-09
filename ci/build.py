@@ -106,7 +106,7 @@ class DatakitBuilder:
             logger.info(f"目录已存在，删除: {clone_dir}")
             shutil.rmtree(clone_dir)
 
-        self.run_command(["git", "clone", repo_url])
+        self.run_command(["git", "clone", "--depth", "1",repo_url])
 
         if not clone_dir.exists():
             raise FileNotFoundError(f"克隆失败，目录不存在: {clone_dir}")
