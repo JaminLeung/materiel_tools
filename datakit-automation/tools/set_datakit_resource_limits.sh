@@ -25,34 +25,6 @@ handle_error() {
     exit 1
 }
 
-# 检查依赖工具
-check_dependencies() {
-    log_info "检查依赖工具..."
-    
-    local missing_tools=()
-    
-    # 检查 bc 命令
-    if ! command -v bc &> /dev/null; then
-        missing_tools+=("bc")
-    fi
-    
-    # 检查 lscpu 命令
-    if ! command -v lscpu &> /dev/null; then
-        missing_tools+=("lscpu")
-    fi
-    
-    # 检查 free 命令
-    if ! command -v free &> /dev/null; then
-        missing_tools+=("free")
-    fi
-    
-    if [ ${#missing_tools[@]} -gt 0 ]; then
-        handle_error "缺少必要工具: ${missing_tools[*]}"
-    fi
-    
-    log_info "依赖工具检查通过"
-}
-
 # 获取机器规格
 get_machine_specs() {
     log_info "获取机器规格..."
@@ -278,6 +250,11 @@ show_current_config() {
 
 # 主函数
 main() {
+    # 判断 /etc/systemd/system/datakit.service 是否存在，如果不存在则退出脚本
+    if [ ! -f "/etc/systemd/system/datakit.service" ]; then
+        handle_error "服务文件不存在: /etc/systemd/system/datakit.service,请先安装Datakit"
+    fi
+
     log_info "开始设置 datakit 资源限制..."
     
     # 检查是否为root用户
@@ -285,8 +262,8 @@ main() {
         handle_error "请使用 root 用户运行此脚本"
     fi
     
-    # 检查依赖
-    check_dependencies
+
+
     
     # 获取机器规格
     get_machine_specs

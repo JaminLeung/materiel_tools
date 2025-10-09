@@ -268,6 +268,35 @@ class DatakitBuilder:
 
         logger.info(f"清理完成，共删除 {cleaned_count} 个文件")
 
+    def create_tools_package(self, code_dir: Path, installer_version: str) -> Optional[Path]:
+        """将 tools 目录下的所有 bash 脚本（*.sh）打包为独立的 tgz 包"""
+        logger.info("开始创建 tools 脚本独立包...")
+
+        tools_dir = code_dir / "tools"
+        if not tools_dir.exists() or not tools_dir.is_dir():
+            logger.warning(f"tools 目录不存在，跳过: {tools_dir}")
+            return None
+
+        # 仅包含 tools 目录下的 .sh 文件（不递归）
+        sh_files = list(tools_dir.glob("*.sh"))
+        if not sh_files:
+            logger.warning("未发现任何 .sh 脚本，跳过 tools 包创建")
+            return None
+
+        final_package_name = self.config["final_package_name"]
+        tools_filename = f"{final_package_name}_tools_{installer_version}.tgz"
+        tools_tar_path = self.work_dir / tools_filename
+
+        with tarfile.open(tools_tar_path, 'w:gz') as tar:
+            for file_path in sh_files:
+                # 归档名保持在 tools/ 子目录下
+                arcname = f"tools/{file_path.name}"
+                tar.add(file_path, arcname=arcname)
+                logger.info(f"添加脚本到tools包: {arcname}")
+
+        logger.info(f"tools 包创建完成: {tools_tar_path}")
+        return tools_tar_path
+
     def build(self):
         """执行完整的构建流程"""
         logger.info("开始构建流程...")
@@ -300,8 +329,13 @@ class DatakitBuilder:
             # 8. 创建最终安装包
             final_package_path = self.create_final_package(code_dir, installer_version)
 
+            # 9. 额外创建 tools 脚本独立包（默认启用）
+            tools_package_path = self.create_tools_package(code_dir, installer_version)
+
             logger.info("构建流程完成!")
             logger.info(f"最终安装包: {final_package_path}")
+            if tools_package_path:
+                logger.info(f"Tools脚本包: {tools_package_path}")
             logger.info(f"Datakit版本: {datakit_version}")
             logger.info(f"Installer版本: {installer_version}")
 

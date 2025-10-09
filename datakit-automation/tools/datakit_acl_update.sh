@@ -7,7 +7,7 @@
 # Script Type  : shell
 # Invocation   : crontab调用
 # Crontab Item :
-# Usage        : */2 * * * * flock -xn /tmp/datakit_acl_update.lock timeout 100 /bin/bash /usr/local/src/sys_mgt/da taki t_acl_update.sh
+# Usage        : */2 * * * * flock -xn /tmp/datakit_acl_update.lock timeout 100 /bin/bash /usr/local/src/sys_mgt/datakit_acl_update.sh
 # Example      : /bin/bash /usr/local/src/sys_mgt/datakit_acl_update.sh
 # Adapted Site : defaults | third_party | nyx | sap | wtg | sap | ox
 # Adapted OS   : Ubuntu 18.04 | Ubuntu 20.04 | Ubuntu 22.04 | Ubuntu 24.04 ｜ CentOS 7.9
@@ -20,7 +20,7 @@
 #===========================================================================================
 #
 # 全局设置日志文件路径
-LOG_FILE="/var/log/datakit_acl_update.log"
+LOG_FILE="/var/log/datakit/datakit_acl_update.log"
 
 # 初始化日志函数
 log() {
