@@ -424,6 +424,18 @@ EOF
   keep_exist_metric_name = true
 EOF
 
+    cat > "$conf_dir/host/hostobject.conf"  << 'EOF'
+[inputs.hostobject]
+  ignore_fstypes = '''^(tmpfs|autofs|binfmt_misc|devpts|fuse.lxcfs|overlay|proc|squashfs|sysfs)$'''
+  ignore_mountpoints = '''^(/usr/local/datakit/.*|/run/containerd/.*)$'''
+  only_physical_device = false
+  ignore_zero_bytes_disk = true
+  use_nsenter = false
+  disable_cloud_provider_sync = false
+  enable_cloud_aws_imds_v2 = true
+  enable_cloud_aws_ipv6 = false
+EOF
+
     log_info "采集器配置完成"
     return 0
 }
