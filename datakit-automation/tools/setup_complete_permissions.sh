@@ -74,6 +74,7 @@ set_directory_permissions() {
         "/opt/datakit"
         "/usr/local/datakit"
         "/var/run/datakit"
+        "/var/log/datakit"
         "/tmp/datakit"
     )
 
