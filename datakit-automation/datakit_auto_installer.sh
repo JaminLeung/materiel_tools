@@ -269,7 +269,12 @@ main() {
     init_error_handler
 
     # 检查是否已有实例运行
-    check_running_instance
+    if [ "$(id -u)" -ne 0 ]; then
+        log_info "当前不是 root 用户，执行check_running_instance。"
+        check_running_instance
+    else
+        log_info "当前是 root 用户，不执行check_running_instance。"
+    fi
     
     # 设置当前时间在GLOBAL_STATE中
     # set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
