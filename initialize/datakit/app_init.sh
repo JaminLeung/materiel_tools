@@ -307,7 +307,7 @@ process_logging() {
 
 
         # 处理 logging
-        logging_content=$(echo "{\"inputs\": {\"logging\": [$logging]}}" | jq -r ".")
+        logging_content=$(echo "{\"inputs\": {\"logging\": [$logging]}}" | jq -c ".")
         if ! echo "$logging_content" | jq empty; then
             log_message "app_init: 【ERROR】logging_content 不是有效的 JSON 格式"
             continue
@@ -381,7 +381,7 @@ process_metrics() {
         log_message "app_init: metrics: $metrics"
 
         # 处理 metrics
-        metrics_content=$(echo "{\"inputs\": {\"prom\": [$metrics]}}" | jq -r ".")
+        metrics_content=$(echo "{\"inputs\": {\"prom\": [$metrics]}}" | jq -c ".")
         log_message "app_init: metrics_content: $metrics_content"
 
         # metrics_content 使用yj 转成toml 后 生成配置文件
