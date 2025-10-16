@@ -37,7 +37,7 @@ class DatakitBuilder:
         self.work_dir = Path.cwd()
         self.work_dir = Path.cwd()
         self.datakit_version = "1.82.0"
-        self.installer_version = "1.0.8"
+        self.installer_version = "1.0.9"
 
 
     def load_config(self) -> Dict:
@@ -46,7 +46,7 @@ class DatakitBuilder:
             default_config = {
                 "git_repo": "https://gitea.pre-guance.houtai.io/luke.zhao/materiel_tools.git",
                 "datakit_version": self.datakit_version,
-                "installer_version": "1.0.8",
+                "installer_version": "1.0.9",
                 "binary_urls": [
                     f"https://static.guance.com/datakit/installer-linux-amd64-{self.datakit_version}",
                     f"https://static.guance.com/datakit/datakit-apm-inject-linux-amd64-{self.datakit_version}.tar.gz",
