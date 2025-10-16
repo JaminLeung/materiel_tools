@@ -665,6 +665,7 @@ main() {
     
 
     # 将response_body 写入到release/backup/response_body.json
+    log_info "response: $(echo "response_body" | jq -c)"
     echo "$response_body" > "$RUNTIME_RELEASE_DIR/backup/config_update.json"
 
     # 所有配置完成后，统一重启Datakit（仅在enable=true且Datakit运行时）
