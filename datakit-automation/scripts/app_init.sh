@@ -588,13 +588,15 @@ process_services() {
             return 1
         }
     fi
-    
+
+    # 获取 service_name 列表
+    local service_names=()
     local service_count=0
     for service in $services; do
         service_count=$((service_count + 1))
         local service_name
         service_name=$(echo "$service" | jq -r 'keys[0]' 2>/dev/null)
-        
+        service_names+=("$service_name")
         if [ -z "$service_name" ] || [ "$service_name" = "null" ]; then
             record_error "VALIDATION_ERROR" "跳过无效的服务配置" "WARNING"
             continue
@@ -607,7 +609,8 @@ process_services() {
         process_metrics "$service_name" "$service"
         process_health "$service_name" "$service"
     done
-    
+    # 输出service_name 
+    log_info "service_names: ${service_names[@]}"
     log_info "服务配置处理完成，共处理 $service_count 个服务"
 }
 
@@ -693,7 +696,7 @@ main() {
         --max-time 30)
 
     log_info "开始请求业务配置API 完成✅"
-    log_info "response: $(cat $tmp_json_file)"
+    log_info "response: $(jq -c . "$tmp_json_file")"
     # 检查HTTP状态码
     if [ "$http_code" -eq 28 ]; then
         handle_error "TIMEOUT_ERROR" "请求超时，当前连接超时设置为10s，最大请求时间为30s" "ERROR" "false"

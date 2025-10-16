@@ -255,6 +255,9 @@ main() {
     # echo "env_config_file: $env_config_file"
     # load_config "$env_config_file"
     
+
+
+
     # 判断是否是旧版本
     if [ "$IS_OLD_VERSION" == "true" ]; then
         log_info "执行旧版本重新部署方式"
@@ -267,6 +270,29 @@ main() {
 
     # 初始化错误处理器
     init_error_handler
+
+
+    # 检查cron_acl 和 cron_limits 定时任务是否存在，如果存在则输出对应的定时任务内容，如果不存在则退出
+    if crontab -l | grep "datakit_acl_update.sh" >/dev/null 2>&1; then
+        log_info "cron_acl 定时任务存在，输出定时任务内容"
+        log_info "cron_acl 定时任务内容: $(crontab -l | grep "datakit_acl_update.sh")"
+    else
+        log_info "cron_acl 定时任务不存在，退出"
+        handle_error "CRON_ERROR" "cron_acl 定时任务不存在，退出" "CRITICAL" "true"
+    fi
+    if crontab -l | grep "set_datakit_resource_limits.sh" >/dev/null 2>&1; then
+        log_info "cron_limits 定时任务存在，输出定时任务内容"
+        log_info "cron_limits 定时任务内容: $(crontab -l | grep "set_datakit_resource_limits.sh")"
+    else
+        log_info "cron_limits 定时任务不存在，退出"
+        handle_error "CRON_ERROR" "cron_limits 定时任务不存在，退出" "CRITICAL" "true"
+    fi
+
+    # 检查是否存在 datakit 用户，如果不存在则退出
+    if ! id -u datakit >/dev/null 2>&1; then
+        log_info "datakit 用户不存在，退出"
+        handle_error "USER_ERROR" "datakit 用户不存在，退出" "CRITICAL" "true"
+    fi
 
     # 检查是否已有实例运行
     if [ "$(id -u)" -ne 0 ]; then
