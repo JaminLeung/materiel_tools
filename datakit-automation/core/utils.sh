@@ -29,7 +29,7 @@ load_module "initialize" "$CORE_SCRIPT_DIR/initialize.sh"
 
 # 设置全局环境变量（仅OX版本）
 set_global_env() {
-    local code=${GLOBAL_CODE:-"ox"}
+    local code=${ACCOUNT_NAME:-"ox"}
     local env=${GLOBAL_ENV:-"pre"}
     local ops_env=${GLOBAL_OPS_ENV:-"test"}
     local system=${GLOBAL_SYSTEM:-"system"}
@@ -44,13 +44,13 @@ set_global_env() {
     echo "========= 参数接收结束 ========="
 
     # 设置环境变量
-    export GLOBAL_CODE="$code"
+    export ACCOUNT_NAME="$code"
     export GLOBAL_ENV="$env"
     export GLOBAL_OPS_ENV="$ops_env"
     export GLOBAL_SYSTEM="$system"
 
     echo "已设置以下环境变量："
-    echo "GLOBAL_CODE=$GLOBAL_CODE"
+    echo "ACCOUNT_NAME=$ACCOUNT_NAME"
     echo "GLOBAL_ENV=$GLOBAL_ENV"
     echo "GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV"
     echo "GLOBAL_SYSTEM=$GLOBAL_SYSTEM"

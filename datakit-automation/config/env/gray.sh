@@ -26,9 +26,9 @@ CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
 
 
 # 业务配置
-GLOBAL_CODE="ox"
-GLOBAL_ENV="dev"
-GLOBAL_OPS_ENV="test"
+ACCOUNT_NAME="bon"
+GLOBAL_ENV="gray"
+GLOBAL_OPS_ENV="gray"
 GLOBAL_SYSTEM="system"
 
 
@@ -50,6 +50,6 @@ S3_DATAKIT_DIR="${S3_DATAKIT_DIR:-datakit}"
 OPS_ADDR="${OPS_ADDR:-http://ops-spider.houtai.one}"
 
 # Dataway配置
-DATAWAY_URL="${DATAWAY_URL:-https://dataway.prod-guance.houtai.co?token=tkn_f9891d3dc61d445da7edc8c4297f59b2}"
+DATAWAY_URL="${DATAWAY_URL:-https://dataway.prod-guance.houtai.io?token=tkn_f9891d3dc61d445da7edc8c4297f59b2}"
 
 

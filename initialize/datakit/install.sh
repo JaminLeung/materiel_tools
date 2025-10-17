@@ -8,16 +8,16 @@
 
 ######### customer config  start  #########
 
-if [[ -z "$GLOBAL_CODE" || -z "$GLOBAL_ENV" ]]; then
+if [[ -z "$ACCOUNT_NAME" || -z "$GLOBAL_ENV" ]]; then
     echo "Error: code and env must not be empty."
 #     exit 1
 fi
 
-echo "Code: $GLOBAL_CODE"
+echo "Code: $ACCOUNT_NAME"
 echo "env: $GLOBAL_ENV"
 
 
-GLOBAL_CODE="$(echo "$GLOBAL_CODE" | tr '[:upper:]' '[:lower:]')"
+ACCOUNT_NAME="$(echo "$ACCOUNT_NAME" | tr '[:upper:]' '[:lower:]')"
 GLOBAL_ENV="$(echo "$GLOBAL_ENV" | tr '[:upper:]' '[:lower:]')"
 # CUSOMER_SYSTEM="$(echo "$system" | tr '[:upper:]' '[:lower:]')"
 # CUSOMER_OPS_ENV="$(echo "$ops_env" | tr '[:upper:]' '[:lower:]')"
@@ -25,7 +25,7 @@ GLOBAL_ENV="$(echo "$GLOBAL_ENV" | tr '[:upper:]' '[:lower:]')"
 WORKSPACE_URL=""
 WORKSPACE_TOKEN=""
 DK_DEF_INPUTS="${DK_DEF_INPUTS:-cpu,disk,diskio,mem,swap,system,hostobject,net,host_processes,container,dk,ebpf}"
-DK_GLOBAL_HOST_TAGS="global_source=ec2,host=__datakit_hostname,host_ip=__datakit_ip,global_code=$GLOBAL_CODE,global_env=$GLOBAL_ENV"
+DK_GLOBAL_HOST_TAGS="global_source=ec2,host=__datakit_hostname,host_ip=__datakit_ip,account_name=$ACCOUNT_NAME,global_env=$GLOBAL_ENV"
 DK_DATAWAY=''
 
 ## 是否安装 prom 配置
@@ -57,14 +57,14 @@ DK_CLOUD_PROVIDER="${DK_CLOUD_PROVIDER:-aws}"
 DK_HTTP_PUBLIC_APIS="${DK_HTTP_PUBLIC_APIS:-/v1/pushgateway,/otel/v1/trace,/metrics,/v1/write/rum}"
 
 
-if [[ "$GLOBAL_CODE" == "ox" && "$GLOBAL_ENV" == "ops" ]]; then
+if [[ "$ACCOUNT_NAME" == "ox" && "$GLOBAL_ENV" == "ops" ]]; then
     DK_DATAWAY="https://dataway.pre-guance.houtai.io?token=tkn_a9c417771c1349f4a15f5031806b03f5"
 	# DK_DATAWAY="http://dataway.bingbon.dataflux.cn?token=tkn_7b01611e811d43d0bf2d0cea93e06b78"
 
-elif [[ "$GLOBAL_CODE" == "ox" && "$GLOBAL_ENV" == "bigdata" ]]; then
+elif [[ "$ACCOUNT_NAME" == "ox" && "$GLOBAL_ENV" == "bigdata" ]]; then
     DK_DATAWAY="https://dataway.pre-guance.houtai.io?token=tkn_598a4f64d5e84b8b939a54a32c25e3d3"
 
-elif [[ "$GLOBAL_CODE" == "ox" && "$GLOBAL_ENV" != "ops" ]]; then
+elif [[ "$ACCOUNT_NAME" == "ox" && "$GLOBAL_ENV" != "ops" ]]; then
     DK_DATAWAY="https://dataway.pre-guance.houtai.io?token=tkn_48c619fd1aee4d08abd2e2405e604cb5"
 	# DK_DATAWAY="http://dataway.bingbon.dataflux.cn?token=tkn_cc5ee67b5a10451da643d2e9b7613c8c"
 

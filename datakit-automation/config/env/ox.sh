@@ -26,7 +26,7 @@ CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
 
 
 # 业务配置
-GLOBAL_CODE="ox"
+ACCOUNT_NAME="ox"
 GLOBAL_ENV="dev"
 GLOBAL_OPS_ENV="test"
 GLOBAL_SYSTEM="system"

@@ -125,10 +125,10 @@ configure_datakit_main_config() {
     current_config=$(echo "$current_config" | jq ".global_host_tags.host_ip = \"$host_ip\"")
     log_info "设置host_ip标签: $host_ip"
 
-    # 设置GLOBAL_CODE
-    local global_code=$(get_global_state 'GLOBAL_CODE')
-    current_config=$(echo "$current_config" | jq ".global_host_tags.global_code = \"$global_code\"")
-    log_info "设置GLOBAL_CODE标签: $global_code"
+    # 设置ACCOUNT_NAME
+    local account_name=$(get_global_state 'ACCOUNT_NAME')
+    current_config=$(echo "$current_config" | jq ".global_host_tags.account_name = \"$account_name\"")
+    log_info "设置ACCOUNT_NAME标签: $account_name"
 
     # 设置GLOBAL_ENV
     local global_env=$(get_global_state 'GLOBAL_ENV')
