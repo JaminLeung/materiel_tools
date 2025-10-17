@@ -9,7 +9,7 @@ set -euo pipefail
 # 脚本元信息
 readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
 readonly DATAKIT_VERSION="1.82.0"
-readonly INSTALLER_SCRIPT_VERSION="1.0.10"
+readonly INSTALLER_SCRIPT_VERSION="1.0.11"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 声明全局状态变量
@@ -272,21 +272,33 @@ main() {
     init_error_handler
 
 
-    # 检查cron_acl 和 cron_limits 定时任务是否存在，如果存在则输出对应的定时任务内容，如果不存在则退出
-    if crontab -l | grep "datakit_acl_update.sh" >/dev/null 2>&1; then
-        log_info "cron_acl 定时任务存在，输出定时任务内容"
-        log_info "cron_acl 定时任务内容: $(crontab -l | grep "datakit_acl_update.sh")"
+
+
+
+    # 检查是否已有实例运行
+    if [ "$(id -u)" -ne 0 ]; then
+        log_info "当前不是 root 用户，执行check_running_instance。"
+        check_running_instance
+        # 检查cron_acl 和 cron_limits 定时任务是否存在，如果存在则输出对应的定时任务内容，如果不存在则退出
     else
-        log_info "cron_acl 定时任务不存在，退出"
-        handle_error "CRON_ERROR" "cron_acl 定时任务不存在，退出" "CRITICAL" "true"
+        log_info "当前是 root 用户，不执行check_running_instance。"
+
+        if crontab -l | grep "datakit_acl_update.sh" >/dev/null 2>&1; then
+            log_info "cron_acl 定时任务存在，输出定时任务内容"
+            log_info "cron_acl 定时任务内容: $(crontab -l | grep "datakit_acl_update.sh")"
+        else
+            log_info "cron_acl 定时任务不存在，退出"
+            handle_error "CRON_ERROR" "cron_acl 定时任务不存在，退出" "CRITICAL" "true"
+        fi
+        if crontab -l | grep "set_datakit_resource_limits.sh" >/dev/null 2>&1; then
+            log_info "cron_limits 定时任务存在，输出定时任务内容"
+            log_info "cron_limits 定时任务内容: $(crontab -l | grep "set_datakit_resource_limits.sh")"
+        else
+            log_info "cron_limits 定时任务不存在，退出"
+            handle_error "CRON_ERROR" "cron_limits 定时任务不存在，退出" "CRITICAL" "true"
+        fi
     fi
-    if crontab -l | grep "set_datakit_resource_limits.sh" >/dev/null 2>&1; then
-        log_info "cron_limits 定时任务存在，输出定时任务内容"
-        log_info "cron_limits 定时任务内容: $(crontab -l | grep "set_datakit_resource_limits.sh")"
-    else
-        log_info "cron_limits 定时任务不存在，退出"
-        handle_error "CRON_ERROR" "cron_limits 定时任务不存在，退出" "CRITICAL" "true"
-    fi
+    
 
     # 检查是否存在 datakit 用户，如果不存在则退出
     if ! id -u datakit >/dev/null 2>&1; then
@@ -294,14 +306,6 @@ main() {
         handle_error "USER_ERROR" "datakit 用户不存在，退出" "CRITICAL" "true"
     fi
 
-    # 检查是否已有实例运行
-    if [ "$(id -u)" -ne 0 ]; then
-        log_info "当前不是 root 用户，执行check_running_instance。"
-        check_running_instance
-    else
-        log_info "当前是 root 用户，不执行check_running_instance。"
-    fi
-    
     # 设置当前时间在GLOBAL_STATE中
     # set_global_state "RELEASE_ID" "$(date +%Y%m%d_%H%M%S)"
     # 执行命令
