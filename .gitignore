@@ -69,6 +69,7 @@ temp/
 ci/materiel_tools/
 ci/datakit.*
 ci/build.log
+ci/datakit-automation-all*
 
 # 测试及mock代码
 datakit-automation/test
