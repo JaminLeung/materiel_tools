@@ -436,6 +436,20 @@ EOF
   enable_cloud_aws_ipv6 = false
 EOF
 
+
+    cat > "$conf_dir/host/host_processes.conf"  << 'EOF'
+[[inputs.host_processes]]
+  min_run_time = "10m"
+
+  open_metric = true
+
+  enable_listen_ports = false
+  enable_open_files = false
+  only_container_processes = false
+
+  [inputs.host_processes.tags]
+EOF
+
     log_info "采集器配置完成"
     return 0
 }
