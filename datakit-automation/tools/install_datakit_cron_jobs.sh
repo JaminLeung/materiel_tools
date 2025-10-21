@@ -68,12 +68,41 @@ ensure_cron_job() {
     log_info "已新增定时任务: $line"
 }
 
+
+
 install_cron_jobs() {
+    # 检查并注释旧的 setfacl 定时任务
+    local old_cron_pattern="/user/bin/killall setfacl;/usr/bin/setfacl -R -m read:rx /home/app/ /var/log/;/usr/bin/setfacl -m read:rw /var/log/history.log;/usr/bin/setfacl -R -b /home/app/.ssh /var/log/wtmp /var/log/btmp"
+
+    # 读取当前 crontab
+    local current
+    current=$(crontab -l 2>/dev/null || true)
+
+    # 检查是否存在旧的 setfacl 定时任务
+    if echo "$current" | grep -Fq "$old_cron_pattern"; then
+        log_info "发现旧的 setfacl 定时任务，正在注释..."
+
+        # 创建临时文件来存储修改后的 crontab
+        local temp_cron=$(mktemp)
+
+        # 将旧任务注释掉
+        echo "$current" | sed "s|^\(.*$old_cron_pattern.*\)$|# \1|" > "$temp_cron"
+
+        # 安装修改后的 crontab
+        crontab "$temp_cron"
+        # 安全清理临时文件（使用 unlink 替代 rm）
+        unlink "$temp_cron" 2>/dev/null || true
+
+        log_info "已注释旧的 setfacl 定时任务"
+    else
+        log_info "未发现旧的 setfacl 定时任务"
+    fi
+
     # 参考 datakit_acl_update.sh 注释: */2 * * * * flock -xn /tmp/datakit_acl_update.lock timeout 100 /bin/bash /usr/local/src/sys_mgt/datakit_acl_update.sh
     local cron_acl="*/2 * * * * flock -xn /tmp/datakit_acl_update.lock timeout 100 /bin/bash /usr/local/src/sys_mgt/datakit_acl_update.sh"
     ensure_cron_job "$cron_acl"
 
-        
+
     # 为资源限制脚本设置相同的周期与并发保护
     local cron_limits="*/30 * * * * flock -xn /tmp/set_datakit_resource_limits.lock timeout 100 /bin/bash /usr/local/src/sys_mgt/set_datakit_resource_limits.sh"
     ensure_cron_job "$cron_limits"
@@ -91,5 +120,3 @@ main() {
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
     main "$@"
 fi
-
-

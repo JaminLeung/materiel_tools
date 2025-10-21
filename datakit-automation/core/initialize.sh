@@ -35,13 +35,13 @@ check_running_instance() {
     # 如果是command_list 中的命令，则需要判断是否存在与当前进程不一样pid的datakit_auto_installer.sh进程，如果存在则退出
     if [[ " ${skip_command_list[@]} " =~ " $command " ]]; then
         # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
-        if [ $(pgrep -u datakit -f "datakit_auto_installer.sh" | grep -v $$ | wc -l) -gt 0 ]; then
+        if [ $(pgrep -u datakit -f "datakit_auto_installer.sh" | grep -v $$ | wc -l) -gt 1 ]; then
             handle_error "COMMAND_ERROR" "当前存在主函数正在执行（$command），跳过任务" "WARNING" "true"
         fi
 
         if [[ "$command" == "app-init" ]]; then
             # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
-            if [ $(pgrep -f "/usr/local/datakit/datakit" | grep -v $$ | wc -l) == 0 ]; then
+            if [ $(pgrep -f -u datakit "/usr/local/datakit/datakit" | grep -v $$ | wc -l) == 0 ]; then
                 handle_error "COMMAND_ERROR" "Datakit未运行，跳过app-init执行" "WARNING" "true"
             fi
         fi
