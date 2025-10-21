@@ -584,12 +584,13 @@ cleanup_safe_delete_dir() {
     cd /tmp/datakit
 
     # 清理过期目录，只保留时间最近的10个目录，其他目录删除
-    local dirs_to_delete=$(find /tmp/datakit -name "datakit_auto_installer_*" -type d -mtime +0)
+    local dirs_to_delete=$(find /tmp/datakit -name "*" -type d -mtime +0)
     log_info "/tmp/datakit删除过期目录: $dirs_to_delete"
     
     if [ -n "$dirs_to_delete" ]; then
         for dir in $dirs_to_delete; do
             log_info "删除过期目录: $dir"
+            # 在/tmp/datakit 清理，相对可控
             if safe_execute "rm -rf '$dir'" "删除过期目录"; then
                 deleted_count=$((deleted_count + 1))
             fi
