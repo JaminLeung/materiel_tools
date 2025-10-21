@@ -2,7 +2,7 @@
 
 #=================================================
 # Datakit Benjamin 环境配置文件
-#=================================================
+#=================================================  
 # 包含 config_update.sh 脚本的配置参数
 #=================================================
 
@@ -28,7 +28,7 @@ CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
 # 业务配置
 ACCOUNT_NAME="bon"
 GLOBAL_ENV="gray"
-GLOBAL_OPS_ENV="gray"
+GLOBAL_OPS_ENV="gray"   
 GLOBAL_SYSTEM="system"
 
 
