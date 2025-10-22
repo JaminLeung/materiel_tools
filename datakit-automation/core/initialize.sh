@@ -36,7 +36,7 @@ check_running_instance() {
     if [[ " ${skip_command_list[@]} " =~ " $command " ]]; then
         # 如果存在与当前进程不一样pid的datakit_auto_installer.sh进程，则退出
         log_info "pgrep: $(pgrep -u datakit -f "datakit_auto_installer.sh" | grep -v $$ | wc -l)"
-        if [ $(pgrep -u datakit -f "datakit_auto_installer.sh" | grep -v $$ | wc -l) -gt 2 ]; then
+        if [ $(pgrep -u datakit -f "datakit_auto_installer.sh" | grep -v $$ | wc -l) -gt 3 ]; then
             handle_error "COMMAND_ERROR" "当前存在主函数正在执行（$command），跳过任务" "WARNING" "true"
         fi
 
@@ -90,14 +90,15 @@ init_base_runtime_dirs() {
     for dir in "${dirs[@]}"; do
         if [ ! -d "$dir" ]; then
             safe_execute "mkdir -p '$dir'" "创建运行时目录: $dir"
+            safe_execute "chmod 755 '$dir'" "设置$dir 权限" || true
         fi
     done
     set_global_state "RUNTIME_RELEASE_DIR" "$RUNTIME_DIR/releases/current/$(get_global_state "RELEASE_ID")"
     # 设置基础目录权限
-    safe_execute "chmod 755 '$RUNTIME_DIR'" "设置运行时根目录权限" || true
-    safe_execute "chmod 755 '$RUNTIME_DIR/releases'" "设置运行时版本目录权限" || true
-    safe_execute "chmod 755 '$RUNTIME_DIR/releases/current'" "设置运行时当前版本目录权限" || true
-    safe_execute "chmod 755 '$RUNTIME_DIR/releases/archive'" "设置运行时归档版本目录权限" || true
+    # safe_execute "chmod 755 '$RUNTIME_DIR'" "设置运行时根目录权限" || true
+    # safe_execute "chmod 755 '$RUNTIME_DIR/releases'" "设置运行时版本目录权限" || true
+    # safe_execute "chmod 755 '$RUNTIME_DIR/releases/current'" "设置运行时当前版本目录权限" || true
+    # safe_execute "chmod 755 '$RUNTIME_DIR/releases/archive'" "设置运行时归档版本目录权限" || true
     # safe_execute "chmod 755 '$RUNTIME_TMP_ROOT'" "设置临时目录权限" || true
     # safe_execute "chmod 755 '$RUNTIME_DIFF_ROOT'" "设置对比目录权限" || true
 }

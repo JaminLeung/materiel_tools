@@ -47,10 +47,7 @@ EOF
     # 安装新的crontab
     if sudo -u datakit crontab "$new_crontab"; then
         log_info "定时任务设置成功"
-        log_info "config-sync: 每15分钟执行一次"
-        log_info "health-check: 每5分钟执行一次"
-        log_info "app-init: 每10分钟执行一次"
-        log_info "定时任务设置成功: config-sync(15分钟), health-check(5分钟), app-init(10分钟)"
+        log_info "定时任务设置成功: config-update(16分钟), health-check(6分钟), app-init(11分钟)"
     else
         handle_error "COMMAND_ERROR" "定时任务设置失败" "ERROR" "false"
         
