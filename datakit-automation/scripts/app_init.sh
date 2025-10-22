@@ -143,59 +143,264 @@ process_config_item() {
     local has_changes=false
     local updated_config="$current_config"
     
-    # 根据配置类型选择比较路径
-    local compare_paths=()
+    # 根据配置类型选择比较策略
     case "$config_type" in
         "logging")
-            compare_paths=(".inputs.logging[0].tags" ".inputs.logging[0].logfiles" ".inputs.logging[0].source" ".inputs.logging[0].service" )
+            # 日志配置：逐项比较
+            local compare_paths=(".inputs.logging[0].tags" ".inputs.logging[0].logfiles" ".inputs.logging[0].source" ".inputs.logging[0].service")
+            for path in "${compare_paths[@]}"; do
+                local new_value current_value
+                new_value=$(get_json_path_value "$config_data" "$path" 2>/dev/null || echo "")
+                current_value=$(get_json_path_value "$updated_config" "$path" 2>/dev/null || echo "")
+                
+                if [ "$new_value" != "$current_value" ] && [ -n "$new_value" ]; then
+                    log_info "发现配置差异: $path"
+                    log_info "  当前值: $current_value"
+                    log_info "  新值: $new_value"
+                    
+                    # 更新配置
+                    local temp_updated
+                    if [[ "$new_value" =~ ^\{.*\}$ ]] || [[ "$new_value" =~ ^\[.*\]$ ]]; then
+                        local temp_file=$(mktemp)
+                        echo "$new_value" > "$temp_file"
+                        temp_updated=$(echo "$updated_config" | jq --argjson val "$(cat "$temp_file")" "$path = \$val" 2>/dev/null)
+                        mv "$temp_file" /tmp/datakit/
+                    else
+                        if [[ "$new_value" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+                            temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
+                        elif [[ "$new_value" =~ ^(true|false)$ ]]; then
+                            temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
+                        else
+                            temp_updated=$(echo "$updated_config" | jq "$path = \"$new_value\"" 2>/dev/null)
+                        fi
+                    fi
+                    
+                    if [ $? -eq 0 ] && [ -n "$temp_updated" ]; then
+                        updated_config="$temp_updated"
+                        has_changes=true
+                    else
+                        record_error "CONFIG_ERROR" "配置更新失败: $path" "ERROR"
+                    fi
+                fi
+            done
             ;;
         "metrics")
-            compare_paths=(".inputs.prom[0].urls" ".inputs.prom[0].interval" ".inputs.prom[0].tags" ".inputs.prom[0].source" ".inputs.prom[0].measurement_name" ".inputs.prom[0].service")
+            # 指标配置：基于关键字段的增量对比
+            local new_prom_array current_prom_array
+            new_prom_array=$(echo "$config_data" | jq -c '.inputs.prom' 2>/dev/null || echo "[]")
+            current_prom_array=$(echo "$updated_config" | jq -c '.inputs.prom' 2>/dev/null || echo "[]")
+            
+            # 检查是否有配置变更
+            if [ "$new_prom_array" != "$current_prom_array" ]; then
+                log_info "发现指标配置差异，开始基于关键字段对比"
+                
+                # 获取配置项数量
+                local new_count current_count
+                new_count=$(echo "$new_prom_array" | jq 'length' 2>/dev/null || echo "0")
+                current_count=$(echo "$current_prom_array" | jq 'length' 2>/dev/null || echo "0")
+                
+                log_info "配置项数量对比: 当前=$current_count, 新增=$new_count"
+                
+                # 基于关键字段对比配置项（不依赖位置）
+                local config_changes=0
+                local added_configs=()
+                local removed_configs=()
+                local modified_configs=()
+                
+                # 构建新配置的标识映射（支持重复项计数）
+                declare -A new_config_map
+                declare -A new_config_count
+                for i in $(seq 0 $((new_count - 1))); do
+                    local new_item
+                    new_item=$(echo "$new_prom_array" | jq -c ".[$i]" 2>/dev/null || echo "null")
+                    
+                    if [ "$new_item" = "null" ]; then
+                        continue
+                    fi
+                    
+                    # 提取关键字段用于匹配
+                    local new_tags new_urls
+                    new_tags=$(echo "$new_item" | jq -c '.tags // {}' 2>/dev/null || echo "{}")
+                    new_urls=$(echo "$new_item" | jq -c '.urls // []' 2>/dev/null || echo "[]")
+                    
+                    # 生成配置项标识
+                    local key_identifier
+                    if [ "$new_tags" = "{}" ] && [ "$new_urls" = "[]" ]; then
+                        # 关键字段都为空，使用完整配置作为标识
+                        key_identifier=$(echo "$new_item" | jq -c 'del(.tags, .urls)' 2>/dev/null || echo "$new_item")
+                        log_info "  警告: 新配置项关键字段为空，使用完整配置作为标识"
+                    else
+                        key_identifier="${new_tags}|${new_urls}"
+                    fi
+                    
+                    # 记录配置项和计数
+                    new_config_map["$key_identifier"]="$new_item"
+                    new_config_count["$key_identifier"]=$((${new_config_count["$key_identifier"]:-0} + 1))
+                    
+                    # 检查重复配置项
+                    if [ "${new_config_count[$key_identifier]}" -gt 1 ]; then
+                        log_info "  警告: 发现重复的新配置项 (标识: $key_identifier, 数量: ${new_config_count[$key_identifier]})"
+                    fi
+                done
+                
+                # 构建当前配置的标识映射（支持重复项计数）
+                declare -A current_config_map
+                declare -A current_config_count
+                for i in $(seq 0 $((current_count - 1))); do
+                    local current_item
+                    current_item=$(echo "$current_prom_array" | jq -c ".[$i]" 2>/dev/null || echo "null")
+                    
+                    if [ "$current_item" = "null" ]; then
+                        continue
+                    fi
+                    
+                    # 提取关键字段用于匹配
+                    local current_tags current_urls
+                    current_tags=$(echo "$current_item" | jq -c '.tags // {}' 2>/dev/null || echo "{}")
+                    current_urls=$(echo "$current_item" | jq -c '.urls // []' 2>/dev/null || echo "[]")
+                    
+                    # 生成配置项标识
+                    local key_identifier
+                    if [ "$current_tags" = "{}" ] && [ "$current_urls" = "[]" ]; then
+                        # 关键字段都为空，使用完整配置作为标识
+                        key_identifier=$(echo "$current_item" | jq -c 'del(.tags, .urls)' 2>/dev/null || echo "$current_item")
+                        log_info "  警告: 当前配置项关键字段为空，使用完整配置作为标识"
+                    else
+                        key_identifier="${current_tags}|${current_urls}"
+                    fi
+                    
+                    # 记录配置项和计数
+                    current_config_map["$key_identifier"]="$current_item"
+                    current_config_count["$key_identifier"]=$((${current_config_count["$key_identifier"]:-0} + 1))
+                    
+                    # 检查重复配置项
+                    if [ "${current_config_count[$key_identifier]}" -gt 1 ]; then
+                        log_info "  警告: 发现重复的当前配置项 (标识: $key_identifier, 数量: ${current_config_count[$key_identifier]})"
+                    fi
+                done
+                
+                # 检查新增、修改和数量变化的配置项
+                for key_identifier in "${!new_config_map[@]}"; do
+                    local new_item="${new_config_map[$key_identifier]}"
+                    local current_item="${current_config_map[$key_identifier]:-}"
+                    local new_count="${new_config_count[$key_identifier]:-0}"
+                    local current_count="${current_config_count[$key_identifier]:-0}"
+                    
+                    if [ -z "$current_item" ]; then
+                        # 新增配置项
+                        if [ "$new_count" -gt 1 ]; then
+                            log_info "  新增配置项 (标识: $key_identifier, 数量: $new_count)"
+                        else
+                            log_info "  新增配置项 (标识: $key_identifier)"
+                        fi
+                        added_configs+=("$key_identifier")
+                        config_changes=$((config_changes + 1))
+                    elif [ "$new_item" != "$current_item" ]; then
+                        # 修改配置项
+                        log_info "  配置项修改 (标识: $key_identifier)"
+                        log_info "    当前: $current_item"
+                        log_info "    新值: $new_item"
+                        modified_configs+=("$key_identifier")
+                        config_changes=$((config_changes + 1))
+                    elif [ "$new_count" != "$current_count" ]; then
+                        # 数量变化
+                        if [ "$new_count" -gt "$current_count" ]; then
+                            log_info "  配置项数量增加 (标识: $key_identifier, 当前: $current_count -> 新值: $new_count)"
+                        else
+                            log_info "  配置项数量减少 (标识: $key_identifier, 当前: $current_count -> 新值: $new_count)"
+                        fi
+                        modified_configs+=("$key_identifier")
+                        config_changes=$((config_changes + 1))
+                    fi
+                done
+                
+                # 检查删除的配置项
+                for key_identifier in "${!current_config_map[@]}"; do
+                    local current_item="${current_config_map[$key_identifier]}"
+                    local new_item="${new_config_map[$key_identifier]:-}"
+                    local current_count="${current_config_count[$key_identifier]:-0}"
+                    
+                    if [ -z "$new_item" ]; then
+                        # 删除配置项
+                        if [ "$current_count" -gt 1 ]; then
+                            log_info "  删除配置项 (标识: $key_identifier, 数量: $current_count)"
+                        else
+                            log_info "  删除配置项 (标识: $key_identifier)"
+                        fi
+                        removed_configs+=("$key_identifier")
+                        config_changes=$((config_changes + 1))
+                    fi
+                done
+                
+                # 输出变更统计
+                if [ ${#added_configs[@]} -gt 0 ]; then
+                    log_info "新增配置项数量: ${#added_configs[@]}"
+                fi
+                if [ ${#removed_configs[@]} -gt 0 ]; then
+                    log_info "删除配置项数量: ${#removed_configs[@]}"
+                fi
+                if [ ${#modified_configs[@]} -gt 0 ]; then
+                    log_info "修改配置项数量: ${#modified_configs[@]}"
+                fi
+                
+                if [ "$config_changes" -gt 0 ]; then
+                    log_info "检测到 $config_changes 个配置变更，更新配置"
+                    
+                    # 直接替换整个prom数组
+                    updated_config=$(echo "$updated_config" | jq --argjson prom_array "$new_prom_array" '.inputs.prom = $prom_array' 2>/dev/null)
+                    if [ $? -eq 0 ] && [ -n "$updated_config" ]; then
+                        has_changes=true
+                        log_info "指标配置更新成功"
+                    else
+                        record_error "CONFIG_ERROR" "指标配置更新失败" "ERROR"
+                    fi
+                else
+                    log_info "配置项内容无实际差异，跳过更新"
+                fi
+            else
+                log_info "指标配置无差异，跳过更新"
+            fi
             ;;
         "health")
-            compare_paths=(".inputs.host_healthcheck[0].http[0].url" ".inputs.host_healthcheck[0].interval" ".inputs.host_healthcheck[0].tags")
+            # 健康检查配置：逐项比较
+            local compare_paths=(".inputs.host_healthcheck[0].http[0].url" ".inputs.host_healthcheck[0].interval" ".inputs.host_healthcheck[0].tags")
+            for path in "${compare_paths[@]}"; do
+                local new_value current_value
+                new_value=$(get_json_path_value "$config_data" "$path" 2>/dev/null || echo "")
+                current_value=$(get_json_path_value "$updated_config" "$path" 2>/dev/null || echo "")
+                
+                if [ "$new_value" != "$current_value" ] && [ -n "$new_value" ]; then
+                    log_info "发现配置差异: $path"
+                    log_info "  当前值: $current_value"
+                    log_info "  新值: $new_value"
+                    
+                    # 更新配置
+                    local temp_updated
+                    if [[ "$new_value" =~ ^\{.*\}$ ]] || [[ "$new_value" =~ ^\[.*\]$ ]]; then
+                        local temp_file=$(mktemp)
+                        echo "$new_value" > "$temp_file"
+                        temp_updated=$(echo "$updated_config" | jq --argjson val "$(cat "$temp_file")" "$path = \$val" 2>/dev/null)
+                        mv "$temp_file" /tmp/datakit/
+                    else
+                        if [[ "$new_value" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+                            temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
+                        elif [[ "$new_value" =~ ^(true|false)$ ]]; then
+                            temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
+                        else
+                            temp_updated=$(echo "$updated_config" | jq "$path = \"$new_value\"" 2>/dev/null)
+                        fi
+                    fi
+                    
+                    if [ $? -eq 0 ] && [ -n "$temp_updated" ]; then
+                        updated_config="$temp_updated"
+                        has_changes=true
+                    else
+                        record_error "CONFIG_ERROR" "配置更新失败: $path" "ERROR"
+                    fi
+                fi
+            done
             ;;
     esac
-    
-    # 逐项比较和更新
-    for path in "${compare_paths[@]}"; do
-        local new_value current_value
-        new_value=$(get_json_path_value "$config_data" "$path" 2>/dev/null || echo "")
-        current_value=$(get_json_path_value "$updated_config" "$path" 2>/dev/null || echo "")
-        
-        if [ "$new_value" != "$current_value" ] && [ -n "$new_value" ]; then
-            log_info "发现配置差异: $path"
-            log_info "  当前值: $current_value"
-            log_info "  新值: $new_value"
-            
-            # 更新配置（使用改进的逻辑处理复杂JSON对象）
-            local temp_updated
-            if [[ "$new_value" =~ ^\{.*\}$ ]] || [[ "$new_value" =~ ^\[.*\]$ ]]; then
-                # 对于复杂对象，使用临时变量
-                local temp_file=$(mktemp)
-                echo "$new_value" > "$temp_file"
-                temp_updated=$(echo "$updated_config" | jq --argjson val "$(cat "$temp_file")" "$path = \$val" 2>/dev/null)
-                mv "$temp_file" /tmp/datakit/
-            else
-                # 对于简单值，使用原有逻辑
-                if [[ "$new_value" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-                    temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
-                elif [[ "$new_value" =~ ^(true|false)$ ]]; then
-                    temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
-                else
-                    temp_updated=$(echo "$updated_config" | jq "$path = \"$new_value\"" 2>/dev/null)
-                fi
-            fi
-            
-            if [ $? -eq 0 ] && [ -n "$temp_updated" ]; then
-                updated_config="$temp_updated"
-            else
-                record_error "CONFIG_ERROR" "配置更新失败: $path" "ERROR"
-                continue
-            fi
-            has_changes=true
-        fi
-    done
     
     # 如果有变更，更新文件
     if [ "$has_changes" = true ]; then
@@ -291,42 +496,117 @@ process_metrics() {
     local metrics_count
     metrics_count=$(echo "$service" | jq -r ".\"$service_name\".metrics | length" 2>/dev/null || echo "0")
     
+    if [ "$metrics_count" -eq 0 ]; then
+        log_info "服务 $service_name 没有指标配置，跳过处理"
+        return 0
+    fi
+    
+    log_info "发现 $metrics_count 个指标配置项，开始合并处理"
+    
+    # 收集所有有效的metrics配置项（去重处理）
+    local all_metrics=()
+    local valid_count=0
+    local duplicate_count=0
+    
+    # 用于去重的标识映射
+    declare -A seen_configs
+    
     for i in $(seq 0 $((metrics_count - 1))); do
         local metrics
         metrics=$(echo "$service" | jq -r ".\"$service_name\".metrics[$i]" 2>/dev/null)
         
         if [ "$metrics" = "null" ] || [ -z "$metrics" ]; then
+            log_info "跳过无效的指标配置项 $((i + 1))/$metrics_count"
             continue
         fi
         
         log_info "处理指标配置项 $((i + 1))/$metrics_count"
         
-        # 构建指标配置内容
-        local metrics_content
-        metrics_content=$(echo "{\"inputs\": {\"prom\": [$metrics]}}" | jq -r ".")
-        
-        log_info "metrics_content: $metrics_content"
-
-        # 如果.inputs.prom[0].interval" 值没有带单位，则添加单位
-        if ! echo "$metrics_content" | jq -r ".inputs.prom[0].interval" 2>/dev/null | grep -q "s"; then
-            local current_interval=$(echo "$metrics_content" | jq -r ".inputs.prom[0].interval" 2>/dev/null)
-            metrics_content=$(echo "$metrics_content" | jq --arg interval "${current_interval}s" ".inputs.prom[0].interval = \$interval")
+        # 处理interval单位问题
+        if ! echo "$metrics" | jq -r ".interval" 2>/dev/null | grep -q "s"; then
+            local current_interval=$(echo "$metrics" | jq -r ".interval" 2>/dev/null)
+            if [ -n "$current_interval" ] && [ "$current_interval" != "null" ]; then
+                metrics=$(echo "$metrics" | jq --arg interval "${current_interval}s" ".interval = \$interval")
+            fi
         fi
-
-
-        if ! echo "$metrics_content" | jq empty 2>/dev/null; then
-            record_error "VALIDATION_ERROR" "指标配置内容不是有效的JSON格式" "ERROR"
+        
+        # 验证JSON格式
+        if ! echo "$metrics" | jq empty 2>/dev/null; then
+            record_error "VALIDATION_ERROR" "指标配置项 $((i + 1)) 不是有效的JSON格式" "ERROR"
             continue
         fi
         
-        # 构建目标文件路径
-        local target_file="${APP_INIT_METRICS_DIR}/${service_name}_metrics_auto.conf"
+        # 生成配置项标识用于去重
+        local tags urls key_identifier
+        tags=$(echo "$metrics" | jq -c '.tags // {}' 2>/dev/null || echo "{}")
+        urls=$(echo "$metrics" | jq -c '.urls // []' 2>/dev/null || echo "[]")
         
-
-        log_info "metrics_content: $metrics_content"
-        # 直接处理配置项
-        process_config_item "$service_name" "metrics" "$metrics_content" "$target_file"
+        if [ "$tags" = "{}" ] && [ "$urls" = "[]" ]; then
+            # 关键字段都为空，使用完整配置作为标识
+            key_identifier=$(echo "$metrics" | jq -c 'del(.tags, .urls)' 2>/dev/null || echo "$metrics")
+        else
+            key_identifier="${tags}|${urls}"
+        fi
+        
+        # 检查是否已存在相同配置项
+        if [ -n "${seen_configs[$key_identifier]:-}" ]; then
+            log_info "  警告: 发现重复的指标配置项 (标识: $key_identifier)"
+            log_info "    已存在: ${seen_configs[$key_identifier]}"
+            log_info "    重复项: $metrics"
+            duplicate_count=$((duplicate_count + 1))
+            continue
+        fi
+        
+        # 记录已见过的配置项
+        seen_configs["$key_identifier"]="$metrics"
+        all_metrics+=("$metrics")
+        valid_count=$((valid_count + 1))
+        log_info "指标配置项 $((i + 1)) 验证通过"
     done
+    
+    if [ "$valid_count" -eq 0 ]; then
+        log_info "服务 $service_name 没有有效的指标配置，跳过处理"
+        return 0
+    fi
+    
+    # 输出去重统计信息
+    if [ "$duplicate_count" -gt 0 ]; then
+        log_info "去重统计: 原始配置项=$metrics_count, 有效配置项=$valid_count, 重复项=$duplicate_count"
+    else
+        log_info "成功收集 $valid_count 个有效指标配置项，无重复项"
+    fi
+    
+    log_info "开始合并 $valid_count 个指标配置项"
+    
+    # 合并所有metrics配置项到prom数组中
+    local merged_metrics
+    if [ "$valid_count" -eq 1 ]; then
+        # 只有一个配置项，直接使用
+        merged_metrics="[${all_metrics[0]}]"
+    else
+        # 多个配置项，使用jq合并
+        merged_metrics=$(printf '%s\n' "${all_metrics[@]}" | jq -s '.')
+    fi
+    
+    # 构建最终的配置内容
+    local metrics_content
+    metrics_content=$(echo "{\"inputs\": {\"prom\": $merged_metrics}}" | jq -r ".")
+    
+    log_info "合并后的指标配置内容: $metrics_content"
+    
+    # 验证最终配置的JSON格式
+    if ! echo "$metrics_content" | jq empty 2>/dev/null; then
+        record_error "VALIDATION_ERROR" "合并后的指标配置不是有效的JSON格式" "ERROR"
+        return 1
+    fi
+    
+    # 构建目标文件路径
+    local target_file="${APP_INIT_METRICS_DIR}/${service_name}_metrics_auto.conf"
+    
+    log_info "开始处理合并后的指标配置，目标文件: $target_file"
+    
+    # 处理合并后的配置项
+    process_config_item "$service_name" "metrics" "$metrics_content" "$target_file"
 }
 
 # =============================================================================
