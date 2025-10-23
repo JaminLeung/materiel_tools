@@ -146,43 +146,62 @@ process_config_item() {
     # 根据配置类型选择比较策略
     case "$config_type" in
         "logging")
-            # 日志配置：逐项比较
-            local compare_paths=(".inputs.logging[0].tags" ".inputs.logging[0].logfiles" ".inputs.logging[0].source" ".inputs.logging[0].service")
-            for path in "${compare_paths[@]}"; do
-                local new_value current_value
-                new_value=$(get_json_path_value "$config_data" "$path" 2>/dev/null || echo "")
-                current_value=$(get_json_path_value "$updated_config" "$path" 2>/dev/null || echo "")
+            # 日志配置：数组级别比较
+            local new_logging_array current_logging_array
+            
+            # 获取新配置的logging数组
+            new_logging_array=$(echo "$config_data" | jq -c '.inputs.logging' 2>/dev/null || echo "[]")
+            
+            # 获取当前配置的logging数组
+            current_logging_array=$(echo "$updated_config" | jq -c '.inputs.logging' 2>/dev/null || echo "[]")
+            
+            log_info "日志配置比较:"
+            log_info "  新配置项数: $(echo "$new_logging_array" | jq 'length' 2>/dev/null || echo "0")"
+            log_info "  当前配置项数: $(echo "$current_logging_array" | jq 'length' 2>/dev/null || echo "0")"
+            
+            # 使用规范化比较，避免因JSON字段顺序导致的误判
+            local normalized_new normalized_current
+            
+            # 规范化新配置：对每个logging配置项进行标准化处理
+            normalized_new=$(echo "$new_logging_array" | jq -c '
+                map({
+                    logType: (.logType // ""),
+                    logfiles: (.logfiles // []) | sort,
+                    source: (.source // ""),
+                    tags: (.tags // {}) | to_entries | sort_by(.key) | from_entries
+                }) | sort_by(.logType, .logfiles, .source, .tags)')
+            
+            # 规范化当前配置
+            normalized_current=$(echo "$current_logging_array" | jq -c '
+                map({
+                    logType: (.logType // ""),
+                    logfiles: (.logfiles // []) | sort,
+                    source: (.source // ""),
+                    tags: (.tags // {}) | to_entries | sort_by(.key) | from_entries
+                }) | sort_by(.logType, .logfiles, .source, .tags)')
+            
+            log_info "规范化后的配置:"
+            log_info "  新配置: $normalized_new"
+            log_info "  当前配置: $normalized_current"
+            
+            # 比较规范化后的配置
+            if [ "$normalized_new" != "$normalized_current" ]; then
+                log_info "发现日志配置差异，需要更新"
+                log_info "  新配置: $normalized_new"
+                log_info "  当前配置: $normalized_current"
                 
-                if [ "$new_value" != "$current_value" ] && [ -n "$new_value" ]; then
-                    log_info "发现配置差异: $path"
-                    log_info "  当前值: $current_value"
-                    log_info "  新值: $new_value"
-                    
-                    # 更新配置
-                    local temp_updated
-                    if [[ "$new_value" =~ ^\{.*\}$ ]] || [[ "$new_value" =~ ^\[.*\]$ ]]; then
-                        local temp_file=$(mktemp)
-                        echo "$new_value" > "$temp_file"
-                        temp_updated=$(echo "$updated_config" | jq --argjson val "$(cat "$temp_file")" "$path = \$val" 2>/dev/null)
-                        mv "$temp_file" /tmp/datakit/
-                    else
-                        if [[ "$new_value" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
-                            temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
-                        elif [[ "$new_value" =~ ^(true|false)$ ]]; then
-                            temp_updated=$(echo "$updated_config" | jq "$path = $new_value" 2>/dev/null)
-                        else
-                            temp_updated=$(echo "$updated_config" | jq "$path = \"$new_value\"" 2>/dev/null)
-                        fi
-                    fi
-                    
-                    if [ $? -eq 0 ] && [ -n "$temp_updated" ]; then
-                        updated_config="$temp_updated"
-                        has_changes=true
-                    else
-                        record_error "CONFIG_ERROR" "配置更新失败: $path" "ERROR"
-                    fi
+                # 更新整个logging数组
+                updated_config=$(echo "$updated_config" | jq --argjson new_array "$new_logging_array" '.inputs.logging = $new_array' 2>/dev/null)
+                
+                if [ $? -eq 0 ] && [ -n "$updated_config" ]; then
+                    has_changes=true
+                    log_info "日志配置更新成功"
+                else
+                    record_error "CONFIG_ERROR" "日志配置更新失败" "ERROR"
                 fi
-            done
+            else
+                log_info "日志配置无差异，跳过更新"
+            fi
             ;;
         "metrics")
             # 指标配置：基于关键字段的增量对比
@@ -501,13 +520,13 @@ process_logging() {
         return 0
     fi
     
-    log_info "发现 $logging_count 个日志配置项，开始合并处理"
+    log_info "发现 $logging_count 个日志配置项，开始按logType分组处理"
     
-    # 收集所有有效的logging配置项（去重处理）
-    # 使用关联数组存储配置项，key为logType，value为配置内容
-    # 相同logType的配置项，后面的会覆盖前面的
+    # 收集所有有效的logging配置项，按logType分组
+    # 使用关联数组存储配置项，key为logType，value为配置项数组
     declare -A logging_by_type
-    local duplicate_count=0
+    local valid_count=0
+    local invalid_count=0
     
     for i in $(seq 0 $((logging_count - 1))); do
         local logging
@@ -515,6 +534,7 @@ process_logging() {
         
         if [ "$logging" = "null" ] || [ -z "$logging" ]; then
             log_info "跳过无效的日志配置项 $((i + 1))/$logging_count"
+            invalid_count=$((invalid_count + 1))
             continue
         fi
         
@@ -524,43 +544,44 @@ process_logging() {
         local log_type
         log_type=$(echo "$logging" | jq -r ".logType" 2>/dev/null || echo "default")
         
-        # 检查是否已存在相同logType的配置项
-        if [ -n "${logging_by_type[$log_type]:-}" ]; then
-            log_info "  警告: 发现相同logType的日志配置项，使用最新的配置覆盖 (logType: $log_type)"
-            duplicate_count=$((duplicate_count + 1))
+        # 确保tags.service存在
+        if ! echo "$logging" | jq -r ".tags.service" 2>/dev/null; then
+            logging=$(echo "$logging" | jq --arg service_name "$service_name" ".tags.service = \$service_name")
         fi
         
-        # 记录/更新配置项（相同logType的配置项会被覆盖）
-        logging_by_type["$log_type"]="$logging"
-        log_info "日志配置项 $((i + 1)) 验证通过"
+        # 验证JSON格式
+        if ! echo "$logging" | jq empty 2>/dev/null; then
+            log_info "跳过无效JSON格式的日志配置项 $((i + 1))/$logging_count"
+            invalid_count=$((invalid_count + 1))
+            continue
+        fi
+        
+        # 将配置项添加到对应logType的数组中
+        if [ -n "${logging_by_type[$log_type]:-}" ]; then
+            logging_by_type["$log_type"]="${logging_by_type[$log_type]},$logging"
+        else
+            logging_by_type["$log_type"]="$logging"
+        fi
+        
+        valid_count=$((valid_count + 1))
+        log_info "日志配置项 $((i + 1)) 验证通过 (logType: $log_type)"
     done
-    
-    # 计算有效配置项数量
-    local valid_count=${#logging_by_type[@]}
     
     if [ "$valid_count" -eq 0 ]; then
         log_info "服务 $service_name 没有有效的日志配置，跳过处理"
         return 0
     fi
     
-    # 输出去重统计信息
-    if [ "$duplicate_count" -gt 0 ]; then
-        log_info "去重统计: 原始配置项=$logging_count, 有效配置项=$valid_count, 重复项=$duplicate_count"
-    else
-        log_info "成功收集 $valid_count 个有效日志配置项，无重复项"
-    fi
+    # 输出统计信息
+    log_info "日志配置统计: 有效配置项=$valid_count, 无效配置项=$invalid_count, logType数量=${#logging_by_type[@]}"
     
-    # 处理每个有效的日志配置项
+    # 处理每个logType的配置项
     for log_type in "${!logging_by_type[@]}"; do
-        local logging="${logging_by_type[$log_type]}"
+        local logging_array="${logging_by_type[$log_type]}"
         
-        # 构建日志配置内容
+        # 构建包含多个logging配置项的JSON结构
         local logging_content
-        logging_content=$(echo "{\"inputs\": {\"logging\": [$logging]}}" | jq -r ".")
-        #如果.inputs.logging[0].tags.service 不存在，则把service_name 写入到logging_content 中
-        if ! echo "$logging_content" | jq -r ".inputs.logging[0].tags.service" 2>/dev/null; then
-            logging_content=$(echo "$logging_content" | jq --arg service_name "$service_name" ".inputs.logging[0].tags.service = \$service_name")
-        fi
+        logging_content=$(echo "{\"inputs\": {\"logging\": [$logging_array]}}" | jq -r ".")
         
         if ! echo "$logging_content" | jq empty 2>/dev/null; then
             record_error "VALIDATION_ERROR" "日志配置内容不是有效的JSON格式" "ERROR"
@@ -570,10 +591,10 @@ process_logging() {
         # 构建目标文件路径
         local target_file="${APP_INIT_LOGGING_DIR}/${service_name}_${log_type}_auto.conf"
         
-        # 直接处理配置项
-        log_info "开始处理日志配置项: $service_name-$log_type -> $target_file"
+        # 处理配置项（支持多配置）
+        log_info "开始处理日志配置: $service_name-$log_type (配置项数: $(echo "$logging_content" | jq '.inputs.logging | length')) -> $target_file"
         process_config_item "$service_name" "logging" "$logging_content" "$target_file"
-        log_info "完成处理日志配置项: $service_name-$log_type"
+        log_info "完成处理日志配置: $service_name-$log_type"
     done
 }
 
