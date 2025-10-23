@@ -187,11 +187,45 @@ process_config_item() {
         "metrics")
             # 指标配置：基于关键字段的增量对比
             local new_prom_array current_prom_array
-            new_prom_array=$(echo "$config_data" | jq -c '.inputs.prom' 2>/dev/null || echo "[]")
-            current_prom_array=$(echo "$updated_config" | jq -c '.inputs.prom' 2>/dev/null || echo "[]")
+            
+            # 过滤新配置中的空URLs配置项
+            new_prom_array=$(echo "$config_data" | jq -c '.inputs.prom | map(select(.urls // [] | length > 0 and all(. != "" and . != null)))' 2>/dev/null || echo "[]")
+            
+            # 过滤当前配置中的空URLs配置项
+            current_prom_array=$(echo "$updated_config" | jq -c '.inputs.prom | map(select(.urls // [] | length > 0 and all(. != "" and . != null)))' 2>/dev/null || echo "[]")
+            
+            log_info "过滤空URLs后的配置:"
+            log_info "  新配置项数: $(echo "$new_prom_array" | jq 'length' 2>/dev/null || echo "0")"
+            log_info "  当前配置项数: $(echo "$current_prom_array" | jq 'length' 2>/dev/null || echo "0")"
+            
+            # 使用规范化比较，避免因JSON字段顺序导致的误判
+            # 对每个配置项进行深度规范化
+            local normalized_new normalized_current
+            
+            # 规范化新配置：对每个配置项进行标准化处理
+            normalized_new=$(echo "$new_prom_array" | jq -c '
+                map({
+                    urls: (.urls // []) | sort,
+                    interval: (.interval // ""),
+                    tags: (.tags // {}) | to_entries | sort_by(.key) | from_entries
+                }) | sort_by(.urls, .interval, .tags)
+            ' 2>/dev/null || echo "$new_prom_array")
+            
+            # 规范化当前配置
+            normalized_current=$(echo "$current_prom_array" | jq -c '
+                map({
+                    urls: (.urls // []) | sort,
+                    interval: (.interval // ""),
+                    tags: (.tags // {}) | to_entries | sort_by(.key) | from_entries
+                }) | sort_by(.urls, .interval, .tags)
+            ' 2>/dev/null || echo "$current_prom_array")
+            
+            log_info "规范化比较:"
+            log_info "  新配置: $normalized_new"
+            log_info "  当前配置: $normalized_current"
             
             # 检查是否有配置变更
-            if [ "$new_prom_array" != "$current_prom_array" ]; then
+            if [ "$normalized_new" != "$normalized_current" ]; then
                 log_info "发现指标配置差异，开始基于关键字段对比"
                 
                 # 获取配置项数量
@@ -218,15 +252,16 @@ process_config_item() {
                         continue
                     fi
                     
-                    # 提取关键字段用于匹配
+                    # 提取关键字段用于匹配，使用规范化排序确保一致性
                     local new_tags new_urls
-                    new_tags=$(echo "$new_item" | jq -c '.tags // {}' 2>/dev/null || echo "{}")
-                    new_urls=$(echo "$new_item" | jq -c '.urls // []' 2>/dev/null || echo "[]")
+                    # 对tags进行规范化排序，确保字段顺序一致
+                    new_tags=$(echo "$new_item" | jq -c '.tags // {} | to_entries | sort_by(.key) | from_entries' 2>/dev/null || echo "{}")
+                    new_urls=$(echo "$new_item" | jq -c '.urls // [] | sort' 2>/dev/null || echo "[]")
                     
-                    # 生成配置项标识
+                    # 生成配置项标识，使用规范化后的字段
                     local key_identifier
                     if [ "$new_tags" = "{}" ] && [ "$new_urls" = "[]" ]; then
-                        # 关键字段都为空，使用完整配置作为标识
+                        # 关键字段都为空，使用完整配置作为标识（规范化排序）
                         key_identifier=$(echo "$new_item" | jq -c 'del(.tags, .urls)' 2>/dev/null || echo "$new_item")
                         log_info "  警告: 新配置项关键字段为空，使用完整配置作为标识"
                     else
@@ -254,15 +289,16 @@ process_config_item() {
                         continue
                     fi
                     
-                    # 提取关键字段用于匹配
+                    # 提取关键字段用于匹配，使用规范化排序确保一致性
                     local current_tags current_urls
-                    current_tags=$(echo "$current_item" | jq -c '.tags // {}' 2>/dev/null || echo "{}")
-                    current_urls=$(echo "$current_item" | jq -c '.urls // []' 2>/dev/null || echo "[]")
+                    # 对tags进行规范化排序，确保字段顺序一致
+                    current_tags=$(echo "$current_item" | jq -c '.tags // {} | to_entries | sort_by(.key) | from_entries' 2>/dev/null || echo "{}")
+                    current_urls=$(echo "$current_item" | jq -c '.urls // [] | sort' 2>/dev/null || echo "[]")
                     
-                    # 生成配置项标识
+                    # 生成配置项标识，使用规范化后的字段
                     local key_identifier
                     if [ "$current_tags" = "{}" ] && [ "$current_urls" = "[]" ]; then
-                        # 关键字段都为空，使用完整配置作为标识
+                        # 关键字段都为空，使用完整配置作为标识（规范化排序）
                         key_identifier=$(echo "$current_item" | jq -c 'del(.tags, .urls)' 2>/dev/null || echo "$current_item")
                         log_info "  警告: 当前配置项关键字段为空，使用完整配置作为标识"
                     else
@@ -345,6 +381,10 @@ process_config_item() {
                 
                 if [ "$config_changes" -gt 0 ]; then
                     log_info "检测到 $config_changes 个配置变更，更新配置"
+                    log_info "变更详情:"
+                    log_info "  新增配置项: ${#added_configs[@]}"
+                    log_info "  修改配置项: ${#modified_configs[@]}"
+                    log_info "  删除配置项: ${#removed_configs[@]}"
                     
                     # 直接替换整个prom数组
                     updated_config=$(echo "$updated_config" | jq --argjson prom_array "$new_prom_array" '.inputs.prom = $prom_array' 2>/dev/null)
@@ -356,6 +396,9 @@ process_config_item() {
                     fi
                 else
                     log_info "配置项内容无实际差异，跳过更新"
+                    log_info "详细比较结果:"
+                    log_info "  规范化新配置: $normalized_new"
+                    log_info "  规范化当前配置: $normalized_current"
                 fi
             else
                 log_info "指标配置无差异，跳过更新"
@@ -404,6 +447,9 @@ process_config_item() {
     
     # 如果有变更，更新文件
     if [ "$has_changes" = true ]; then
+        log_info "检测到配置变更，准备更新文件: $target_file"
+        log_info "变更详情: 配置类型=$config_type, 服务名=$service_name"
+        
         # 确保目标目录存在
         local target_dir=$(dirname "$target_file")
         if [ ! -d "$target_dir" ]; then
@@ -417,6 +463,7 @@ process_config_item() {
         }
         
         log_info "配置更新成功: $target_file"
+        log_info "设置 CONFIG_CHANGED=true (原因: 配置更新成功)"
         CONFIG_CHANGED=true
         
         # 增加配置变更计数器
@@ -449,11 +496,25 @@ process_logging() {
     local logging_count
     logging_count=$(echo "$service" | jq -r ".\"$service_name\".logging | length" 2>/dev/null || echo "0")
     
+    if [ "$logging_count" -eq 0 ]; then
+        log_info "服务 $service_name 没有日志配置，跳过处理"
+        return 0
+    fi
+    
+    log_info "发现 $logging_count 个日志配置项，开始合并处理"
+    
+    # 收集所有有效的logging配置项（去重处理）
+    # 使用关联数组存储配置项，key为logType，value为配置内容
+    # 相同logType的配置项，后面的会覆盖前面的
+    declare -A logging_by_type
+    local duplicate_count=0
+    
     for i in $(seq 0 $((logging_count - 1))); do
         local logging
         logging=$(echo "$service" | jq -r ".\"$service_name\".logging[$i]" 2>/dev/null)
         
         if [ "$logging" = "null" ] || [ -z "$logging" ]; then
+            log_info "跳过无效的日志配置项 $((i + 1))/$logging_count"
             continue
         fi
         
@@ -462,6 +523,36 @@ process_logging() {
         # 获取日志类型
         local log_type
         log_type=$(echo "$logging" | jq -r ".logType" 2>/dev/null || echo "default")
+        
+        # 检查是否已存在相同logType的配置项
+        if [ -n "${logging_by_type[$log_type]:-}" ]; then
+            log_info "  警告: 发现相同logType的日志配置项，使用最新的配置覆盖 (logType: $log_type)"
+            duplicate_count=$((duplicate_count + 1))
+        fi
+        
+        # 记录/更新配置项（相同logType的配置项会被覆盖）
+        logging_by_type["$log_type"]="$logging"
+        log_info "日志配置项 $((i + 1)) 验证通过"
+    done
+    
+    # 计算有效配置项数量
+    local valid_count=${#logging_by_type[@]}
+    
+    if [ "$valid_count" -eq 0 ]; then
+        log_info "服务 $service_name 没有有效的日志配置，跳过处理"
+        return 0
+    fi
+    
+    # 输出去重统计信息
+    if [ "$duplicate_count" -gt 0 ]; then
+        log_info "去重统计: 原始配置项=$logging_count, 有效配置项=$valid_count, 重复项=$duplicate_count"
+    else
+        log_info "成功收集 $valid_count 个有效日志配置项，无重复项"
+    fi
+    
+    # 处理每个有效的日志配置项
+    for log_type in "${!logging_by_type[@]}"; do
+        local logging="${logging_by_type[$log_type]}"
         
         # 构建日志配置内容
         local logging_content
@@ -480,7 +571,9 @@ process_logging() {
         local target_file="${APP_INIT_LOGGING_DIR}/${service_name}_${log_type}_auto.conf"
         
         # 直接处理配置项
+        log_info "开始处理日志配置项: $service_name-$log_type -> $target_file"
         process_config_item "$service_name" "logging" "$logging_content" "$target_file"
+        log_info "完成处理日志配置项: $service_name-$log_type"
     done
 }
 
@@ -536,10 +629,35 @@ process_metrics() {
             continue
         fi
         
-        # 生成配置项标识用于去重
-        local tags urls key_identifier
-        tags=$(echo "$metrics" | jq -c '.tags // {}' 2>/dev/null || echo "{}")
+        # 检查URLs是否为空，如果为空则跳过此配置项
+        local urls
         urls=$(echo "$metrics" | jq -c '.urls // []' 2>/dev/null || echo "[]")
+        local urls_length
+        urls_length=$(echo "$urls" | jq 'length' 2>/dev/null || echo "0")
+        
+        # 检查URLs数组是否为空或包含空字符串
+        local has_valid_urls=false
+        if [ "$urls_length" -gt 0 ]; then
+            # 检查是否有非空URL
+            for j in $(seq 0 $((urls_length - 1))); do
+                local url
+                url=$(echo "$urls" | jq -r ".[$j]" 2>/dev/null)
+                if [ -n "$url" ] && [ "$url" != "null" ] && [ "$url" != "" ]; then
+                    has_valid_urls=true
+                    break
+                fi
+            done
+        fi
+        
+        if [ "$has_valid_urls" = false ]; then
+            log_info "跳过URLs为空的指标配置项 $((i + 1))/$metrics_count"
+            log_info "  URLs内容: $urls"
+            continue
+        fi
+        
+        # 生成配置项标识用于去重
+        local tags key_identifier
+        tags=$(echo "$metrics" | jq -c '.tags // {}' 2>/dev/null || echo "{}")
         
         if [ "$tags" = "{}" ] && [ "$urls" = "[]" ]; then
             # 关键字段都为空，使用完整配置作为标识
@@ -836,6 +954,7 @@ cleanup_config_directory() {
                     log_info "移除旧配置文件: $filename -> $(basename "$backup_file")"
                     log_info "  原因: 配置 '$config_key' 不在运维平台中"
                     # 标记配置已变更，需要重启Datakit
+                    log_info "设置 CONFIG_CHANGED=true (原因: 移除旧配置文件)"
                     CONFIG_CHANGED=true
                 else
                     record_error "BACKUP_ERROR" "移除配置文件失败: $filename" "ERROR"
@@ -885,13 +1004,23 @@ process_services() {
         log_info "处理服务 $service_count: $service_name"
         
         # 处理各种配置类型
+        log_info "开始处理服务 $service_name 的日志配置"
         process_logging "$service_name" "$service"
+        log_info "完成处理服务 $service_name 的日志配置"
+        
+        log_info "开始处理服务 $service_name 的指标配置"
         process_metrics "$service_name" "$service"
+        log_info "完成处理服务 $service_name 的指标配置"
+        
+        log_info "开始处理服务 $service_name 的健康检查配置"
         process_health "$service_name" "$service"
+        log_info "完成处理服务 $service_name 的健康检查配置"
     done
     # 输出service_name 
     log_info "service_names: ${service_names[@]}"
     log_info "服务配置处理完成，共处理 $service_count 个服务"
+
+    
 }
 
 # =============================================================================
