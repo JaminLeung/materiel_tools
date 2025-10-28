@@ -28,6 +28,7 @@ datakit-automation/config/scripts/*.sh
 !datakit-automation/config/env/example.sh
 datakit-automation/config/env/ox.sh
 !datakit-automation/config/env/gray.sh
+!datakit-automation/config/env/prod.sh
 !datakit-automation/config/scripts/*.sh
 datakit-automation/logs
 datakit-automation/runtime
