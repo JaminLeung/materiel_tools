@@ -1283,10 +1283,10 @@ get_machine_specs() {
 
     log_info "机器规格: ${cpu_cores}核 ${memory_gb}GB"
 
-    # 执行预检：评估安装条件
-    if ! evaluate_datakit_installation; then
-        return 1
-    fi
+    # # 执行预检：评估安装条件
+    # if ! evaluate_datakit_installation; then
+    #     return 1
+    # fi
 
     # 根据规格设置资源限制
     if (( $(echo "$cpu_cores < 4" | bc -l) == 1 )) || (( $(echo "$memory_gb < 8" | bc -l) == 1 )); then
