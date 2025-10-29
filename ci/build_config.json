@@ -1,7 +1,7 @@
 {
                 "git_repo": "https://gitea.pre-guance.houtai.io/luke.zhao/materiel_tools.git",
                 "datakit_version": "1.82.0",
-                "installer_version": "1.0.13",
+                "installer_version": "1.0.14",
                 "binary_urls": [
                     "https://static.guance.com/datakit/installer-linux-amd64-1.82.0",
                     "https://static.guance.com/datakit/datakit-linux-amd64-1.82.0.tar.gz",
