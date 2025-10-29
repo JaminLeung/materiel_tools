@@ -585,7 +585,7 @@ cleanup_safe_delete_dir() {
 
     # 清理过期目录，只保留时间最近的10个目录，其他目录删除
     local dirs_to_delete=$(find /tmp/datakit -name "*" -type d -mtime +0)
-    log_info "/tmp/datakit删除过期目录: $dirs_to_delete"
+    # log_info "/tmp/datakit删除过期目录: $dirs_to_delete"
     
     if [ -n "$dirs_to_delete" ]; then
         for dir in $dirs_to_delete; do
