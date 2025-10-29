@@ -589,7 +589,7 @@ cleanup_safe_delete_dir() {
     
     if [ -n "$dirs_to_delete" ]; then
         for dir in $dirs_to_delete; do
-            log_info "删除过期目录: $dir"
+            # log_info "删除过期目录: $dir"
             # 在/tmp/datakit 清理，相对可控
             if safe_execute "rm -rf '$dir'" "删除过期目录"; then
                 deleted_count=$((deleted_count + 1))

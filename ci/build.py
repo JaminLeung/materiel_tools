@@ -31,13 +31,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class DatakitBuilder:
-    def __init__(self, config_file: str = "build_config.json"):
+    def __init__(self, config_file: str = "build_config.json", env: Optional[str] = None):
         self.config_file = config_file
         self.config = self.load_config()
         self.work_dir = Path.cwd()
         self.work_dir = Path.cwd()
         self.datakit_version = "1.82.0"
         self.installer_version = "1.0.13"
+        self.env = env
 
 
     def load_config(self) -> Dict:
@@ -297,6 +298,53 @@ class DatakitBuilder:
         logger.info(f"tools 包创建完成: {tools_tar_path}")
         return tools_tar_path
 
+    def cleanup_env_config(self, code_dir: Path):
+        """清理环境配置文件，只保留指定环境的配置文件"""
+        if not self.env:
+            logger.info("未指定环境参数，跳过环境配置文件清理")
+            return
+
+        logger.info(f"开始清理环境配置文件，保留环境: {self.env}")
+
+        env_config_dir = code_dir / "config" / "env"
+
+        # 检查目录是否存在
+        if not env_config_dir.exists() or not env_config_dir.is_dir():
+            logger.warning(f"环境配置目录不存在，跳过: {env_config_dir}")
+            return
+
+        # 构建目标文件名
+        target_file = env_config_dir / f"{self.env}.sh"
+
+        # 校验目标文件是否存在
+        if not target_file.exists():
+            error_msg = f"环境配置文件不存在: {target_file}"
+            logger.error(error_msg)
+            raise FileNotFoundError(error_msg)
+
+        logger.info(f"找到目标环境配置文件: {target_file}")
+
+        # 获取所有 .sh 文件
+        all_sh_files = list(env_config_dir.glob("*.sh"))
+
+        if not all_sh_files:
+            logger.warning("未发现任何环境配置文件")
+            return
+
+        # 删除其他环境的配置文件
+        deleted_count = 0
+        for file_path in all_sh_files:
+            if file_path.name != f"{self.env}.sh":
+                try:
+                    file_path.unlink()
+                    logger.info(f"删除环境配置文件: {file_path.name}")
+                    deleted_count += 1
+                except Exception as e:
+                    logger.error(f"删除文件失败: {file_path}, 错误: {e}")
+                    raise
+
+        logger.info(f"环境配置文件清理完成，保留: {target_file.name}，删除: {deleted_count} 个文件")
+
     def build(self):
         """执行完整的构建流程"""
         logger.info("开始构建流程...")
@@ -305,31 +353,34 @@ class DatakitBuilder:
             # 1. 克隆代码
             code_dir = self.git_clone()
 
-            # 2. 获取版本信息
+            # 2. 清理环境配置文件（如果指定了环境参数）
+            self.cleanup_env_config(code_dir)
+
+            # 3. 获取版本信息
             versions = self.get_versions(code_dir)
             datakit_version = versions["datakit_version"]
             installer_version = versions["installer_version"]
 
-            # 3. 创建package目录
+            # 4. 创建package目录
             package_dir = self.create_package_dir(code_dir)
 
-            # 4. 下载二进制文件
+            # 5. 下载二进制文件
             downloaded_files = self.download_binaries(package_dir)
 
-            # 5. 创建tar.gz包
+            # 6. 创建tar.gz包
             tar_path = self.create_tar_package(package_dir, datakit_version)
 
-            # 6. 计算MD5值并创建MD5文件
+            # 7. 计算MD5值并创建MD5文件
             md5_value = self.calculate_md5(tar_path)
             md5_file_path = self.create_md5_file(tar_path, md5_value)
 
-            # 7.清理打包前物料清理
+            # 8.清理打包前物料清理
             self.cleanup_downloaded_files(downloaded_files)
 
-            # 8. 创建最终安装包
+            # 9. 创建最终安装包
             final_package_path = self.create_final_package(code_dir, installer_version)
 
-            # 9. 额外创建 tools 脚本独立包（默认启用）
+            # 10. 额外创建 tools 脚本独立包（默认启用）
             tools_package_path = self.create_tools_package(code_dir, installer_version)
 
             logger.info("构建流程完成!")
@@ -356,6 +407,11 @@ def main():
         action="store_true",
         help="详细输出"
     )
+    parser.add_argument(
+        "--env",
+        type=str,
+        help="指定环境（如: prod, test, pre），将清理其他环境的配置文件，只保留指定环境的配置文件"
+    )
 
     args = parser.parse_args()
 
@@ -363,7 +419,7 @@ def main():
         logging.getLogger().setLevel(logging.DEBUG)
 
     try:
-        builder = DatakitBuilder(args.config)
+        builder = DatakitBuilder(args.config, env=args.env)
         builder.build()
     except Exception as e:
         logger.error(f"构建失败: {e}")

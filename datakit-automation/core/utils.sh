@@ -1096,75 +1096,254 @@ check_required_tools() {
 # 机器规格检测工具函数（从install_utils整合）
 # =============================================================================
 
+# 获取CPU使用率
+get_cpu_usage() {
+    if command_exists "top"; then
+        # 使用top命令获取CPU使用率
+        local cpu_usage=$(top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}')
+        echo "$cpu_usage"
+    elif command_exists "vmstat"; then
+        # 使用vmstat命令
+        local cpu_usage=$(vmstat 1 2 | tail -1 | awk '{print 100 - $15}')
+        echo "$cpu_usage"
+    else
+        log_warning "无法获取CPU使用率：缺少必要的命令"
+        echo "0"
+    fi
+}
+
+# 获取内存使用率
+get_memory_usage() {
+    if command_exists "free"; then
+        # 使用free命令获取内存使用率
+        local memory_info=$(free | grep Mem)
+        local total=$(echo $memory_info | awk '{print $2}')
+        local used=$(echo $memory_info | awk '{print $3}')
+
+        if [ "$total" -gt 0 ]; then
+            local memory_usage=$(echo "scale=2; $used * 100 / $total" | bc -l)
+            echo "$memory_usage"
+        else
+            echo "0"
+        fi
+    else
+        log_warning "无法获取内存使用率：缺少free命令"
+        echo "0"
+    fi
+}
+
+# 获取CPU核心数
+get_cpu_cores() {
+    if [ -f /proc/cpuinfo ]; then
+        local cores=$(grep -c ^processor /proc/cpuinfo)
+        echo "$cores"
+    elif command_exists "lscpu"; then
+        local cores=$(lscpu | grep "CPU(s)" | cut -d ':' -f 2 | sed 's/^ //' | awk '{print $1}' | head -n 1)
+        echo "$cores"
+    else
+        echo "1"
+    fi
+}
+
+# 获取内存总量（GB）
+get_memory_total_gb() {
+    if command_exists "free"; then
+        local memory_info=$(free | grep Mem)
+        local total_kb=$(echo $memory_info | awk '{print $2}')
+        if [ "$total_kb" -gt 0 ]; then
+            local total_gb=$(echo "scale=2; $total_kb / 1024 / 1024" | bc -l)
+            echo "$total_gb"
+        else
+            local memory_gb=$(free -g | grep "Mem" | awk '{print $2}')
+            echo "$memory_gb"
+        fi
+    else
+        echo "0"
+    fi
+}
+
+# 获取CPU使用量（核心数）
+get_cpu_used_cores() {
+    local cpu_usage=$(get_cpu_usage)
+    local cpu_cores=$(get_cpu_cores)
+    if [ "$cpu_cores" -gt 0 ]; then
+        local used_cores=$(echo "scale=2; $cpu_cores * $cpu_usage / 100" | bc -l)
+        echo "$used_cores"
+    else
+        echo "0"
+    fi
+}
+
+# 获取内存使用量（GB）
+get_memory_used_gb() {
+    if command_exists "free"; then
+        local memory_info=$(free | grep Mem)
+        local used_kb=$(echo $memory_info | awk '{print $3}')
+        if [ "$used_kb" -gt 0 ]; then
+            local used_gb=$(echo "scale=2; $used_kb / 1024 / 1024" | bc -l)
+            echo "$used_gb"
+        else
+            local used_gb=$(free -g | grep "Mem" | awk '{print $3}')
+            echo "$used_gb"
+        fi
+    else
+        echo "0"
+    fi
+}
+
+# 评估Datakit安装条件
+evaluate_datakit_installation() {
+    local cpu_cores=$(get_cpu_cores)
+    local memory_total_gb=$(get_memory_total_gb)
+    local cpu_used_cores=$(get_cpu_used_cores)
+    local memory_used_gb=$(get_memory_used_gb)
+
+    # Datakit资源限制（Cgroup设置算法）
+    local MIN_CPU=0.5
+    local MIN_MEMORY=0.5
+    local MAX_CPU=2.0
+    local MAX_MEMORY=4.0
+    local ALLOC_RATIO=0.125
+
+    # 计算Cgroup建议分配资源：机器规格 * 0.125
+    local suggested_cpu=$(echo "scale=2; $cpu_cores * $ALLOC_RATIO" | bc -l)
+    local suggested_memory=$(echo "scale=2; $memory_total_gb * $ALLOC_RATIO" | bc -l)
+
+    # 应用最小/最大限制
+    local allocated_cpu
+    local allocated_memory
+
+    if (( $(echo "$suggested_cpu < $MIN_CPU" | bc -l) == 1 )); then
+        allocated_cpu=$MIN_CPU
+    elif (( $(echo "$suggested_cpu > $MAX_CPU" | bc -l) == 1 )); then
+        allocated_cpu=$MAX_CPU
+    else
+        allocated_cpu=$suggested_cpu
+    fi
+
+    if (( $(echo "$suggested_memory < $MIN_MEMORY" | bc -l) == 1 )); then
+        allocated_memory=$MIN_MEMORY
+    elif (( $(echo "$suggested_memory > $MAX_MEMORY" | bc -l) == 1 )); then
+        allocated_memory=$MAX_MEMORY
+    else
+        allocated_memory=$suggested_memory
+    fi
+
+    # 计算分配后的总使用率
+    local final_cpu_total=$(echo "scale=2; $cpu_used_cores + $allocated_cpu" | bc -l)
+    local final_memory_total=$(echo "scale=2; $memory_used_gb + $allocated_memory" | bc -l)
+
+    local final_cpu_usage=$(echo "scale=2; $final_cpu_total * 100 / $cpu_cores" | bc -l)
+    local final_memory_usage=$(echo "scale=2; $final_memory_total * 100 / $memory_total_gb" | bc -l)
+
+    # 显示评估结果
+    log_info "Datakit安装条件评估："
+    log_info "  机器规格: CPU=${cpu_cores}核, 内存=${memory_total_gb}GB"
+    log_info "  当前使用: CPU=${cpu_used_cores}核 (${cpu_cores}核), 内存=${memory_used_gb}GB (${memory_total_gb}GB)"
+    log_info "  建议Cgroup设置: CPU=${allocated_cpu}核, 内存=${allocated_memory}GB"
+    log_info "  分配后总使用率: CPU=${final_cpu_usage}%, 内存=${final_memory_usage}%"
+
+    # 评估是否满足安装条件（总使用率不超过80%）
+    local can_install=true
+    local reason=""
+
+    if (( $(echo "$final_cpu_usage >= 80" | bc -l) == 1 )); then
+        can_install=false
+        reason="CPU总使用率将达到${final_cpu_usage}%"
+    fi
+
+    if (( $(echo "$final_memory_usage >= 80" | bc -l) == 1 )); then
+        if [ -n "$reason" ]; then
+            reason="${reason}，内存总使用率将达到${final_memory_usage}%"
+        else
+            reason="内存总使用率将达到${final_memory_usage}%"
+        fi
+        can_install=false
+    fi
+
+    # 输出评估结果
+    if [ "$can_install" = true ]; then
+        log_info "满足安装条件，可以安装Datakit"
+        return 0
+    else
+        handle_error "RESOURCE_ERROR" "不满足安装条件 - $reason" "ERROR" "true"
+        return 1
+    fi
+}
+
 # 获取机器规格并设置资源限制
 get_machine_specs() {
     log_info "获取机器规格并设置资源限制..."
-    return 0
-    
+
     # 获取CPU规格
-    local cpu_cores=$(lscpu | grep "CPU(s)" | cut -d ':' -f 2 | sed 's/^ //' | awk '{print $1}' | head -n 1)
-    
+    local cpu_cores=$(get_cpu_cores)
+
     # 获取内存规格（GB）
-    local memory_gb=$(free -g | grep "Mem" | awk '{print $2}')
-    
+    local memory_gb=$(get_memory_total_gb)
+
     log_info "机器规格: ${cpu_cores}核 ${memory_gb}GB"
-    
+
+    # 执行预检：评估安装条件
+    if ! evaluate_datakit_installation; then
+        return 1
+    fi
+
     # 根据规格设置资源限制
-    if [ "$cpu_cores" -lt 4 ] || [ "$memory_gb" -lt 8 ]; then
+    if (( $(echo "$cpu_cores < 4" | bc -l) == 1 )) || (( $(echo "$memory_gb < 8" | bc -l) == 1 )); then
         # 2C4G ~ 4C8G: 使用规格的12.5%，最低0.5C0.5G
-        local cpu_limit_raw=$(echo "$cpu_cores * 0.125" | bc | sed 's/^\./0./' | sed 's/\.$//')
-        local memory_limit_raw=$(echo "$memory_gb * 0.125 * 1024" | bc | sed 's/^\./0./' | sed 's/\.$//')
-        
+        local cpu_limit_raw=$(echo "scale=2; $cpu_cores * 0.125" | bc -l)
+        local memory_limit_raw=$(echo "scale=2; $memory_gb * 0.125 * 1024" | bc -l)
+
         # 确保最低限制：0.5C0.5G
         local cpu_limit
-        if (( $(echo "$cpu_limit_raw < 0.5" | bc -l) )); then
+        if (( $(echo "$cpu_limit_raw < 0.5" | bc -l) == 1 )); then
             cpu_limit="0.5"
         else
             cpu_limit="$cpu_limit_raw"
         fi
-        
+
         local memory_limit
-        if (( $(echo "$memory_limit_raw < 0.5" | bc -l) )); then
+        if (( $(echo "$memory_limit_raw < 512" | bc -l) == 1 )); then
             memory_limit="512"  # 0.5GB = 512MB
         else
-            memory_limit=$(echo "$memory_limit_raw " | bc | sed 's/^\./0./' | sed 's/\.$//')    
+            memory_limit=$(printf "%.0f" "$memory_limit_raw")
         fi
-        
+
         # 设置全局状态
         set_global_state "CGROUP_CPU_LIMIT" "$cpu_limit"
         set_global_state "CGROUP_MEMORY_LIMIT" "$memory_limit"
-        
+
 
 
         log_info "2C4G~4C8G 规格资源限制计算:"
         log_info "CPU原始限制: ${cpu_limit_raw}C (规格的12.5%)"
-        log_info "内存原始限制: ${memory_limit_raw}GB (规格的12.5%)"
+        log_info "内存原始限制: ${memory_limit_raw}MB (规格的12.5%)"
         log_info "CPU最终限制: ${cpu_limit}C (应用最低限制0.5C)"
         log_info "内存最终限制: ${memory_limit}MB (应用最低限制0.5GB)"
         log_info "设置动态资源限制: ${cpu_limit}C${memory_limit}MB"
-        
+
     else
         # ≥ 4C8G: 使用固定限制
         set_global_state "CGROUP_CPU_LIMIT" "1"
         set_global_state "CGROUP_MEMORY_LIMIT" "2048"
         log_info "≥4C8G规格，设置默认资源限制: 1C2G"
     fi
-    
+
     log_info "设置资源限制: $(get_global_state 'CGROUP_CPU_LIMIT')C$(get_global_state 'CGROUP_MEMORY_LIMIT')MB"
-    
+
     # 验证资源限制是否满足最低要求
     local cpu_limit=$(get_global_state 'CGROUP_CPU_LIMIT')
     local memory_limit=$(get_global_state 'CGROUP_MEMORY_LIMIT')
-    
+
     # 使用 bc 进行浮点数比较
-    if (( $(echo "$cpu_limit < 0.5" | bc -l) )) || (( $(echo "$memory_limit < 512" | bc -l) )); then
+    if (( $(echo "$cpu_limit < 0.5" | bc -l) == 1 )) || (( $(echo "$memory_limit < 512" | bc -l) == 1 )); then
         handle_error "RESOURCE_ERROR" "资源限制不满足最低要求: CPU=${cpu_limit}C, 内存=${memory_limit}MB" "ERROR" "false"
         return 1
     fi
-    
+
     log_info "资源限制验证通过: CPU=${cpu_limit}C, 内存=${memory_limit}MB"
     return 0
-    
+
 }
 
 # =============================================================================
