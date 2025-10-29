@@ -9,7 +9,7 @@ set -euo pipefail
 # 脚本元信息
 readonly INSTALLER_SCRIPT_NAME="$(basename "$0")"
 readonly DATAKIT_VERSION="1.82.0"
-readonly INSTALLER_SCRIPT_VERSION="1.0.13"
+readonly INSTALLER_SCRIPT_VERSION="1.0.14"
 readonly INSTALLER_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # 声明全局状态变量
@@ -272,7 +272,10 @@ main() {
     init_error_handler
 
 
-
+    # 执行预检：评估安装条件
+    if ! evaluate_datakit_installation; then
+        return 1
+    fi
 
 
     # 检查是否已有实例运行
