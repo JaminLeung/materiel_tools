@@ -105,7 +105,7 @@ process_dir() {
         return 0
     else
         log "警告：$path 目录不存在"
-        return 1
+        return 0
     fi
 }
 
@@ -117,7 +117,7 @@ handle_special_files() {
         # read
         "/var/log/read_history.log:u:read:rw"
         "/var/log/app_history.log:u:app:rw"
-        "/var/log/read_history.log:u:read:-"
+        "/var/log/app_history.log:u:read:-"
         "/var/log/root_history.log:u:read:-"
         # datakit
         "/var/log/read_history.log:u:datakit:-"
@@ -166,16 +166,18 @@ clear_sensitive_dirs_files() {
 # ===== 主执行逻辑 =====
 main() {
     # 处理主目录
+    process_dir "/home/app/"
+    process_dir "/var/log/"
+    process_dir "/var/log"
     process_dir "/opt/datakit"
     process_dir "/usr/local/datakit"
     process_dir "/usr/local/datakit/conf.d"
     process_dir "/var/log/datakit"
     process_dir "/var/run/datakit"
     process_dir "/tmp/datakit"
-    process_dir "/var/log"
+    process_dir "/data/invokeLog"
     process_dir "/home/app"
     process_dir "/data/processLog"
-    process_dir "/data/invokeLog"
     process_dir "/data/probeLog"
 
     # 特殊文件处理
