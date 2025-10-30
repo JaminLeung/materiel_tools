@@ -240,7 +240,7 @@ class DatakitBuilder:
         logger.info("开始创建最终安装包...")
 
         final_package_name = self.config["final_package_name"]
-        final_filename = f"{final_package_name}_{installer_version}.tgz"
+        final_filename = f"{final_package_name}_{installer_version}_{self.env}.tgz"
         final_path = self.work_dir / final_filename
 
         with tarfile.open(final_path, 'w:gz') as tar:
@@ -285,7 +285,7 @@ class DatakitBuilder:
             return None
 
         final_package_name = self.config["final_package_name"]
-        tools_filename = f"{final_package_name}_tools_{installer_version}.tgz"
+        tools_filename = f"{final_package_name}_tools_{installer_version}_{self.env}.tgz"
         tools_tar_path = self.work_dir / tools_filename
 
         with tarfile.open(tools_tar_path, 'w:gz') as tar:
