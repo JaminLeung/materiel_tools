@@ -61,5 +61,5 @@ OPS_ADDR="${OPS_ADDR:-http://dolphin.ops.pre-ox.internal}"
 
 # Dataway配置
 DATAWAY_URL="${DATAWAY_URL:-https://dataway.pre-guance.houtai.io?token=tkn_48c619fd1aee4d08abd2e2405e604cb5}"
-
+DATAWAY_FULL_URL="${DATAWAY_URL:-https://dataway.pre-guance.houtai.io?token=tkn_48c619fd1aee4d08abd2e2405e604cb5}"
 

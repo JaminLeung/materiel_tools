@@ -1469,7 +1469,6 @@ upload_log_to_dataway() {
         handle_error "FILE_ERROR" "datakit.conf 文件不存在" "ERROR" "true"
     fi
     
-    get_dataway_token_from_datakit_config
     
 
     log_info "DATAWAY_FULL_URL: $(get_global_state "DATAWAY_FULL_URL")"

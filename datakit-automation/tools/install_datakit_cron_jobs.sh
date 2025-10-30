@@ -72,7 +72,7 @@ ensure_cron_job() {
 
 install_cron_jobs() {
     # 检查并注释旧的 setfacl 定时任务
-    local old_cron_pattern="/user/bin/killall setfacl;/usr/bin/setfacl -R -m read:rx /home/app/ /var/log/;/usr/bin/setfacl -m read:rw /var/log/history.log;/usr/bin/setfacl -R -b /home/app/.ssh /var/log/wtmp /var/log/btmp"
+    local old_cron_pattern="/user/bin/killall setfacl;/usr/bin/setfacl"
 
     # 读取当前 crontab
     local current
