@@ -18,6 +18,16 @@ CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-http://dolphin.ops.pre-o
 CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://dataway.pre-guance.houtai.io?token=tkn_48c619fd1aee4d08abd2e2405e604cb5}"
 CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}" 
 
+
+
+
+# =============================================================================
+# 预检配置
+# =============================================================================
+FINAL_CPU_USAGE_LIMIT=${FINAL_CPU_USAGE_LIMIT:-80}
+FINAL_MEMORY_USAGE_LIMIT=${FINAL_MEMORY_USAGE_LIMIT:-80}
+
+
 # =============================================================================
 # 健康检查配置
 # =============================================================================

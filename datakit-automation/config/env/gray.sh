@@ -15,7 +15,7 @@ fi
 # API配置
 # =============================================================================
 CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-http://ops-spider.houtai.one/api/v2/cmdb/observation-agent}"
-CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://dataway.prod-guance.houtai.co?token=tkn_f9891d3dc61d445da7edc8c4297f59b2}"
+CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://dataway.prod-guance.houtai.io?token=tkn_f9891d3dc61d445da7edc8c4297f59b2}"
 CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}" 
 
 # =============================================================================
@@ -30,6 +30,13 @@ ACCOUNT_NAME="bon"
 GLOBAL_ENV="gray"
 GLOBAL_OPS_ENV="gray"   
 GLOBAL_SYSTEM="system"
+
+
+# =============================================================================
+# 预检配置
+# =============================================================================
+FINAL_CPU_USAGE_LIMIT=${FINAL_CPU_USAGE_LIMIT:-80}
+FINAL_MEMORY_USAGE_LIMIT=${FINAL_MEMORY_USAGE_LIMIT:-80}
 
 
 # =============================================================================
