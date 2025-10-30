@@ -117,7 +117,7 @@ handle_special_files() {
         # read
         "/var/log/read_history.log:u:read:rw"
         "/var/log/app_history.log:u:app:rw"
-        "/var/log/app_history.log:u:read:-"
+        "/var/log/read_history.log:u:read:-"
         "/var/log/root_history.log:u:read:-"
         # datakit
         "/var/log/read_history.log:u:datakit:-"

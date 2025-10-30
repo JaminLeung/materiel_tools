@@ -62,5 +62,5 @@ OPS_ADDR="${OPS_ADDR:-http://ops-spider.houtai.one}"
 
 # Dataway配置
 DATAWAY_URL="${DATAWAY_URL:-https://dataway.prod-guance.houtai.io?token=tkn_f9891d3dc61d445da7edc8c4297f59b2}"
-
+DATAWAY_FULL_URL="${DATAWAY_URL:-https://dataway.prod-guance.houtai.io?token=tkn_f9891d3dc61d445da7edc8c4297f59b2}"
 

@@ -54,6 +54,7 @@ OPS_ADDR="${OPS_ADDR:-http://172.31.16.4:5000}"
 
 # Dataway配置
 DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
+DATAWAY_FULL_URL="${DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
 
 
 # runtime地址
