@@ -24,7 +24,11 @@ CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config
 CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT="${CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT:-10}"
 CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
 
-
+# =============================================================================
+# 预检配置
+# =============================================================================
+FINAL_CPU_USAGE_LIMIT=${FINAL_CPU_USAGE_LIMIT:-80}
+FINAL_MEMORY_USAGE_LIMIT=${FINAL_MEMORY_USAGE_LIMIT:-80}
 
 # =============================================================================
 # main_install.sh 特定配置

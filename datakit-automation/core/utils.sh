@@ -1238,6 +1238,8 @@ evaluate_datakit_installation() {
 
     # 显示评估结果
     log_info "Datakit安装条件评估："
+    log_info "  当前最终CPU使用率限制: ${FINAL_CPU_USAGE_LIMIT}%"
+    log_info "  当前最终内存使用率限制: ${FINAL_MEMORY_USAGE_LIMIT}%"
     log_info "  机器规格: CPU=${cpu_cores}核, 内存=${memory_total_gb}GB"
     log_info "  当前使用: CPU=${cpu_used_cores}核 (${cpu_cores}核), 内存=${memory_used_gb}GB (${memory_total_gb}GB)"
     log_info "  建议Cgroup设置: CPU=${allocated_cpu}核, 内存=${allocated_memory}GB"
@@ -1247,12 +1249,12 @@ evaluate_datakit_installation() {
     local can_install=true
     local reason=""
 
-    if (( $(echo "$final_cpu_usage >= 80" | bc -l) == 1 )); then
+    if (( $(echo "$final_cpu_usage >= $FINAL_CPU_USAGE_LIMIT" | bc -l) == 1 )); then
         can_install=false
         reason="CPU总使用率将达到${final_cpu_usage}%"
     fi
 
-    if (( $(echo "$final_memory_usage >= 80" | bc -l) == 1 )); then
+    if (( $(echo "$final_memory_usage >= $FINAL_MEMORY_USAGE_LIMIT" | bc -l) == 1 )); then
         if [ -n "$reason" ]; then
             reason="${reason}，内存总使用率将达到${final_memory_usage}%"
         else
