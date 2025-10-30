@@ -168,7 +168,6 @@ main() {
     # 处理主目录
     process_dir "/home/app/"
     process_dir "/var/log/"
-    process_dir "/var/log"
     process_dir "/opt/datakit"
     process_dir "/usr/local/datakit"
     process_dir "/usr/local/datakit/conf.d"
