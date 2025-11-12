@@ -30,6 +30,8 @@ CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
 FINAL_CPU_USAGE_LIMIT=${FINAL_CPU_USAGE_LIMIT:-80}
 FINAL_MEMORY_USAGE_LIMIT=${FINAL_MEMORY_USAGE_LIMIT:-80}
 
+MIN_CPU_SIZE=${MIN_CPU_SIZE:-2}
+MIN_MEMORY_SIZE=${MIN_MEMORY_SIZE:-2}
 # =============================================================================
 # main_install.sh 特定配置
 # =============================================================================
