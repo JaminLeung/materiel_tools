@@ -17,7 +17,8 @@ ENV_DESCRIPTION="示例环境配置"
 FINAL_CPU_USAGE_LIMIT=${FINAL_CPU_USAGE_LIMIT:-80}
 FINAL_MEMORY_USAGE_LIMIT=${FINAL_MEMORY_USAGE_LIMIT:-80}
 
-
+MIN_CPU_SIZE=${MIN_CPU_SIZE:-2}
+MIN_MEMORY_SIZE=${MIN_MEMORY_SIZE:-2}
 # =============================================================================
 # 基础环境配置（覆盖base配置）
 # =============================================================================

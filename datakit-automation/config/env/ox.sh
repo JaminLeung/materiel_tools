@@ -27,7 +27,8 @@ CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config
 FINAL_CPU_USAGE_LIMIT=${FINAL_CPU_USAGE_LIMIT:-80}
 FINAL_MEMORY_USAGE_LIMIT=${FINAL_MEMORY_USAGE_LIMIT:-80}
 
-
+MIN_CPU_SIZE=${MIN_CPU_SIZE:-2}
+MIN_MEMORY_SIZE=${MIN_MEMORY_SIZE:-2}
 # =============================================================================
 # 健康检查配置
 # =============================================================================
