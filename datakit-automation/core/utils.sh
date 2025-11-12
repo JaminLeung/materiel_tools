@@ -1252,7 +1252,7 @@ evaluate_datakit_installation() {
     # 如果cpu 内存小于 2C2G，则不满足安装条件
     if (( $(echo "$cpu_cores < $MIN_CPU_SIZE" | bc -l) == 1 )) || (( $(echo "$memory_total_gb < $MIN_MEMORY_SIZE" | bc -l) == 1 )); then
         can_install=false
-        reason="机器规格小于2C2G，不满足安装条件"
+        reason="机器规格小于${MIN_CPU_SIZE}C${MIN_MEMORY_SIZE}G，不满足安装条件,当前机器规格: ${cpu_cores}核 ${memory_total_gb}GB"
     fi
 
     if (( $(echo "$final_cpu_usage >= $FINAL_CPU_USAGE_LIMIT" | bc -l) == 1 )); then
