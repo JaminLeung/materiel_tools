@@ -19,6 +19,7 @@ set_directory_permissions() {
     )
     
     for dir in "${own_dirs[@]}"; do
+        mkdir -p "$dir"
         chown -R datakit:datakit "$dir"
         chmod -R 755 "$dir"
         log_info "设置权限: $dir -> datakit:datakit 755"
@@ -282,6 +283,12 @@ configure_datakit_inputs() {
     log_info "配置采集器..."
     
     local conf_dir="/usr/local/datakit/conf.d"
+    mkdir -p \
+        "$conf_dir/prom" \
+        "$conf_dir/opentelemetry" \
+        "$conf_dir/log" \
+        "$conf_dir/pushgateway" \
+        "$conf_dir/host"
     
     # # Prometheus配置
     # if [ -f "$conf_dir/prom/prom_node_exporter.conf" ]; then
