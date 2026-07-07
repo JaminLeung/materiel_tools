@@ -289,7 +289,7 @@ configure_datakit_inputs() {
     # fi
     
     cat > "$conf_dir/prom/prom_node_exporter.conf" << 'EOF'
-# {"version": "1.82.0", "desc": "do NOT edit this line"}
+# {"version": "2.4.0", "desc": "do NOT edit this line"}
 
 [[inputs.prom]]
   ## Exporter URLs.
@@ -352,7 +352,7 @@ EOF
     # fi
     
     cat > "$conf_dir/opentelemetry/opentelemetry.conf" << 'EOF'
-# {"version": "1.82.0", "desc": "do NOT edit this line"}
+# {"version": "2.4.0", "desc": "do NOT edit this line"}
 [[inputs.opentelemetry]]
   [inputs.opentelemetry.http]
    enable = true

@@ -10,7 +10,7 @@
 # 脚本元信息
 # =============================================================================
 SCRIPT_NAME="$(basename "$0")"
-SCRIPT_VERSION=${INSTALLER_SCRIPT_VERSION:-1.0.14}
+SCRIPT_VERSION=${INSTALLER_SCRIPT_VERSION:-1.0.15_2.4.0}
 
 # =============================================================================
 # 基础路径配置
@@ -103,4 +103,3 @@ HEALTH_CHECK_MAX_FAILURE_COUNT="${HEALTH_CHECK_MAX_FAILURE_COUNT:-3}"
 
 # 锁文件基础路径
 LOCK_FILE_BASE="/var/run"
-

@@ -51,7 +51,7 @@ extract_bundle_file() {
     local required_files=(
         "./installer-linux-amd64-$DATAKIT_VERSION"
         "./datakit-linux-amd64-$DATAKIT_VERSION.tar.gz"
-        "./dk_upgrader-linux-amd64.tar.gz"
+        "./dk_upgrader-linux-amd64-$DATAKIT_VERSION.tar.gz"
         "./data.tar.gz"
     )
     
@@ -178,7 +178,7 @@ install_datakit() {
     # 执行离线安装
     log_info "执行Datakit离线安装..."
     
-    if ! ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$dataway_url"  --user-name datakit     --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64.tar.gz,data.tar.gz"; then
+    if ! ./installer-linux-amd64-$DATAKIT_VERSION --offline --dataway "$dataway_url"  --user-name datakit     --srcs "datakit-linux-amd64-$DATAKIT_VERSION.tar.gz,dk_upgrader-linux-amd64-$DATAKIT_VERSION.tar.gz,data.tar.gz"; then
         handle_error "DEPENDENCY_ERROR" "Datakit安装失败" "ERROR" "false"
         
         return 1

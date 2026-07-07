@@ -36,8 +36,8 @@ class DatakitBuilder:
         self.config = self.load_config()
         self.work_dir = Path.cwd()
         self.work_dir = Path.cwd()
-        self.datakit_version = "1.82.0"
-        self.installer_version = "1.0.14"
+        self.datakit_version = "2.4.0"
+        self.installer_version = "1.0.15_2.4.0"
         self.env = env
 
 
@@ -47,15 +47,16 @@ class DatakitBuilder:
             default_config = {
                 "git_repo": "https://gitea.pre-guance.houtai.io/luke.zhao/materiel_tools.git",
                 "datakit_version": self.datakit_version,
-                "installer_version": "1.0.14",
+                "installer_version": "1.0.15_2.4.0",
+                "git_branch": "benjamin_dev_2.4.0",
                 "binary_urls": [
-                    f"https://static.guance.com/datakit/installer-linux-amd64-{self.datakit_version}",
-                    f"https://static.guance.com/datakit/datakit-apm-inject-linux-amd64-{self.datakit_version}.tar.gz",
-                    f"https://static.guance.com/datakit/datakit-linux-amd64-{self.datakit_version}.tar.gz",
-                    f"https://static.guance.com/datakit/datakit_lite-linux-amd64-{self.datakit_version}.tar.gz",
-                    f"https://static.guance.com/datakit/datakit-apm-inject-linux-amd64-{self.datakit_version}.tar.gz",
-                    "https://static.guance.com/datakit/dk_upgrader-linux-amd64.tar.gz",
-                    "https://static.guance.com/datakit/data.tar.gz",
+                    f"https://static.guance.com/datakit-v2/installer-linux-amd64-{self.datakit_version}",
+                    f"https://static.guance.com/datakit-v2/datakit-apm-inject-linux-amd64-{self.datakit_version}.tar.gz",
+                    f"https://static.guance.com/datakit-v2/datakit-linux-amd64-{self.datakit_version}.tar.gz",
+                    f"https://static.guance.com/datakit-v2/datakit_lite-linux-amd64-{self.datakit_version}.tar.gz",
+                    f"https://static.guance.com/datakit-v2/datakit-apm-inject-linux-amd64-{self.datakit_version}.tar.gz",
+                    f"https://static.guance.com/datakit-v2/dk_upgrader-linux-amd64-{self.datakit_version}.tar.gz",
+                    "https://static.guance.com/datakit-v2/data.tar.gz",
                     "https://guance-south.oss-cn-guangzhou.aliyuncs.com/liangjieming/bingx-prod/yj",
                     "https://guance-south.oss-cn-guangzhou.aliyuncs.com/liangjieming/bingx-prod/jq",
                     "https://guance-south.oss-cn-guangzhou.aliyuncs.com/liangjieming/bingx-prod/node_exporter-1.8.2.linux-amd64.tar.gz"
@@ -107,7 +108,12 @@ class DatakitBuilder:
             logger.info(f"目录已存在，删除: {clone_dir}")
             shutil.rmtree(clone_dir)
 
-        self.run_command(["git", "clone", "--depth", "1",repo_url])
+        git_branch = self.config.get("git_branch")
+        clone_cmd = ["git", "clone", "--depth", "1"]
+        if git_branch:
+            clone_cmd.extend(["-b", git_branch])
+        clone_cmd.append(repo_url)
+        self.run_command(clone_cmd)
 
         if not clone_dir.exists():
             raise FileNotFoundError(f"克隆失败，目录不存在: {clone_dir}")
