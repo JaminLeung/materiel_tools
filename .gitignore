@@ -67,10 +67,17 @@ test_*.sh
 # 临时目录
 tmp/
 temp/
+
+# CI 打包产物和下载缓存，避免大文件进入 Git 历史
+ci/*.tgz
+ci/*.tar.gz
+ci/datakit-automation/
+ci/downloaded_file*
 ci/materiel_tools/
 ci/datakit.*
 ci/build.log
 ci/datakit-automation-all*
+ci/datakit-automation-windows-*
 
 # 测试及mock代码
 datakit-automation/test
