@@ -78,6 +78,8 @@ ci/datakit.*
 ci/build.log
 ci/datakit-automation-all*
 ci/datakit-automation-windows-*
+/datakit-automation*.tgz
+/datakit-automation*.zip
 
 # 测试及mock代码
 datakit-automation/test
