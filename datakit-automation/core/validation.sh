@@ -415,9 +415,18 @@ verify_resource_limits() {
     return 0
 }
 
+is_skip_ops_token_check_enabled() {
+    [[ "${SKIP_OPS_TOKEN_CHECK:-false}" == "true" || "${SKIP_OPS_TOKEN_CHECK:-false}" == "1" ]]
+}
+
 # 4. 验证定时任务配置
 verify_cron_jobs() {
     # 通过crontab -l 检查config-update ,app-init ,health_check 定时任务配置是否存在
+    if is_skip_ops_token_check_enabled; then
+        log_warning "已启用 skip-ops-token-check，跳过 datakit 用户 OPS 定时任务验证"
+        return 0
+    fi
+
     if sudo -u datakit crontab -l 2>/dev/null | grep -q "config-update"; then
         log_info "config-update 定时任务配置存在"
     else

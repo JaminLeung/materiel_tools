@@ -7,9 +7,49 @@
 #=================================================
 
 
+is_skip_ops_token_check_enabled() {
+    [[ "${SKIP_OPS_TOKEN_CHECK:-false}" == "true" || "${SKIP_OPS_TOKEN_CHECK:-false}" == "1" ]]
+}
+
+remove_datakit_ops_cron_jobs() {
+    log_info "清理 datakit 用户 OPS 定时任务..."
+
+    local current_crontab="/tmp/current_datakit_crontab_$(date +%Y%m%d%H%M%S)"
+    local filtered_crontab="/tmp/filtered_datakit_crontab_$(date +%Y%m%d%H%M%S)"
+
+    sudo -u datakit crontab -l 2>/dev/null > "$current_crontab" || true
+    if [ ! -s "$current_crontab" ]; then
+        log_info "datakit 用户无定时任务，跳过清理"
+        return 0
+    fi
+
+    grep -v "config-update\|health-check\|app-init" "$current_crontab" > "$filtered_crontab" || true
+
+    if [ -s "$filtered_crontab" ]; then
+        if sudo -u datakit crontab "$filtered_crontab"; then
+            log_info "已移除 datakit 用户 OPS 定时任务，保留其他定时任务"
+        else
+            handle_error "COMMAND_ERROR" "清理 datakit 用户 OPS 定时任务失败" "ERROR" "false"
+            return 1
+        fi
+    else
+        sudo -u datakit crontab -r 2>/dev/null || true
+        log_info "已移除 datakit 用户 OPS 定时任务，当前无其他定时任务"
+    fi
+
+    systemctl reload crond 2>/dev/null || systemctl reload cron 2>/dev/null || true
+    return 0
+}
+
 # 设置定时任务
 setup_cron_jobs() {
     log_info "设置定时任务..."
+
+    if is_skip_ops_token_check_enabled; then
+        log_warning "已启用 skip-ops-token-check，跳过 datakit 用户 OPS 定时任务下发"
+        remove_datakit_ops_cron_jobs
+        return $?
+    fi
     
     # 检查datakit_auto_installer.sh脚本是否存在
     local installer_script="$SCENARIO_PROJECT_ROOT/datakit_auto_installer.sh"
