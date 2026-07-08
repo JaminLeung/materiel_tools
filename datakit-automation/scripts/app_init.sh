@@ -1099,6 +1099,10 @@ main() {
     fi
     
     if [ -z "$ops_token" ]; then
+        if [[ "${SKIP_OPS_TOKEN_CHECK:-false}" == "true" || "${SKIP_OPS_TOKEN_CHECK:-false}" == "1" ]]; then
+            log_warning "无法获取OPS_TOKEN，已启用跳过开关，跳过业务配置同步，继续使用默认配置"
+            return 0
+        fi
         handle_error "CONFIG_ERROR" "无法获取OPS_TOKEN" "ERROR" "false"
         return 1
     fi

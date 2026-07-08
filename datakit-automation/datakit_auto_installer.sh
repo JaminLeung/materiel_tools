@@ -112,6 +112,8 @@ Datakit 版本 v$DATAKIT_VERSION
     -d, --debug           调试模式
     -h, --help            显示此帮助信息
     --version             查看版本 - 查看Datakit安装器版本、Datakit版本
+    --skip-ops-token-check
+                          app-init 无法获取 OPS_TOKEN 时跳过业务配置同步，继续使用默认配置
     --type <TYPE>         重装类型 (仅用于reinstall命令):
                           full - 完全重装，清理所有配置 (默认)
                           preserve - 保留配置重装，保留现有配置文件
@@ -161,6 +163,8 @@ Datakit 版本 v$DATAKIT_VERSION
     # 配置相关示例
     $INSTALLER_SCRIPT_NAME setup-cron                  # 设置定时任务
     $INSTALLER_SCRIPT_NAME app-init                    # 应用初始化
+    $INSTALLER_SCRIPT_NAME --skip-ops-token-check app-init
+                                                    # 缺少 OPS_TOKEN 时跳过业务配置同步
 
     # 信息查看
     $INSTALLER_SCRIPT_NAME version                     # 查看版本信息
@@ -226,6 +230,10 @@ main() {
                 echo "Datakit安装器版本: $INSTALLER_SCRIPT_VERSION"
                 echo "Datakit版本: $DATAKIT_VERSION"
                 exit 0
+                ;;
+            --skip-ops-token-check)
+                export SKIP_OPS_TOKEN_CHECK=true
+                shift
                 ;;
             existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|health-check|clean-install)
                 command="$1"
