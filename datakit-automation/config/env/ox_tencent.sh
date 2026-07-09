@@ -14,22 +14,13 @@ fi
 # =============================================================================
 # API配置
 # =============================================================================
-CONFIG_UPDATE_OPS_API_URL="${CONFIG_UPDATE_OPS_API_URL:-http://localhost:5000/api/v2/cmdb/observation-agent}"
-CONFIG_UPDATE_DATAWAY_URL="${CONFIG_UPDATE_DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
+CONFIG_UPDATE_OPS_API_URL="__REPLACE_ME__"
+CONFIG_UPDATE_DATAWAY_URL="__REPLACE_ME__"
 CONFIG_PY_FILE="${DATAKIT_CONFIG_PY_FILE:-/usr/lib/zabbix/externalscripts/config.py}" 
 
-# =============================================================================
-# 健康检查配置
-# =============================================================================
-CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT="${CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT:-10}"
-CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
 
 
-# 业务配置
-ACCOUNT_NAME="local"
-GLOBAL_ENV="dev"
-GLOBAL_OPS_ENV="test"
-GLOBAL_SYSTEM="system"
+
 # =============================================================================
 # 预检配置
 # =============================================================================
@@ -39,13 +30,27 @@ FINAL_MEMORY_USAGE_LIMIT=${FINAL_MEMORY_USAGE_LIMIT:-80}
 MIN_CPU_SIZE=${MIN_CPU_SIZE:-2}
 MIN_MEMORY_SIZE=${MIN_MEMORY_SIZE:-2}
 # =============================================================================
+# 健康检查配置
+# =============================================================================
+CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT="${CONFIG_UPDATE_HEALTH_CHECK_TIMEOUT:-10}"
+CONFIG_UPDATE_HEALTH_CHECK_URL="http://localhost:9529/v1/ping"
+
+
+# 业务配置
+ACCOUNT_NAME="eu"
+GLOBAL_ENV="pre"
+GLOBAL_OPS_ENV="pre"
+GLOBAL_SYSTEM="system"
+
+
+# =============================================================================
 # main_install.sh 特定配置
 # =============================================================================
 # S3配置
 S3_REGION="${S3_REGION:-ap-southeast-1}"
 S3_ENDPOINT="${S3_ENDPOINT:-https://s3.ap-southeast-1.amazonaws.com}"
-S3_ACCESS_KEY="${S3_ACCESS_KEY:-xxxxxx}"
-S3_SECRET_KEY="AWS_SECRET_ACCESS_KEY_PLACEHOLDER"
+S3_ACCESS_KEY="__REPLACE_ME__"
+S3_SECRET_KEY="__REPLACE_ME__"
 S3_BUCKET="${S3_BUCKET:-benjamin--test}"
 S3_DATAKIT_DIR="${S3_DATAKIT_DIR:-datakit}"
 
@@ -53,12 +58,8 @@ S3_DATAKIT_DIR="${S3_DATAKIT_DIR:-datakit}"
 
 
 # 运维平台配置
-OPS_ADDR="${OPS_ADDR:-http://172.31.16.4:5000}"
+OPS_ADDR="__REPLACE_ME__"
 
 # Dataway配置
-DATAWAY_URL="${DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
-DATAWAY_FULL_URL="${DATAWAY_URL:-https://openway.guance.com?token=tkn_3a0052c9f6d3498c8ce9ca0988fd9c82}"
-
-
-# runtime地址
-RUNTIME_DIR="/var/log/datakit/runtime"
+DATAWAY_URL="__REPLACE_ME__"
+DATAWAY_FULL_URL="__REPLACE_ME__"

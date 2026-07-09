@@ -23,12 +23,8 @@ backup/
 
 # 配置文件（包含敏感信息）
 datakit-automation/config/env/*.sh
-datakit-automation/config/env/benjamin.sh
 datakit-automation/config/scripts/*.sh
-!datakit-automation/config/env/example.sh
-datakit-automation/config/env/ox.sh
-!datakit-automation/config/env/gray.sh
-!datakit-automation/config/env/prod.sh
+!datakit-automation/config/env/ox_tencent.sh
 !datakit-automation/config/scripts/*.sh
 datakit-automation/logs
 datakit-automation/runtime
