@@ -99,15 +99,21 @@ load_env_config() {
     if [[ -f "$env_config_file" ]]; then
         source "$env_config_file"
         log_info "已加载环境配置: $env_config_file"
+
+        local effective_env="${DATAKIT_ENV:-$env_name}"
+        local cloud_provider="${CLOUD_PROVIDER:-}"
+        if [[ "$effective_env" == "ox_tencent" || "$env_name" == "ox_tencent" ]]; then
+            cloud_provider="tencent"
+        fi
         
         # 设置全局标签
         set_global_state "ACCOUNT_NAME" "$ACCOUNT_NAME"
         set_global_state "GLOBAL_ENV" "$GLOBAL_ENV"
         set_global_state "GLOBAL_OPS_ENV" "$GLOBAL_OPS_ENV"
         set_global_state "GLOBAL_SYSTEM" "$GLOBAL_SYSTEM"
-        set_global_state "CLOUD_PROVIDER" "${CLOUD_PROVIDER:-}"
+        set_global_state "CLOUD_PROVIDER" "$cloud_provider"
 
-        log_info "已设置全局标签: ACCOUNT_NAME=$ACCOUNT_NAME, GLOBAL_ENV=$GLOBAL_ENV, GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV, GLOBAL_SYSTEM=$GLOBAL_SYSTEM, CLOUD_PROVIDER=${CLOUD_PROVIDER:-}"
+        log_info "已设置全局标签: ACCOUNT_NAME=$ACCOUNT_NAME, GLOBAL_ENV=$GLOBAL_ENV, GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV, GLOBAL_SYSTEM=$GLOBAL_SYSTEM, CLOUD_PROVIDER=$cloud_provider"
         # 更新环境状态
         if declare -F update_current_step >/dev/null; then
             update_current_step "加载环境配置: $env_name"

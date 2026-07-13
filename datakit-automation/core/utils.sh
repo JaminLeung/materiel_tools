@@ -34,6 +34,9 @@ set_global_env() {
     local ops_env=${GLOBAL_OPS_ENV:-"test"}
     local system=${GLOBAL_SYSTEM:-"system"}
     local cloud_provider=${CLOUD_PROVIDER:-""}
+    if [[ "${DATAKIT_ENV:-}" == "ox_tencent" ]]; then
+        cloud_provider="tencent"
+    fi
     
     # 打印日志
     echo "========= 参数接收开始 ========="
@@ -1617,4 +1620,3 @@ upload_log_to_dataway() {
         fi
     fi
 }
-
