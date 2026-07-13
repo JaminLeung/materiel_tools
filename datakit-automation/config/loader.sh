@@ -105,8 +105,9 @@ load_env_config() {
         set_global_state "GLOBAL_ENV" "$GLOBAL_ENV"
         set_global_state "GLOBAL_OPS_ENV" "$GLOBAL_OPS_ENV"
         set_global_state "GLOBAL_SYSTEM" "$GLOBAL_SYSTEM"
+        set_global_state "CLOUD_PROVIDER" "${CLOUD_PROVIDER:-}"
 
-        log_info "已设置全局标签: ACCOUNT_NAME=$ACCOUNT_NAME, GLOBAL_ENV=$GLOBAL_ENV, GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV, GLOBAL_SYSTEM=$GLOBAL_SYSTEM"
+        log_info "已设置全局标签: ACCOUNT_NAME=$ACCOUNT_NAME, GLOBAL_ENV=$GLOBAL_ENV, GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV, GLOBAL_SYSTEM=$GLOBAL_SYSTEM, CLOUD_PROVIDER=${CLOUD_PROVIDER:-}"
         # 更新环境状态
         if declare -F update_current_step >/dev/null; then
             update_current_step "加载环境配置: $env_name"
@@ -364,4 +365,4 @@ main() {
 # 如果直接执行此脚本
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     main "$@"
-fi 
+fi

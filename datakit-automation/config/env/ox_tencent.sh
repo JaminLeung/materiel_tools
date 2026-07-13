@@ -41,6 +41,7 @@ ACCOUNT_NAME="eu"
 GLOBAL_ENV="pre"
 GLOBAL_OPS_ENV="pre"
 GLOBAL_SYSTEM="system"
+CLOUD_PROVIDER="tencent"
 
 
 # =============================================================================

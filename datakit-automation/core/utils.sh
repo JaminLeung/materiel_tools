@@ -33,6 +33,7 @@ set_global_env() {
     local env=${GLOBAL_ENV:-"pre"}
     local ops_env=${GLOBAL_OPS_ENV:-"test"}
     local system=${GLOBAL_SYSTEM:-"system"}
+    local cloud_provider=${CLOUD_PROVIDER:-""}
     
     # 打印日志
     echo "========= 参数接收开始 ========="
@@ -40,6 +41,7 @@ set_global_env() {
     echo "Environment: $env"
     echo "Ops Environment: $ops_env"
     echo "System: $system"
+    echo "Cloud Provider: $cloud_provider"
     # echo "Deploy Version: $DEPLOY_VERSION"
     echo "========= 参数接收结束 ========="
 
@@ -48,12 +50,14 @@ set_global_env() {
     export GLOBAL_ENV="$env"
     export GLOBAL_OPS_ENV="$ops_env"
     export GLOBAL_SYSTEM="$system"
+    export CLOUD_PROVIDER="$cloud_provider"
 
     echo "已设置以下环境变量："
     echo "ACCOUNT_NAME=$ACCOUNT_NAME"
     echo "GLOBAL_ENV=$GLOBAL_ENV"
     echo "GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV"
     echo "GLOBAL_SYSTEM=$GLOBAL_SYSTEM"
+    echo "CLOUD_PROVIDER=$CLOUD_PROVIDER"
 }
 
 
@@ -1613,5 +1617,4 @@ upload_log_to_dataway() {
         fi
     fi
 }
-
 

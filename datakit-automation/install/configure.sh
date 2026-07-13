@@ -136,6 +136,13 @@ configure_datakit_main_config() {
     current_config=$(echo "$current_config" | jq ".global_host_tags.global_env = \"$global_env\"")
     log_info "设置GLOBAL_ENV标签: $global_env"
 
+    # 设置CLOUD_PROVIDER
+    local cloud_provider=$(get_global_state 'CLOUD_PROVIDER')
+    if [ -n "$cloud_provider" ]; then
+        current_config=$(echo "$current_config" | jq --arg cloud_provider "$cloud_provider" '.global_host_tags.cloud_provider = $cloud_provider')
+        log_info "设置CLOUD_PROVIDER标签: $cloud_provider"
+    fi
+
 
 
 
