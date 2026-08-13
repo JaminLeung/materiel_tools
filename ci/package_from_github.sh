@@ -15,6 +15,7 @@ USE_LOCAL_ENV_OVERLAY=true
 ALLOW_PLACEHOLDER_CONFIG=false
 GIT_PROXY="${GIT_PROXY:-}"
 GIT_HTTP_VERSION="${GIT_HTTP_VERSION:-HTTP/1.1}"
+USE_PARTIAL_CLONE="${USE_PARTIAL_CLONE:-false}"
 CURL_PROXY="${CURL_PROXY:-}"
 KEEP_WORK_DIR=false
 SPARSE_PATH="datakit-automation"
@@ -27,6 +28,7 @@ usage() {
 默认行为:
   - 从 GitHub 只拉取 JaminLeung/materiel_tools 的 dev_2.8.0 分支最新 HEAD
   - 使用 sparse checkout 只检出 datakit-automation 目录
+  - 默认不启用 partial clone，避免弱网络下 checkout 懒加载超时
   - 只保留 ox_tencent 环境配置
   - 如果本地存在 datakit-automation/config/env/ox_tencent.sh，则覆盖到临时克隆目录用于本地打包
   - 只在本地生成安装包，不提交、不 push
@@ -47,7 +49,7 @@ usage() {
 
 环境变量:
   GITHUB_REPO, GIT_BRANCH, BUILD_ENV, OUTPUT_DIR, WORK_DIR, LOCAL_ENV_FILE,
-  GIT_PROXY, GIT_HTTP_VERSION, CURL_PROXY
+  GIT_PROXY, GIT_HTTP_VERSION, USE_PARTIAL_CLONE, CURL_PROXY
 EOF
 }
 
@@ -308,6 +310,11 @@ checkout_latest_branch_head() {
     local branch="$2"
     local target_dir="$3"
     local sparse_path="$4"
+
+    if [[ "$USE_PARTIAL_CLONE" != "true" ]]; then
+        checkout_branch_head_once "$repo_url" "$branch" "$target_dir" "$sparse_path" false
+        return $?
+    fi
 
     if checkout_branch_head_once "$repo_url" "$branch" "$target_dir" "$sparse_path" true; then
         return 0
