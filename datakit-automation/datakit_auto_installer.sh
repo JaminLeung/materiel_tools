@@ -115,6 +115,13 @@ Datakit 版本 v$DATAKIT_VERSION
     --skip-ops-token-check
                           app-init 无法获取 OPS_TOKEN 时跳过业务配置同步，继续使用默认配置；
                           安装/重装时不下发 datakit 用户 OPS 定时任务
+    --enable-tail-sampling
+                          启用 DataKit 尾部采样配置，需同时配置 TAIL_SAMPLING_ENDPOINT
+                          或通过 --tail-sampling-endpoint 指定
+    --disable-tail-sampling
+                          禁用本次执行的 DataKit 尾部采样配置
+    --tail-sampling-endpoint <URL>
+                          指定尾部采样 Dataway proxy 地址
     --type <TYPE>         重装类型 (仅用于reinstall命令):
                           full - 完全重装，清理所有配置 (默认)
                           preserve - 保留配置重装，保留现有配置文件
@@ -157,6 +164,8 @@ Datakit 版本 v$DATAKIT_VERSION
     $INSTALLER_SCRIPT_NAME --type preserve reinstall   # 保留配置重装
     $INSTALLER_SCRIPT_NAME --skip-ops-token-check reinstall
                                                     # 缺少 OPS_TOKEN 时使用默认配置并关闭 datakit 用户 OPS 定时任务
+    $INSTALLER_SCRIPT_NAME --enable-tail-sampling --tail-sampling-endpoint http://tail-proxy-01.obs.internal:9528 reinstall
+                                                    # 启用 DataKit 尾部采样
 
     # 维护相关示例
     $INSTALLER_SCRIPT_NAME version-upgrade             # 版本升级
@@ -184,6 +193,8 @@ main() {
     local env_config_file=""
     local command=""
     local reinstall_type="full"  # 默认为完全重装
+    local tail_sampling_enable_override=""
+    local tail_sampling_endpoint_override=""
     local IS_OLD_VERSION=${IS_OLD_VERSION:-"false"}
     
     set_global_state "RELEASE_ID" "datakit_auto_installer_$(date +%Y%m%d_%H%M%S)"
@@ -238,6 +249,23 @@ main() {
                 export SKIP_OPS_TOKEN_CHECK=true
                 shift
                 ;;
+            --enable-tail-sampling)
+                tail_sampling_enable_override="true"
+                shift
+                ;;
+            --disable-tail-sampling)
+                tail_sampling_enable_override="false"
+                shift
+                ;;
+            --tail-sampling-endpoint)
+                if [[ -z "$2" || "$2" =~ ^- ]]; then
+                    echo "[ERROR] --tail-sampling-endpoint 参数需要一个值" >&2
+                    show_help
+                    exit 1
+                fi
+                tail_sampling_endpoint_override="$2"
+                shift 2
+                ;;
             existing-install|incremental-install|version-upgrade|config-update|reinstall|auto-install|setup-cron|app-init|health-check|clean-install)
                 command="$1"
                 shift
@@ -263,6 +291,12 @@ main() {
     load_module "loader" "$INSTALLER_SCRIPT_DIR/config/loader.sh"
     # 加载配置（自动检测环境变量或配置文件）
     load_all_configs "$DATAKIT_ENV"
+    if [ -n "$tail_sampling_enable_override" ]; then
+        set_global_state "TAIL_SAMPLING_ENABLE" "$tail_sampling_enable_override"
+    fi
+    if [ -n "$tail_sampling_endpoint_override" ]; then
+        set_global_state "TAIL_SAMPLING_ENDPOINT" "$tail_sampling_endpoint_override"
+    fi
     # echo "env_config_file: $env_config_file"
     # load_config "$env_config_file"
     

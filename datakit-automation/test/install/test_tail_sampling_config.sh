@@ -128,6 +128,12 @@ configure_datakit_tail_sampling
 test ! -d "$CONFIG_UPDATE_DATAKIT_CONF_DIR/aggr"
 
 set_global_state "TAIL_SAMPLING_ENABLE" "true"
+configure_datakit_tail_sampling >/dev/null 2>&1 && {
+    echo "expected tail sampling endpoint validation failure" >&2
+    exit 1
+}
+
+set_global_state "TAIL_SAMPLING_ENABLE" "true"
 set_global_state "TAIL_SAMPLING_ENDPOINT" "http://tail-proxy.example.internal:9528"
 set_global_state "TAIL_SAMPLING_RATE" "0.07"
 set_global_state "TAIL_SAMPLING_TTL" "2m"
