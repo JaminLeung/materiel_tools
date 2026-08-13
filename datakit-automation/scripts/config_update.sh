@@ -48,9 +48,10 @@ handle_tail_sampling_config() {
     tail_sampling_config=$(echo "$DATAKIT_CONFIG" | jq '.tail_sampling // empty' 2>/dev/null) || tail_sampling_config=""
 
     if [ -n "$tail_sampling_config" ] && [ "$tail_sampling_config" != "null" ]; then
-        local enable endpoint rate ttl group_key profile max_raw_body_size
+        local enable endpoint endpoints rate ttl group_key profile max_raw_body_size
         enable=$(echo "$tail_sampling_config" | jq -r '.enable // empty' 2>/dev/null)
         endpoint=$(echo "$tail_sampling_config" | jq -r '.endpoint // empty' 2>/dev/null)
+        endpoints=$(echo "$tail_sampling_config" | jq -c 'if (.endpoints? | type) == "array" and (.endpoints | length > 0) then .endpoints else empty end' 2>/dev/null)
         rate=$(echo "$tail_sampling_config" | jq -r '.rate // empty' 2>/dev/null)
         ttl=$(echo "$tail_sampling_config" | jq -r '.ttl // empty' 2>/dev/null)
         group_key=$(echo "$tail_sampling_config" | jq -r '.group_key // empty' 2>/dev/null)
@@ -58,7 +59,11 @@ handle_tail_sampling_config() {
         max_raw_body_size=$(echo "$tail_sampling_config" | jq -r '.max_raw_body_size // empty' 2>/dev/null)
 
         [ -n "$enable" ] && set_global_state "TAIL_SAMPLING_ENABLE" "$enable"
-        [ -n "$endpoint" ] && set_global_state "TAIL_SAMPLING_ENDPOINT" "$endpoint"
+        if [ -n "$endpoints" ]; then
+            set_global_state "TAIL_SAMPLING_ENDPOINT" "$endpoints"
+        elif [ -n "$endpoint" ]; then
+            set_global_state "TAIL_SAMPLING_ENDPOINT" "$endpoint"
+        fi
         [ -n "$rate" ] && set_global_state "TAIL_SAMPLING_RATE" "$rate"
         [ -n "$ttl" ] && set_global_state "TAIL_SAMPLING_TTL" "$ttl"
         [ -n "$group_key" ] && set_global_state "TAIL_SAMPLING_GROUP_KEY" "$group_key"

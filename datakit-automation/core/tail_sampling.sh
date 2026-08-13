@@ -19,10 +19,10 @@ tail_sampling_template_dir() {
     printf '%s/config/tail_sampling' "$project_root"
 }
 
-tail_sampling_build_endpoint() {
+tail_sampling_append_token() {
     local endpoint
     local token
-    endpoint="$(get_global_state 'TAIL_SAMPLING_ENDPOINT')"
+    endpoint="$1"
     token="$(get_global_state 'WORKSPACE_TOKEN')"
 
     [ -n "$endpoint" ] || return 1
@@ -34,6 +34,45 @@ tail_sampling_build_endpoint() {
     else
         printf '%s?token=%s' "$endpoint" "$token"
     fi
+}
+
+tail_sampling_trim() {
+    local value="$1"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s' "$value"
+}
+
+tail_sampling_lines_to_json() {
+    jq -Rsc 'split("\n") | map(select(length > 0)) | if length > 0 then . else error("empty endpoint list") end'
+}
+
+tail_sampling_build_endpoints_json() {
+    local endpoints
+    endpoints="$(get_global_state 'TAIL_SAMPLING_ENDPOINT')"
+
+    [ -n "$endpoints" ] || return 1
+
+    if [[ "$endpoints" =~ ^[[:space:]]*\[ ]]; then
+        printf '%s' "$endpoints" |
+            jq -r 'if type == "array" then .[] | tostring else error("TAIL_SAMPLING_ENDPOINT JSON value must be a list") end' |
+            while IFS= read -r endpoint; do
+                endpoint="$(tail_sampling_trim "$endpoint")"
+                [ -n "$endpoint" ] || continue
+                tail_sampling_append_token "$endpoint"
+                printf '\n'
+            done | tail_sampling_lines_to_json
+        return $?
+    fi
+
+    local endpoint
+    local IFS=','
+    for endpoint in $endpoints; do
+        endpoint="$(tail_sampling_trim "$endpoint")"
+        [ -n "$endpoint" ] || continue
+        tail_sampling_append_token "$endpoint"
+        printf '\n'
+    done | tail_sampling_lines_to_json
 }
 
 tail_sampling_write_file_if_changed() {
@@ -82,7 +121,7 @@ configure_datakit_tail_sampling() {
     local tail_template
     local otel_template
     local endpoint
-    local endpoint_with_token
+    local endpoints_json
     local ttl
     local group_key
     local rate
@@ -118,8 +157,8 @@ configure_datakit_tail_sampling() {
         return 1
     fi
 
-    endpoint_with_token="$(tail_sampling_build_endpoint)" || {
-        handle_error "CONFIG_ERROR" "尾部采样 endpoint 生成失败" "ERROR" "false"
+    endpoints_json="$(tail_sampling_build_endpoints_json)" || {
+        handle_error "CONFIG_ERROR" "尾部采样 endpoints 生成失败" "ERROR" "false"
         return 1
     }
 
@@ -154,7 +193,7 @@ configure_datakit_tail_sampling() {
 
     local updated_config
     updated_config="$current_config"
-    updated_config="$(echo "$updated_config" | jq --arg endpoint "$endpoint_with_token" '.aggregator.endpoints = [$endpoint]')"
+    updated_config="$(echo "$updated_config" | jq --argjson endpoints "$endpoints_json" '.aggregator.endpoints = $endpoints')"
     updated_config="$(echo "$updated_config" | jq '.aggregator.timeout = "0s"')"
     updated_config="$(echo "$updated_config" | jq --argjson max_raw_body_size "$max_raw_body_size" '.aggregator.max_raw_body_size = $max_raw_body_size')"
     updated_config="$(echo "$updated_config" | jq '.aggregator.use_local_config = true')"

@@ -154,4 +154,24 @@ grep -q 'data_ttl = "2m"' "$CONFIG_UPDATE_DATAKIT_CONF_DIR/aggr/tail-sampling.to
 grep -q 'rate = 0.07' "$CONFIG_UPDATE_DATAKIT_CONF_DIR/aggr/tail-sampling.toml"
 grep -q 'sampling_rate = 1.0' "$CONFIG_UPDATE_DATAKIT_CONF_DIR/opentelemetry/opentelemetry.conf"
 
+set_global_state "TAIL_SAMPLING_ENDPOINT" "http://tail-proxy-01.example.internal:9528, https://tail-proxy-02.example.internal:9528?token=custom-token"
+configure_datakit_tail_sampling
+
+read_toml_config "$CONFIG_UPDATE_DATAKIT_CONF" | jq -e '
+  .aggregator.endpoints == [
+    "http://tail-proxy-01.example.internal:9528?token=workspace-token",
+    "https://tail-proxy-02.example.internal:9528?token=custom-token"
+  ]
+' >/dev/null
+
+set_global_state "TAIL_SAMPLING_ENDPOINT" '["http://tail-proxy-03.example.internal:9528","https://tail-proxy-04.example.internal:9528?region=cn"]'
+configure_datakit_tail_sampling
+
+read_toml_config "$CONFIG_UPDATE_DATAKIT_CONF" | jq -e '
+  .aggregator.endpoints == [
+    "http://tail-proxy-03.example.internal:9528?token=workspace-token",
+    "https://tail-proxy-04.example.internal:9528?region=cn&token=workspace-token"
+  ]
+' >/dev/null
+
 echo "TAIL_SAMPLING_CONFIG_TEST_OK"

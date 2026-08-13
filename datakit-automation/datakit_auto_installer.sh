@@ -120,8 +120,8 @@ Datakit 版本 v$DATAKIT_VERSION
                           或通过 --tail-sampling-endpoint 指定
     --disable-tail-sampling
                           禁用本次执行的 DataKit 尾部采样配置
-    --tail-sampling-endpoint <URL>
-                          指定尾部采样 Dataway proxy 地址
+    --tail-sampling-endpoint <URL[,URL...]>
+                          指定尾部采样 Dataway proxy 地址，支持逗号分隔多个地址或 JSON 数组
     --type <TYPE>         重装类型 (仅用于reinstall命令):
                           full - 完全重装，清理所有配置 (默认)
                           preserve - 保留配置重装，保留现有配置文件
@@ -164,7 +164,7 @@ Datakit 版本 v$DATAKIT_VERSION
     $INSTALLER_SCRIPT_NAME --type preserve reinstall   # 保留配置重装
     $INSTALLER_SCRIPT_NAME --skip-ops-token-check reinstall
                                                     # 缺少 OPS_TOKEN 时使用默认配置并关闭 datakit 用户 OPS 定时任务
-    $INSTALLER_SCRIPT_NAME --enable-tail-sampling --tail-sampling-endpoint http://tail-proxy-01.obs.internal:9528 reinstall
+    $INSTALLER_SCRIPT_NAME --enable-tail-sampling --tail-sampling-endpoint 'http://tail-proxy-01.obs.internal:9528,http://tail-proxy-02.obs.internal:9528' reinstall
                                                     # 启用 DataKit 尾部采样
 
     # 维护相关示例
