@@ -24,7 +24,7 @@
 
 ```bash
 # 1. 设置环境变量
-export DATAKIT_VERSION=2.4.0
+export DATAKIT_VERSION=2.8.0
 export S3_BUCKET=your-bucket-name
 export S3_ACCESS_KEY=your-access-key
 export S3_SECRET_KEY=your-secret-key
@@ -128,7 +128,7 @@ vim config/env/my-config.sh
 
 | 变量名 | 必需 | 说明 | 示例 |
 |--------|------|------|------|
-| `DATAKIT_VERSION` | ✅ | Datakit版本 | `2.4.0` |
+| `DATAKIT_VERSION` | ✅ | Datakit版本 | `2.8.0` |
 | `S3_BUCKET` | ✅ | S3存储桶名称 | `my-bucket` |
 | `S3_ACCESS_KEY` | ✅ | S3访问密钥 | `AKIA...` |
 | `S3_SECRET_KEY` | ✅ | S3秘密密钥 | `secret...` |

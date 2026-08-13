@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 GITHUB_REPO="${GITHUB_REPO:-https://github.com/JaminLeung/materiel_tools.git}"
-GIT_BRANCH="${GIT_BRANCH:-benjamin_dev_2.4.0}"
+GIT_BRANCH="${GIT_BRANCH:-dev_2.8.0}"
 BUILD_ENV="${BUILD_ENV:-ox_tencent}"
 OUTPUT_DIR="${OUTPUT_DIR:-$SCRIPT_DIR}"
 WORK_DIR="${WORK_DIR:-}"
@@ -23,14 +23,14 @@ usage() {
   ./ci/package_from_github.sh [选项]
 
 默认行为:
-  - 从 GitHub 拉取 JaminLeung/materiel_tools 的 benjamin_dev_2.4.0 分支
+  - 从 GitHub 拉取 JaminLeung/materiel_tools 的 dev_2.8.0 分支
   - 只保留 ox_tencent 环境配置
   - 如果本地存在 datakit-automation/config/env/ox_tencent.sh，则覆盖到临时克隆目录用于本地打包
   - 只在本地生成安装包，不提交、不 push
 
 选项:
   --repo <URL>                Git 仓库地址
-  --branch <BRANCH>           Git 分支，默认 benjamin_dev_2.4.0
+  --branch <BRANCH>           Git 分支，默认 dev_2.8.0
   --env <ENV>                 环境名，默认 ox_tencent
   --output-dir <DIR>          输出目录，默认 ci
   --work-dir <DIR>            临时工作目录，默认 mktemp

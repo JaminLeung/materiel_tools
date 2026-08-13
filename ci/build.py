@@ -36,8 +36,8 @@ class DatakitBuilder:
         self.config = self.load_config()
         self.work_dir = Path.cwd()
         self.work_dir = Path.cwd()
-        self.datakit_version = "2.4.0"
-        self.installer_version = "1.0.15_2.4.0"
+        self.datakit_version = "2.8.0"
+        self.installer_version = "1.0.16_2.8.0"
         self.env = env
 
 
@@ -45,10 +45,10 @@ class DatakitBuilder:
         """加载构建配置"""
         if not os.path.exists(self.config_file):
             default_config = {
-                "git_repo": "https://gitea.pre-guance.houtai.io/luke.zhao/materiel_tools.git",
+                "git_repo": "https://github.com/JaminLeung/materiel_tools.git",
                 "datakit_version": self.datakit_version,
-                "installer_version": "1.0.15_2.4.0",
-                "git_branch": "benjamin_dev_2.4.0",
+                "installer_version": "1.0.16_2.8.0",
+                "git_branch": "dev_2.8.0",
                 "binary_urls": [
                     f"https://static.guance.com/datakit-v2/installer-linux-amd64-{self.datakit_version}",
                     f"https://static.guance.com/datakit-v2/datakit-apm-inject-linux-amd64-{self.datakit_version}.tar.gz",
