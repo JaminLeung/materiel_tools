@@ -14,8 +14,10 @@ LOCAL_ENV_FILE="${LOCAL_ENV_FILE:-}"
 USE_LOCAL_ENV_OVERLAY=true
 ALLOW_PLACEHOLDER_CONFIG=false
 GIT_PROXY="${GIT_PROXY:-}"
+GIT_HTTP_VERSION="${GIT_HTTP_VERSION:-HTTP/1.1}"
 CURL_PROXY="${CURL_PROXY:-}"
 KEEP_WORK_DIR=false
+SPARSE_PATH="datakit-automation"
 
 usage() {
     cat <<'EOF'
@@ -23,7 +25,8 @@ usage() {
   ./ci/package_from_github.sh [选项]
 
 默认行为:
-  - 从 GitHub 拉取 JaminLeung/materiel_tools 的 dev_2.8.0 分支
+  - 从 GitHub 只拉取 JaminLeung/materiel_tools 的 dev_2.8.0 分支最新 HEAD
+  - 使用 sparse checkout 只检出 datakit-automation 目录
   - 只保留 ox_tencent 环境配置
   - 如果本地存在 datakit-automation/config/env/ox_tencent.sh，则覆盖到临时克隆目录用于本地打包
   - 只在本地生成安装包，不提交、不 push
@@ -44,7 +47,7 @@ usage() {
 
 环境变量:
   GITHUB_REPO, GIT_BRANCH, BUILD_ENV, OUTPUT_DIR, WORK_DIR, LOCAL_ENV_FILE,
-  GIT_PROXY, CURL_PROXY
+  GIT_PROXY, GIT_HTTP_VERSION, CURL_PROXY
 EOF
 }
 
@@ -271,14 +274,57 @@ sha256_of_file() {
     fi
 }
 
+checkout_branch_head_once() {
+    local repo_url="$1"
+    local branch="$2"
+    local target_dir="$3"
+    local sparse_path="$4"
+    local use_partial_clone="$5"
+
+    rm -rf "$target_dir"
+    mkdir -p "$target_dir" || return 1
+
+    "${git_cmd[@]}" -C "$target_dir" init -q || return 1
+    "${git_cmd[@]}" -C "$target_dir" remote add origin "$repo_url" || return 1
+    "${git_cmd[@]}" -C "$target_dir" config core.sparseCheckout true || return 1
+    if [[ -n "$GIT_HTTP_VERSION" ]]; then
+        "${git_cmd[@]}" -C "$target_dir" config http.version "$GIT_HTTP_VERSION" || return 1
+    fi
+
+    mkdir -p "$target_dir/.git/info" || return 1
+    printf '/%s/\n' "$sparse_path" > "$target_dir/.git/info/sparse-checkout" || return 1
+
+    if [[ "$use_partial_clone" == "true" ]]; then
+        "${git_cmd[@]}" -C "$target_dir" fetch --depth 1 --filter=blob:none --no-tags origin "refs/heads/${branch}" || return 1
+    else
+        "${git_cmd[@]}" -C "$target_dir" fetch --depth 1 --no-tags origin "refs/heads/${branch}" || return 1
+    fi
+
+    "${git_cmd[@]}" -C "$target_dir" checkout -q FETCH_HEAD || return 1
+}
+
+checkout_latest_branch_head() {
+    local repo_url="$1"
+    local branch="$2"
+    local target_dir="$3"
+    local sparse_path="$4"
+
+    if checkout_branch_head_once "$repo_url" "$branch" "$target_dir" "$sparse_path" true; then
+        return 0
+    fi
+
+    warn "partial sparse checkout 失败，退回普通 shallow sparse checkout"
+    checkout_branch_head_once "$repo_url" "$branch" "$target_dir" "$sparse_path" false
+}
+
 DATKIT_VERSION="$(json_value datakit_version)"
 INSTALLER_VERSION="$(json_value installer_version)"
 PACKAGE_NAME="$(json_value package_name)"
 FINAL_PACKAGE_NAME="$(json_value final_package_name)"
 
 CLONE_DIR="$WORK_DIR/materiel_tools"
-log "从 GitHub 拉取代码: repo=$GITHUB_REPO branch=$GIT_BRANCH"
-"${git_cmd[@]}" clone --depth 1 -b "$GIT_BRANCH" "$GITHUB_REPO" "$CLONE_DIR"
+log "从 GitHub 拉取最新 HEAD: repo=$GITHUB_REPO branch=$GIT_BRANCH path=$SPARSE_PATH"
+checkout_latest_branch_head "$GITHUB_REPO" "$GIT_BRANCH" "$CLONE_DIR" "$SPARSE_PATH"
 GITHUB_COMMIT="$(git -C "$CLONE_DIR" rev-parse HEAD)"
 log "GitHub 代码版本: $GITHUB_COMMIT"
 
