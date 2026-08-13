@@ -1,0 +1,6 @@
+# Empty metric aggregation config for tracing tail sampling deployments.
+# Keep this file present when [aggregator].use_local_config is enabled.
+
+default_window = "15s"
+action = ""
+delete_rules_point = false

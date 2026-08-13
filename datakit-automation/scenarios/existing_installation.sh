@@ -17,6 +17,7 @@ load_module "loader" "$SCENARIO_PROJECT_ROOT/config/loader.sh"
 
 load_module "utils" "$SCENARIO_PROJECT_ROOT/core/utils.sh"
 load_module "validation" "$SCENARIO_PROJECT_ROOT/core/validation.sh"
+load_module "tail_sampling" "$SCENARIO_PROJECT_ROOT/core/tail_sampling.sh"
 load_module "datakit_service" "$SCENARIO_PROJECT_ROOT/core/datakit_service.sh"
 # config_api.sh的功能已合并到utils.sh中
 
@@ -232,4 +233,4 @@ execute_existing_installation() {
     
 #     # 执行存量安装场景
 #     execute_existing_installation
-# fi 
+# fi

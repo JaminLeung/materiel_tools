@@ -815,6 +815,7 @@ get_ops_config() {
             local global_tags=$(echo "$response_data" | jq -r '.global_tags.global_source // empty' 2>/dev/null)
             local dataway_url=$(echo "$response_data" | jq -r '.dataway_url // empty' 2>/dev/null)
             local workspace_token=$(echo "$response_data" | jq -r '.workspace_token // empty' 2>/dev/null)
+            local tail_sampling_config=$(echo "$response_data" | jq '.tail_sampling // empty' 2>/dev/null)
             
             # 验证必需字段
             if [ -n "$env" ]  && [ -n "$workspace_token" ]; then
@@ -831,12 +832,18 @@ get_ops_config() {
                 local datakit_config=$(echo "$response_data" | jq '.datakit_config // empty' 2>/dev/null)
                 if [ -n "$datakit_config" ] && [ "$datakit_config" != "null" ]; then
                     # 设置Datakit配置到全局状态
+                    if [ -n "$tail_sampling_config" ] && [ "$tail_sampling_config" != "null" ]; then
+                        datakit_config=$(echo "$datakit_config" | jq --argjson tail_sampling "$tail_sampling_config" '.tail_sampling = $tail_sampling')
+                    fi
                     set_global_state "DATAKIT_CONFIG" "$datakit_config"
                     log_info "获取Datakit配置成功"
                 else
                     record_error "CONFIG_ERROR" "响应中未包含Datakit配置，使用默认配置" "WARNING"
                     # 设置默认Datakit配置
                     local default_datakit_config='{"enable": true, "global_config": [], "input_config": []}'
+                    if [ -n "$tail_sampling_config" ] && [ "$tail_sampling_config" != "null" ]; then
+                        default_datakit_config=$(echo "$default_datakit_config" | jq --argjson tail_sampling "$tail_sampling_config" '.tail_sampling = $tail_sampling')
+                    fi
                     set_global_state "DATAKIT_CONFIG" "$default_datakit_config"
                 fi
                 

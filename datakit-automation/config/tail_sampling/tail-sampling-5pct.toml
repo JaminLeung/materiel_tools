@@ -1,0 +1,37 @@
+# 5% normal tracing tail sampling profile.
+# Increase version whenever any rule changes.
+version = 2026080705
+
+[trace]
+data_ttl = "1m"
+group_key = "trace_id"
+
+[[trace.sampling_pipeline]]
+name = "keep-technical-or-business-error"
+type = "condition"
+condition = '{ status = "error" OR http_status_code MATCH ["^[45][0-9][0-9]$"] OR body_code NOTIN ["0", "200", null] }'
+action = "keep"
+
+[[trace.sampling_pipeline]]
+name = "keep-root-slow-over-1s"
+type = "condition"
+condition = '{ parent_id = "0" AND duration > 1000000 }'
+action = "keep"
+
+[[trace.sampling_pipeline]]
+name = "keep-nonroot-slow-over-500ms"
+type = "condition"
+condition = '{ parent_id != "0" AND duration > 500000 }'
+action = "keep"
+
+[[trace.sampling_pipeline]]
+name = "keep-trace-flag"
+type = "condition"
+condition = '{ trace_keep = true }'
+action = "keep"
+
+[[trace.sampling_pipeline]]
+name = "sample-normal-by-trace-id-5pct"
+type = "probabilistic"
+condition = '{ 1 = 1 }'
+rate = 0.05

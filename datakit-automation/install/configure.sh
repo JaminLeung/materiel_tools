@@ -55,6 +55,13 @@ configure_and_verify() {
         
         return 1
     fi
+
+    # 配置 DataKit 尾部采样
+    if ! configure_datakit_tail_sampling; then
+        handle_error "CONFIG_ERROR" "配置 DataKit 尾部采样失败" "ERROR" "false"
+
+        return 1
+    fi
     
     # 重新给datakit用户授权
     set_directory_permissions

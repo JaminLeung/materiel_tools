@@ -112,6 +112,16 @@ load_env_config() {
         set_global_state "GLOBAL_OPS_ENV" "$GLOBAL_OPS_ENV"
         set_global_state "GLOBAL_SYSTEM" "$GLOBAL_SYSTEM"
         set_global_state "CLOUD_PROVIDER" "$cloud_provider"
+        set_global_state "TAIL_SAMPLING_ENABLE" "${TAIL_SAMPLING_ENABLE:-false}"
+        set_global_state "TAIL_SAMPLING_ENDPOINT" "${TAIL_SAMPLING_ENDPOINT:-}"
+        set_global_state "TAIL_SAMPLING_RATE" "${TAIL_SAMPLING_RATE:-0.05}"
+        set_global_state "TAIL_SAMPLING_TTL" "${TAIL_SAMPLING_TTL:-1m}"
+        set_global_state "TAIL_SAMPLING_GROUP_KEY" "${TAIL_SAMPLING_GROUP_KEY:-trace_id}"
+        set_global_state "TAIL_SAMPLING_PROFILE" "${TAIL_SAMPLING_PROFILE:-5pct}"
+        set_global_state "TAIL_SAMPLING_MAX_RAW_BODY_SIZE" "${TAIL_SAMPLING_MAX_RAW_BODY_SIZE:-1048576}"
+        set_global_state "TAIL_SAMPLING_LOCAL_CONFIG_DIR" "${TAIL_SAMPLING_LOCAL_CONFIG_DIR:-/usr/local/datakit/conf.d/aggr}"
+        set_global_state "TAIL_SAMPLING_METRIC_CONFIG_FILE" "${TAIL_SAMPLING_METRIC_CONFIG_FILE:-aggr.toml}"
+        set_global_state "TAIL_SAMPLING_CONFIG_FILE" "${TAIL_SAMPLING_CONFIG_FILE:-tail-sampling.toml}"
 
         log_info "已设置全局标签: ACCOUNT_NAME=$ACCOUNT_NAME, GLOBAL_ENV=$GLOBAL_ENV, GLOBAL_OPS_ENV=$GLOBAL_OPS_ENV, GLOBAL_SYSTEM=$GLOBAL_SYSTEM, CLOUD_PROVIDER=$cloud_provider"
         # 更新环境状态

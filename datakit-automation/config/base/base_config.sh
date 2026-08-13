@@ -68,6 +68,20 @@ DATAWAY_LOG_BATCH_SIZE="${DATAWAY_LOG_BATCH_SIZE:-10}"
 DATAWAY_LOG_TIMEOUT="${DATAWAY_LOG_TIMEOUT:-30}"
 
 # =============================================================================
+# Tail sampling configuration
+# =============================================================================
+TAIL_SAMPLING_ENABLE="${TAIL_SAMPLING_ENABLE:-false}"
+TAIL_SAMPLING_ENDPOINT="${TAIL_SAMPLING_ENDPOINT:-}"
+TAIL_SAMPLING_RATE="${TAIL_SAMPLING_RATE:-0.05}"
+TAIL_SAMPLING_TTL="${TAIL_SAMPLING_TTL:-1m}"
+TAIL_SAMPLING_GROUP_KEY="${TAIL_SAMPLING_GROUP_KEY:-trace_id}"
+TAIL_SAMPLING_PROFILE="${TAIL_SAMPLING_PROFILE:-5pct}"
+TAIL_SAMPLING_MAX_RAW_BODY_SIZE="${TAIL_SAMPLING_MAX_RAW_BODY_SIZE:-1048576}"
+TAIL_SAMPLING_LOCAL_CONFIG_DIR="${TAIL_SAMPLING_LOCAL_CONFIG_DIR:-/usr/local/datakit/conf.d/aggr}"
+TAIL_SAMPLING_METRIC_CONFIG_FILE="${TAIL_SAMPLING_METRIC_CONFIG_FILE:-aggr.toml}"
+TAIL_SAMPLING_CONFIG_FILE="${TAIL_SAMPLING_CONFIG_FILE:-tail-sampling.toml}"
+
+# =============================================================================
 # Runtime目录配置
 # =============================================================================
 # RUNTIME_DIR="${RUNTIME_DIR:-$PROJECT_ROOT/runtime}"
